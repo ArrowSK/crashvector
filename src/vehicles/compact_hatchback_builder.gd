@@ -55,6 +55,28 @@ static func station_nodes(station: int) -> PackedInt32Array:
 		node_index(station, 3),
 	])
 
+static func front_contact_nodes(reverse_transverse: bool = false) -> PackedInt32Array:
+	if reverse_transverse:
+		return PackedInt32Array([
+			node_index(FRONT_STATION, 1),
+			node_index(FRONT_STATION, 0),
+		])
+	return PackedInt32Array([
+		node_index(FRONT_STATION, 0),
+		node_index(FRONT_STATION, 1),
+	])
+
+static func rear_contact_nodes(reverse_transverse: bool = false) -> PackedInt32Array:
+	if reverse_transverse:
+		return PackedInt32Array([
+			node_index(REAR_STATION, 1),
+			node_index(REAR_STATION, 0),
+		])
+	return PackedInt32Array([
+		node_index(REAR_STATION, 0),
+		node_index(REAR_STATION, 1),
+	])
+
 static func rear_reference_nodes() -> PackedInt32Array:
 	return station_nodes(REAR_AXLE_STATION)
 
