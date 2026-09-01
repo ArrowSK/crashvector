@@ -34,3 +34,6 @@ jobs:
 
       - name: Run M4 scenario-editor tests
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m4_scenario_editor.gd
+
+      - name: Run M5 analysis and replay tests
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m5_analysis_replay.gd
