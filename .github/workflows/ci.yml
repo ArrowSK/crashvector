@@ -22,3 +22,6 @@ jobs:
 
       - name: Run M1 structural tests
         run: godot --headless --path . --script res://tests/m1_structural.gd
+
+      - name: Run M2 compact-hatchback tests
+        run: godot --headless --path . --script res://tests/m2_hatchback.gd

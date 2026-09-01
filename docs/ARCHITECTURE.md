@@ -1,48 +1,68 @@
 # Architecture
 
-## M0 baseline
+## M0 and M1 foundation
 
-The first milestone separated application concerns from physics metrics:
+CrashVector separates deterministic physics state from rendering and UI.
 
 - `src/analysis/physics_metrics.gd` contains side-effect-free SI-unit calculations.
-- `src/vehicles/impact_vehicle.gd` owns the original rigid test vehicle's state and initial conditions.
-- `src/simulation/telemetry_recorder.gd` samples rigid-body physics state on fixed ticks for later replay/analysis work.
-- `tests/m0_smoke.gd` preserves the reference conversions and scene-load regression.
+- `src/vehicles/impact_vehicle.gd` remains the original M0 rigid-body baseline.
+- `src/structural/structural_node.gd` defines lumped structural masses.
+- `src/structural/structural_beam.gd` implements elastic, damping, plastic, and fracture behaviour.
+- `src/structural/structural_model.gd` advances the structural graph and records energy/contact diagnostics.
+- `src/structural/structural_sled_builder.gd` and `structural_sled.gd` remain the M1 development proof.
 
-The M0 rigid-body code remains in the repository as a global-dynamics baseline.
+## M2 vehicle composition
 
-## M1 structural subsystem
+M2 introduces a full generic compact-hatchback architecture without pretending to be an OEM vehicle model.
 
-M1 adds an independent deterministic structural proof-of-concept:
+### Structural definition
 
-- `src/structural/structural_node.gd` — lumped point mass and integration state.
-- `src/structural/structural_beam.gd` — axial elastic/damping response, plastic rest-length evolution, and fracture state.
-- `src/structural/structural_model.gd` — fixed-substep graph advancement, rigid-plane contact, structural metrics, and energy bookkeeping.
-- `src/structural/structural_sled_builder.gd` — development-only 20-node compact-hatchback-like frame with front-crush, transition, and cabin profiles.
-- `src/structural/structural_sled.gd` — Godot debug visualisation of nodes and beams.
-- `src/demo/crash_demo.gd` — M1 barrier-impact demonstration and live diagnostics.
-- `tests/m1_structural.gd` — plasticity, fracture, impact, finite-state, and deterministic-state tests.
+`CompactHatchbackBuilder` creates seven longitudinal stations and four structural nodes per station. The stations define a hatchback-like envelope and distribute the configured vehicle mass across the structure.
 
-The structural solver intentionally uses no randomness. Identical inputs, Godot version, and solver settings must produce identical recorded state within documented floating-point tolerance.
+Beams are grouped into four behaviour zones:
 
-## Hybrid vehicle direction
+- `rear_crush` — sacrificial rear structure;
+- `safety_cell` — deliberately stiff passenger compartment;
+- `front_transition` — intermediate load path between cabin and nose;
+- `front_crush` — sacrificial front structure.
 
-M1 intentionally runs the structural graph as a standalone deformable sled so that its numerical behaviour can be debugged without hiding errors behind rigid-body collision response.
+These profiles are development parameters, not material cards derived from a production car.
 
-The production direction remains hybrid:
+### Global motion extraction
 
-1. Jolt/Godot rigid-body state provides global vehicle translation, rotation, world contacts, wheels, detached parts, and environmental collision.
-2. The CrashVector structural graph resolves local crush, yielding, permanent deformation, and member failure.
-3. Contact impulses and deformation state are exchanged between the global and structural representations.
-4. A visual deformation layer maps structural displacement onto the rendered vehicle shell.
-5. Replay records both global and structural state rather than rerunning the crash.
+The structural node graph remains the authoritative physical state. `VehicleKinematics` derives whole-vehicle quantities from that state:
 
-M2 begins this integration while building the first generic compact-hatchback architecture.
+- mass-weighted centre-of-mass translation;
+- total linear momentum;
+- an approximate rigid angular velocity from nodal angular momentum and a scalar inertia approximation;
+- translational and rotational kinetic-energy components;
+- residual internal/deformation kinetic energy;
+- a live reference transform from front/rear and left/right structural node groups.
+
+This prevents the rendering layer from inventing a second, conflicting vehicle trajectory while still giving later systems a stable whole-vehicle reference frame.
+
+### Exterior deformation mapping
+
+`DeformableBodyShell` generates a procedural surface from the live structural station nodes. Side, roof/bonnet/hatch, underbody, front, and rear surfaces are rebuilt from the current structural positions.
+
+The M2 shell is intentionally low-resolution. It proves that visible body geometry can be driven directly by the structural solution. Production body-panel topology, skinning weights, glass, seams, doors, and local buckling remain later work.
+
+### Wheels and suspension
+
+`SimpleWheelRig` creates four wheel visuals anchored to the lower structural nodes at representative front and rear axle stations. It applies a small spring-like visual following response and a ground clamp to expose suspension travel in the prototype.
+
+This is not yet a tyre-force or suspension-dynamics solver. M2 establishes attachment and deformation-following architecture only.
+
+### Detachable components
+
+`CompactHatchback` contains a front-bumper visual that remains attached to the front structure until front-crush damage exceeds a configured development threshold. It then transitions to simple ballistic motion.
+
+This establishes the state transition required for later detachable panels without treating the current bumper motion as calibrated crash behaviour.
+
+## Determinism
+
+For identical scenario inputs, engine version, fixed timestep, and solver settings, the structural state must remain deterministic within regression tolerances. M2 extends determinism tests to the complete generic hatchback model.
 
 ## Units
 
-All internal calculations use SI units: metres, seconds, kilograms, newtons, joules, and radians. Conversion to km/h or other display units belongs at the UI/analysis boundary.
-
-## Development rule
-
-The primitive M0 box and the M1 wireframe sled are diagnostic assets. Neither is a production vehicle model and neither should be cosmetically polished in place of solver validation.
+All internal calculations use SI units: metres, seconds, kilograms, newtons, joules, and radians. Display conversions belong at the UI/analysis boundary.
