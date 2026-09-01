@@ -26,11 +26,17 @@ func configure(
 ) -> void:
 	vehicle_model = car
 	truck_model = truck
-	vehicle_contact_nodes = car_contact_nodes
-	truck_contact_nodes = truck_rear_contact_nodes
+	vehicle_contact_nodes = car_contact_nodes.duplicate()
 	contact_normal = normal.normalized()
 	if contact_normal.is_zero_approx():
 		contact_normal = Vector3.RIGHT
+	truck_contact_nodes = _best_transverse_pair_order(
+		vehicle_model,
+		vehicle_contact_nodes,
+		truck_model,
+		truck_rear_contact_nodes,
+		contact_normal
+	)
 	vehicle_model.barrier_enabled = false
 	truck_model.barrier_enabled = false
 	initial_energy_j = vehicle_model.initial_energy_j + truck_model.initial_energy_j
@@ -77,3 +83,38 @@ func energy_balance_relative_error() -> float:
 	if initial_energy_j <= 0.0:
 		return 0.0
 	return absf(initial_energy_j - accounted_energy_j()) / initial_energy_j
+
+func _best_transverse_pair_order(
+	model_a: StructuralModel,
+	indices_a: PackedInt32Array,
+	model_b: StructuralModel,
+	indices_b: PackedInt32Array,
+	normal: Vector3
+) -> PackedInt32Array:
+	var result := indices_b.duplicate()
+	if indices_a.size() != 2 or indices_b.size() != 2:
+		return result
+	if not _valid_index(model_a, indices_a[0]) or not _valid_index(model_a, indices_a[1]):
+		return result
+	if not _valid_index(model_b, indices_b[0]) or not _valid_index(model_b, indices_b[1]):
+		return result
+	var direct_score := (
+		_transverse_distance_squared(model_a.nodes[indices_a[0]].position_m, model_b.nodes[indices_b[0]].position_m, normal)
+		+ _transverse_distance_squared(model_a.nodes[indices_a[1]].position_m, model_b.nodes[indices_b[1]].position_m, normal)
+	)
+	var reversed_score := (
+		_transverse_distance_squared(model_a.nodes[indices_a[0]].position_m, model_b.nodes[indices_b[1]].position_m, normal)
+		+ _transverse_distance_squared(model_a.nodes[indices_a[1]].position_m, model_b.nodes[indices_b[0]].position_m, normal)
+	)
+	if reversed_score + 0.000001 < direct_score:
+		result[0] = indices_b[1]
+		result[1] = indices_b[0]
+	return result
+
+func _transverse_distance_squared(a: Vector3, b: Vector3, normal: Vector3) -> float:
+	var delta := b - a
+	var tangent := delta - normal * delta.dot(normal)
+	return tangent.length_squared()
+
+func _valid_index(model: StructuralModel, index: int) -> bool:
+	return model != null and index >= 0 and index < model.nodes.size()
