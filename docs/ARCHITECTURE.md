@@ -1,68 +1,42 @@
 # Architecture
 
-## M0 and M1 foundation
+## Layering
 
-CrashVector separates deterministic physics state from rendering and UI.
+CrashVector deliberately separates structural mechanics, whole-vehicle kinematics, rendering and scenario orchestration.
 
-- `src/analysis/physics_metrics.gd` contains side-effect-free SI-unit calculations.
-- `src/vehicles/impact_vehicle.gd` remains the original M0 rigid-body baseline.
-- `src/structural/structural_node.gd` defines lumped structural masses.
-- `src/structural/structural_beam.gd` implements elastic, damping, plastic, and fracture behaviour.
-- `src/structural/structural_model.gd` advances the structural graph and records energy/contact diagnostics.
-- `src/structural/structural_sled_builder.gd` and `structural_sled.gd` remain the M1 development proof.
+### Structural layer
 
-## M2 vehicle composition
+- `StructuralNode` — lumped mass, position, velocity and accumulated force.
+- `StructuralBeam` — axial spring/damper response, plastic flow and fracture.
+- `StructuralModel` — fixed-substep graph integration and energy/contact diagnostics.
 
-M2 introduces a full generic compact-hatchback architecture without pretending to be an OEM vehicle model.
+### Passenger-car layer
 
-### Structural definition
+- `PassengerCarCatalog` defines generic B-, C- and D-segment development presets without production-model branding.
+- `PassengerCarBuilder` scales the M2 28-node architecture by preset dimensions, mass and stiffness.
+- `CompactHatchback` remains the compatibility vehicle node from M2, but can now instantiate any catalog preset.
+- `DeformableBodyShell`, `SimpleWheelRig` and `StructuralDebugRenderer` map structural state into the visible car.
 
-`CompactHatchbackBuilder` creates seven longitudinal stations and four structural nodes per station. The stations define a hatchback-like envelope and distribute the configured vehicle mass across the structure.
+### Heavy-truck layer
 
-Beams are grouped into four behaviour zones:
+- `HeavyTruckBuilder` creates a 32-node tractor/trailer structural approximation with trailer, tractor, chassis, fifth-wheel and rear-underride roles.
+- `HeavyTruck` owns the truck model and low-resolution procedural visuals.
 
-- `rear_crush` — sacrificial rear structure;
-- `safety_cell` — deliberately stiff passenger compartment;
-- `front_transition` — intermediate load path between cabin and nose;
-- `front_crush` — sacrificial front structure.
+### Coupled collision layer
 
-These profiles are development parameters, not material cards derived from a production car.
+- `VehiclePairContact` resolves paired node contacts with equal-and-opposite impulses.
+- `VehiclePairSimulation` advances the car and truck on a common substep clock, applies contact after each structural substep and tracks system momentum/energy diagnostics.
 
-### Global motion extraction
-
-The structural node graph remains the authoritative physical state. `VehicleKinematics` derives whole-vehicle quantities from that state:
-
-- mass-weighted centre-of-mass translation;
-- total linear momentum;
-- an approximate rigid angular velocity from nodal angular momentum and a scalar inertia approximation;
-- translational and rotational kinetic-energy components;
-- residual internal/deformation kinetic energy;
-- a live reference transform from front/rear and left/right structural node groups.
-
-This prevents the rendering layer from inventing a second, conflicting vehicle trajectory while still giving later systems a stable whole-vehicle reference frame.
-
-### Exterior deformation mapping
-
-`DeformableBodyShell` generates a procedural surface from the live structural station nodes. Side, roof/bonnet/hatch, underbody, front, and rear surfaces are rebuilt from the current structural positions.
-
-The M2 shell is intentionally low-resolution. It proves that visible body geometry can be driven directly by the structural solution. Production body-panel topology, skinning weights, glass, seams, doors, and local buckling remain later work.
-
-### Wheels and suspension
-
-`SimpleWheelRig` creates four wheel visuals anchored to the lower structural nodes at representative front and rear axle stations. It applies a small spring-like visual following response and a ground clamp to expose suspension travel in the prototype.
-
-This is not yet a tyre-force or suspension-dynamics solver. M2 establishes attachment and deformation-following architecture only.
-
-### Detachable components
-
-`CompactHatchback` contains a front-bumper visual that remains attached to the front structure until front-crush damage exceeds a configured development threshold. It then transitions to simple ballistic motion.
-
-This establishes the state transition required for later detachable panels without treating the current bumper motion as calibrated crash behaviour.
+The M3 rear-impact model intentionally contacts the lower front car nodes against the truck's rear-underride nodes. This makes underride geometry an explicit part of the structural scenario instead of replacing the truck with an immovable wall.
 
 ## Determinism
 
-For identical scenario inputs, engine version, fixed timestep, and solver settings, the structural state must remain deterministic within regression tolerances. M2 extends determinism tests to the complete generic hatchback model.
+Identical scenario inputs, engine version and solver configuration are expected to produce identical state within regression tolerance. CI covers the deterministic structural baseline and coupled-contact invariants.
 
 ## Units
 
-All internal calculations use SI units: metres, seconds, kilograms, newtons, joules, and radians. Display conversions belong at the UI/analysis boundary.
+Internal calculations use SI units: metres, seconds, kilograms, newtons, joules and radians. Display conversion belongs at the UI/analysis boundary.
+
+## Scope boundary
+
+M3 is still an educational development model. Generic car classes are representative categories rather than specific production vehicles. The heavy truck is a simplified deformable tractor/trailer graph and does not yet include a true articulated multibody fifth-wheel joint, tyre-force model or suspension-force model.

@@ -2,68 +2,41 @@
 
 CrashVector is an educational simulator. Numerical outputs must be labelled according to the confidence of the underlying model and must not be presented as certified accident reconstruction or occupant-injury prediction.
 
-## Reference quantities
+## Passenger-car presets
 
-For mass `m` and velocity vector `v`:
+M3 introduces generic B-, C- and D-segment passenger-car presets. The classes vary representative mass, structural length/width scaling and stiffness scaling. These parameters are development assumptions, not manufacturer data and not homologation models.
 
-- translational kinetic energy: `0.5 * m * |v|^2`;
-- linear momentum: `m * v`;
-- km/h to m/s: divide by `3.6`.
+## Coupled car/truck contact
 
-The regression reference uses a 1,150 kg body at 140 km/h:
+The M3 coupled-contact solver uses paired structural nodes at the car front and truck rear underride structure. For an active contact pair it:
 
-- 38.8888889 m/s;
-- 869,598.765 J kinetic energy;
-- 44,722.222 kg·m/s momentum magnitude.
+1. detects normal penetration and verifies transverse proximity;
+2. measures relative closing speed along the contact normal;
+3. computes an impulse from the two nodal inverse masses and configured restitution;
+4. applies equal-and-opposite velocity changes;
+5. performs mass-weighted positional correction for residual penetration;
+6. records kinetic-energy loss attributed to contact.
 
-## Structural response
-
-The node/beam solver is a lumped-mass educational model. Each beam has:
-
-- axial stiffness;
-- axial damping;
-- elastic strain;
-- yield strain;
-- plastic rest-length evolution;
-- maximum plastic strain;
-- fracture strain.
-
-This provides progressive permanent crush and member failure without claiming continuum finite-element fidelity.
-
-## M2 structural zones
-
-The generic hatchback separates structure into deliberately different development profiles:
-
-- rear crush zone;
-- passenger safety cell;
-- front transition zone;
-- front crush zone.
-
-The safety-cell beam stiffness is intentionally higher and its allowable plastic deformation lower than the front crush zone. This encodes the design principle that sacrificial structures should absorb deformation before the passenger compartment, but the numerical values are not sourced from any production vehicle.
-
-## Global versus internal motion
-
-Because the structural graph is the authoritative state, M2 extracts global vehicle motion from the nodes rather than adding a second independent rigid-body trajectory.
-
-Whole-vehicle linear velocity is the mass-weighted average nodal velocity. Approximate angular velocity is derived from nodal angular momentum about the centre of mass using a scalar inertia approximation. The remaining nodal kinetic energy after translation and approximate rotation is reported as internal/deformation motion.
-
-This decomposition is diagnostic. It is not a six-degree-of-freedom rigid-body replacement and will be refined as the vehicle model develops.
+Because the impulse applied to the two nodes is equal and opposite, system linear momentum is conserved apart from floating-point tolerance. The structural beams then transmit those local changes through each vehicle.
 
 ## Energy bookkeeping
 
-The solver tracks:
+For a coupled scenario the diagnostic accounting is the sum of:
 
-- current nodal kinetic energy;
-- elastic beam energy;
-- accumulated plastic work;
-- accumulated damping loss;
-- fracture energy at member failure;
-- rigid-barrier contact dissipation.
+- car kinetic and elastic energy;
+- truck kinetic and elastic energy;
+- plastic work;
+- damping loss;
+- fracture energy;
+- any per-model barrier-contact loss;
+- car/truck pair-contact dissipation.
 
-The energy-balance diagnostic compares those tracked terms against the captured initial energy. It is primarily a regression/debugging signal. Large residuals indicate numerical or accounting problems even if the animation appears plausible.
+The current bookkeeping remains a diagnostic rather than a validated thermodynamic partition. It is intended to expose numerical defects and make hidden energy creation visible.
 
-## Exterior and wheel physics boundary
+## Underride model
 
-The M2 procedural body shell follows structural nodes but does not itself contribute mass or stiffness. The M2 wheel/suspension system is also a visual attachment approximation and does not yet provide tyre forces or suspension reaction forces to the structure.
+The first M3 truck scenario deliberately contacts the car's lower front structural nodes against the truck's low rear guard nodes. This is a simplified geometric representation of a rear-underride interaction. It does not claim compliance with any specific guard standard or reproduce a particular truck design.
 
-Those limitations must remain visible in documentation and in any interpretation of M2 results.
+## M0 reference quantities
+
+The original regression remains unchanged: a 1,150 kg body at 140 km/h has 38.8888889 m/s speed, 869,598.765 J translational kinetic energy and 44,722.222 kg·m/s momentum magnitude.

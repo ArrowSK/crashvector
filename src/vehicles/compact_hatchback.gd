@@ -5,11 +5,14 @@
 class_name CompactHatchback
 extends Node3D
 
+@export var vehicle_preset_id: StringName = PassengerCarCatalog.B_SEGMENT_HATCHBACK
 @export_range(1.0, 100000.0, 1.0, "or_greater") var total_mass_kg: float = 1150.0
 @export_range(1.0, 300.0, 1.0, "or_greater") var initial_speed_kmh: float = 50.0
 @export var barrier_x_m: float = 5.0
+@export var origin_offset_m: Vector3 = Vector3.ZERO
 @export_range(1, 16, 1) var solver_substeps: int = 6
 @export var show_structure: bool = true
+@export var auto_step: bool = true
 
 var model: StructuralModel
 var body_shell: DeformableBodyShell
@@ -20,7 +23,7 @@ var front_bumper_detached: bool = false
 var front_bumper_velocity_ms := Vector3.ZERO
 
 func _ready() -> void:
-	model = CompactHatchbackBuilder.build(total_mass_kg, initial_speed_kmh, barrier_x_m)
+	model = PassengerCarBuilder.build(vehicle_preset_id, total_mass_kg, initial_speed_kmh, barrier_x_m, origin_offset_m)
 	_build_body_shell()
 	_build_wheels()
 	_build_structure_debugger()
@@ -28,15 +31,21 @@ func _ready() -> void:
 	_update_visuals(0.0)
 
 func _physics_process(delta: float) -> void:
-	if model == null:
+	if model == null or not auto_step:
 		return
 	model.step(delta, solver_substeps)
+	_update_visuals(delta)
+
+func step_external(delta: float) -> void:
 	_update_visuals(delta)
 
 func toggle_structure_debug() -> void:
 	show_structure = not show_structure
 	if debug_renderer != null:
 		debug_renderer.visible = show_structure
+
+func vehicle_class_name() -> String:
+	return PassengerCarCatalog.display_name(vehicle_preset_id)
 
 func global_linear_velocity_ms() -> Vector3:
 	return VehicleKinematics.linear_velocity_ms(model)

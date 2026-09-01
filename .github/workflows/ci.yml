@@ -25,3 +25,6 @@ jobs:
 
       - name: Run M2 compact-hatchback tests
         run: godot --headless --path . --script res://tests/m2_hatchback.gd
+
+      - name: Run M3 vehicle and truck tests
+        run: godot --headless --path . --script res://tests/m3_vehicle_truck.gd
