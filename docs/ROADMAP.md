@@ -4,71 +4,70 @@
 
 - Godot project bootstrap.
 - 240 Hz fixed physics tick.
-- Configurable rigid test vehicle.
-- Rigid road/barrier scene.
-- Telemetry recorder.
-- Kinetic-energy and momentum diagnostics.
-- Headless smoke tests and CI.
+- Rigid test vehicle and barrier.
+- Telemetry, energy and momentum diagnostics.
+- Headless CI baseline.
 
 ## M1 — Structural proof — complete
 
-- Structural node type.
-- Beam connectivity and rest length.
-- Elastic response and damping.
-- Plastic yield and permanent deformation.
-- Failure thresholds and broken-beam state.
+- Lumped structural nodes.
+- Axial beams with stiffness and damping.
+- Plastic yield, permanent deformation and fracture.
 - Structural debug renderer.
 - Energy-balance diagnostics.
 
 ## M2 — Generic compact hatchback — complete
 
-- Seven-station / 28-node hatchback structure.
-- Separate rear crush, passenger safety-cell, front transition, and front crush zones.
-- Non-uniform mass distribution.
-- Global translation and approximate rigid-rotation extraction from nodal motion.
-- Procedural exterior shell driven by structural node positions.
-- Four wheel/suspension visual anchors.
-- Detachable front bumper proof.
-- Zone-specific diagnostics and M2 regression tests.
+- 28-node passenger-car architecture.
+- Rear crush, safety cell, front transition and front crush zones.
+- Whole-vehicle translation/rotation extraction.
+- Procedural deformable body shell.
+- Four wheel anchors and detachable bumper proof.
 
-M2 remains a generic development vehicle. It is not calibrated to a Ford Fiesta or any other production model.
+## M3 — Passenger-car classes and heavy truck — complete
 
-## M3 — Heavy truck and car-vs-truck
-
-- Generic tractor/trailer structure.
-- Configurable gross mass presets.
-- Truck collision geometry and underride-relevant structure.
-- Moving and stationary truck scenarios.
-- Compact-hatchback versus heavy-truck reference cases.
-- Validate momentum transfer and energy accounting across large mass ratios.
+- Generic B-segment small hatchback preset.
+- Generic C-segment compact-car preset.
+- Generic D-segment midsize-car preset.
+- 32-node generic heavy truck with 18 / 32 / 40 t mass presets.
+- Rear underride structure and simplified tractor/trailer regions.
+- Coupled car/truck node-contact solver.
+- Equal-and-opposite impulse exchange and momentum diagnostic.
+- 0 / 50 / 80 km/h truck-speed presets.
+- Rear-impact reference scenario with 50 / 90 / 140 km/h car speeds.
 
 ## M4 — Scenario editor
 
-- Usable desktop scene editor.
-- Vehicle and obstacle placement.
-- Speed, mass, heading, and surface controls.
+- Replace keyboard-driven development scene with a usable desktop editor.
+- Object palette for passenger cars, heavy truck, wall, barrier, pole and tree.
+- Drag/rotate/place objects.
+- Inspector for mass, speed, heading, friction and scenario parameters.
 - Scenario save/load format.
+- Preflight validation before simulation.
 
 ## M5 — Analysis and replay
 
 - Recorded replay state.
-- Timeline and slow motion.
-- Delta-v, crash pulse, crush, and intrusion-oriented diagnostics.
-- Educational overlays.
+- Timeline scrubbing and slow motion.
+- Crash-pulse and deformation graphs.
+- Delta-v and intrusion-oriented educational metrics.
+- Velocity, momentum and structural-state overlays.
 
 ## M6 — Comparison
 
-- Synchronized 50 / 90 / 140 km/h comparisons.
-- Side-by-side metrics and replay.
+- Parameter sweeps such as 50 / 90 / 140 km/h.
+- Synchronized comparison playback.
+- Side-by-side metrics.
 
 ## M7 — Video export
 
-- Offline rendering.
-- Cinematic cameras.
-- 1080p+ presentation output.
+- Offline fixed-frame rendering.
+- Camera presets.
+- 1080p+ export pipeline.
+- Educational overlays and result cards.
 
-## M8 — Calibration and validation ranges
+## M8 — Calibration
 
-- Documented reference-test sources.
-- Calibrated generic vehicle presets.
-- Explicit validated/extrapolated ranges and uncertainty labels.
+- Documented reference-test datasets.
+- Defined validated ranges and extrapolation labels.
+- Regression thresholds tied to published reference conditions.
