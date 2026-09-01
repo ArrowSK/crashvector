@@ -75,6 +75,20 @@ func front_crush_deformation_m() -> float:
 func safety_cell_deformation_m() -> float:
 	return model.max_permanent_deformation_for_role(&"safety_cell")
 
+func replay_visual_state() -> Dictionary:
+	return {
+		"front_bumper_detached": front_bumper_detached,
+		"front_bumper_position_m": front_bumper.position,
+		"front_bumper_velocity_ms": front_bumper_velocity_ms,
+	}
+
+func apply_replay_visual_state(state: Dictionary) -> void:
+	front_bumper_detached = bool(state.get("front_bumper_detached", false))
+	front_bumper_velocity_ms = state.get("front_bumper_velocity_ms", Vector3.ZERO)
+	if front_bumper_detached:
+		front_bumper.position = state.get("front_bumper_position_m", front_bumper.position)
+	_update_visuals(0.0)
+
 func _build_body_shell() -> void:
 	body_shell = DeformableBodyShell.new()
 	body_shell.name = "DeformableBodyShell"
