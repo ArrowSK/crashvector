@@ -68,4 +68,4 @@ The eventual vehicle model remains a hybrid architecture:
 
 ## Licence
 
-CrashVector is intended to be released under the Mozilla Public License 2.0. Third-party assets and dependencies may have their own licences and must be documented before distribution.
+CrashVector source code is licensed under the Mozilla Public License 2.0. Third-party assets and dependencies may have their own licences and must be documented before distribution.
