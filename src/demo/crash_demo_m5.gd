@@ -56,6 +56,12 @@ func _rebuild_preview() -> void:
 	super._rebuild_preview()
 	_refresh_analysis_overlay()
 
+func _request_preview_rebuild() -> void:
+	if replay_recorder.recording != null and replay_recorder.recording.has_frames():
+		replay_recorder = ReplayRecorder.new()
+		_reset_analysis_ui()
+	super._request_preview_rebuild()
+
 func _on_simulate_pressed() -> void:
 	_stop_replay()
 	analysis_report.clear()
