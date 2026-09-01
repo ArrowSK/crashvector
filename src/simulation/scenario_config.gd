@@ -179,7 +179,7 @@ static func from_dictionary(data: Dictionary) -> ScenarioConfig:
 	return config
 
 static func from_json(text: String) -> ScenarioConfig:
-	var parsed := JSON.parse_string(text)
+	var parsed: Variant = JSON.parse_string(text)
 	if not (parsed is Dictionary):
 		return null
 	return from_dictionary(parsed)

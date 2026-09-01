@@ -5,11 +5,11 @@
 class_name CompactHatchbackBuilder
 extends RefCounted
 
-const STATION_X := PackedFloat64Array([-2.05, -1.45, -0.80, 0.00, 0.72, 1.38, 2.02])
-const LOWER_Y := PackedFloat64Array([0.48, 0.46, 0.45, 0.45, 0.46, 0.48, 0.52])
-const UPPER_Y := PackedFloat64Array([1.10, 1.42, 1.58, 1.62, 1.50, 1.15, 0.84])
-const HALF_WIDTH_Z := PackedFloat64Array([0.68, 0.80, 0.85, 0.86, 0.84, 0.76, 0.60])
-const STATION_MASS_SHARE := PackedFloat64Array([0.08, 0.13, 0.17, 0.18, 0.19, 0.16, 0.09])
+const STATION_X: Array[float] = [-2.05, -1.45, -0.80, 0.00, 0.72, 1.38, 2.02]
+const LOWER_Y: Array[float] = [0.48, 0.46, 0.45, 0.45, 0.46, 0.48, 0.52]
+const UPPER_Y: Array[float] = [1.10, 1.42, 1.58, 1.62, 1.50, 1.15, 0.84]
+const HALF_WIDTH_Z: Array[float] = [0.68, 0.80, 0.85, 0.86, 0.84, 0.76, 0.60]
+const STATION_MASS_SHARE: Array[float] = [0.08, 0.13, 0.17, 0.18, 0.19, 0.16, 0.09]
 
 const REAR_AXLE_STATION: int = 1
 const FRONT_AXLE_STATION: int = 5
@@ -24,11 +24,11 @@ static func build(total_mass_kg: float = 1150.0, speed_kmh: float = 50.0, barrie
 	var mass := maxf(total_mass_kg, 1.0)
 
 	for station in range(STATION_X.size()):
-		var node_mass := mass * STATION_MASS_SHARE[station] / 4.0
-		var x := STATION_X[station]
-		var lower := LOWER_Y[station]
-		var upper := UPPER_Y[station]
-		var half_width := HALF_WIDTH_Z[station]
+		var node_mass: float = mass * STATION_MASS_SHARE[station] / 4.0
+		var x: float = STATION_X[station]
+		var lower: float = LOWER_Y[station]
+		var upper: float = UPPER_Y[station]
+		var half_width: float = HALF_WIDTH_Z[station]
 		model.add_node(Vector3(x, lower, -half_width), node_mass)
 		model.add_node(Vector3(x, lower, half_width), node_mass)
 		model.add_node(Vector3(x, upper, -half_width), node_mass)
@@ -85,7 +85,7 @@ static func wheel_anchor_indices() -> PackedInt32Array:
 
 static func _add_cross_section(model: StructuralModel, station: int) -> void:
 	var profile := _profile_for_station(station)
-	var corners := [0, 1, 3, 2]
+	var corners: Array[int] = [0, 1, 3, 2]
 	for i in range(corners.size()):
 		_add_profile_beam(
 			model,

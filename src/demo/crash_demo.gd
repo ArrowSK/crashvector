@@ -4,15 +4,15 @@
 
 extends Node3D
 
-const PRIMARY_FRONT_CONTACT_NODES := PackedInt32Array([
+var PRIMARY_FRONT_CONTACT_NODES: PackedInt32Array = PackedInt32Array([
 	CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.FRONT_STATION, 0),
 	CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.FRONT_STATION, 1),
 ])
-const TARGET_REAR_CONTACT_NODES := PackedInt32Array([
+var TARGET_REAR_CONTACT_NODES: PackedInt32Array = PackedInt32Array([
 	CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.REAR_STATION, 0),
 	CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.REAR_STATION, 1),
 ])
-const TARGET_FRONT_CONTACT_NODES := PackedInt32Array([
+var TARGET_FRONT_CONTACT_NODES: PackedInt32Array = PackedInt32Array([
 	CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.FRONT_STATION, 0),
 	CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.FRONT_STATION, 1),
 ])
@@ -86,7 +86,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
-				var point := _screen_to_ground(event.position)
+				var point: Variant = _screen_to_ground(event.position)
 				if point != null:
 					_select_nearest_object(point)
 					last_ground_point = point
@@ -95,7 +95,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				drag_mode = &""
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			if event.pressed:
-				var point := _screen_to_ground(event.position)
+				var point: Variant = _screen_to_ground(event.position)
 				if point != null:
 					_select_nearest_object(point)
 					drag_mode = &"rotate"
@@ -103,7 +103,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				drag_mode = &""
 	elif event is InputEventMouseMotion:
 		if drag_mode == &"move":
-			var point := _screen_to_ground(event.position)
+			var point: Variant = _screen_to_ground(event.position)
 			if point != null:
 				var delta := Vector3(point.x - last_ground_point.x, 0.0, point.z - last_ground_point.z)
 				_move_selected(delta)

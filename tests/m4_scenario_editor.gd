@@ -5,11 +5,11 @@
 extends SceneTree
 
 const DT: float = 1.0 / 240.0
-const FRONT_CONTACTS := PackedInt32Array([
+var FRONT_CONTACTS: PackedInt32Array = PackedInt32Array([
 	CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.FRONT_STATION, 0),
 	CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.FRONT_STATION, 1),
 ])
-const REAR_CONTACTS := PackedInt32Array([
+var REAR_CONTACTS: PackedInt32Array = PackedInt32Array([
 	CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.REAR_STATION, 0),
 	CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.REAR_STATION, 1),
 ])
@@ -49,7 +49,7 @@ func _test_scenario_round_trip(failures: Array[String]) -> void:
 	source.contact_friction = 0.72
 	source.restitution = 0.08
 	source.duration_s = 6.0
-	var loaded := ScenarioConfig.from_json(source.to_json(false))
+	var loaded: ScenarioConfig = ScenarioConfig.from_json(source.to_json(false))
 	if loaded == null:
 		failures.append("M4 scenario JSON did not deserialize")
 		return
@@ -73,7 +73,7 @@ func _test_scenario_store(failures: Array[String]) -> void:
 	if error != OK:
 		failures.append("M4 scenario store could not save")
 		return
-	var result := ScenarioStore.load_from_path(path)
+	var result: Dictionary = ScenarioStore.load_from_path(path)
 	if not String(result.get("error", "")).is_empty():
 		failures.append("M4 scenario store could not reload saved file")
 	var loaded := result.get("scenario") as ScenarioConfig
