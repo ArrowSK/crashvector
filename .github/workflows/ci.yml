@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  m0-smoke:
+  physics-tests:
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.4.1
@@ -19,3 +19,6 @@ jobs:
 
       - name: Run M0 smoke tests
         run: godot --headless --path . --script res://tests/m0_smoke.gd
+
+      - name: Run M1 structural tests
+        run: godot --headless --path . --script res://tests/m1_structural.gd

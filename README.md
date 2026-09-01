@@ -6,58 +6,73 @@ CrashVector is being built to bridge the gap between simple game collisions and 
 
 > CrashVector is an educational physics visualisation tool. It is not a certified accident-reconstruction, vehicle-homologation, structural-engineering, or occupant-injury prediction system.
 
-## Current milestone: M0 — Physics Skeleton
+## Current milestone: M1 — Structural Proof
 
-The repository now contains the first runnable Godot prototype:
+The repository now contains a deterministic lightweight node/beam structural solver on top of the M0 physics and telemetry baseline.
 
-- Godot 4.4 project configured for a 240 Hz physics tick;
-- configurable rigid compact-hatchback test sled;
-- rigid barrier and road surface;
-- continuous collision detection;
-- live mass, speed, kinetic-energy, and momentum telemetry;
-- deterministic telemetry recorder;
-- headless smoke tests for unit conversion and 140 km/h reference physics;
-- GitHub Actions smoke-test workflow.
+M1 adds:
 
-This milestone deliberately uses an ugly rigid test sled. Structural deformation begins in M1 only after the baseline motion and diagnostics are reliable.
+- point-mass structural nodes;
+- axial beams with stiffness and damping;
+- elastic response;
+- plastic yield and permanent rest-length change;
+- configurable failure strain and broken-beam state;
+- structural energy bookkeeping for elastic storage, plastic work, damping, fracture, and barrier-contact loss;
+- a 20-node compact-hatchback test sled with differentiated cabin, transition, and front-crush stiffness profiles;
+- live structural debug rendering;
+- 50 / 90 / 140 km/h selectable barrier-impact demonstrations;
+- deterministic headless structural regression tests.
+
+The M1 object is still a **structural test sled, not a calibrated vehicle model**. Its geometry and stiffness values are engineering-development parameters intended to prove the solver architecture. Vehicle-specific calibration begins much later.
 
 ## Reference scenario
 
-For a 1,150 kg vehicle at 140 km/h:
+For a 1,150 kg body at 140 km/h:
 
 - speed: 38.8889 m/s;
 - kinetic energy: 869.60 kJ;
 - momentum magnitude: 44,722.22 kg·m/s.
 
-These values are asserted by the M0 smoke test and form an early regression reference.
+These M0 reference values remain covered by regression tests.
 
 ## Run locally
 
 Install Godot 4.4.1 or newer, clone the repository, open `project.godot`, and run the project.
 
-The current scene launches a 1,150 kg test sled toward a rigid barrier at 50 km/h. Press `R` to reset the scenario.
+The M1 scene launches the structural test sled at 50 km/h toward a rigid barrier.
 
-For a headless smoke test:
+Controls:
+
+- `1` — 50 km/h
+- `2` — 90 km/h
+- `3` — 140 km/h
+- `R` — reset the current speed
+
+Beam colours in the debug view indicate structural state: cyan for ordinary elastic loading, yellow near yield, orange after permanent deformation, and red after failure.
+
+Headless tests:
 
 ```bash
 godot --headless --path . --script res://tests/m0_smoke.gd
+godot --headless --path . --script res://tests/m1_structural.gd
 ```
 
 ## Architecture direction
 
-CrashVector uses Godot for the application, rendering, and world simulation. M0 establishes rigid-body motion and diagnostics. M1 will introduce the custom CrashVector structural solver: nodes, beams, elastic response, plastic deformation, and failure.
+CrashVector uses Godot for the application, rendering, and world simulation. The structural subsystem is intentionally separate and deterministic:
 
-The eventual vehicle model remains a hybrid architecture:
+1. `StructuralNode` stores point mass, position, velocity, and accumulated force;
+2. `StructuralBeam` calculates axial spring/damper response, plastic flow, and fracture;
+3. `StructuralModel` advances the graph in fixed substeps and maintains energy/contact diagnostics;
+4. `StructuralSledBuilder` creates the current development frame;
+5. `StructuralSled` renders the graph for debugging.
 
-1. global rigid-body dynamics;
-2. lightweight internal node/beam structural graph;
-3. deformation mapping to the visible vehicle mesh;
-4. replay and analysis derived from recorded simulation state.
+M2 will turn this proof into a generic compact-hatchback architecture, add an explicit passenger safety cell and crush-zone layout, and begin coupling structural deformation to the visible vehicle body.
 
 ## Roadmap
 
-- **M0** — physics skeleton and telemetry
-- **M1** — deformable structural test sled
+- **M0** — physics skeleton and telemetry — complete
+- **M1** — deformable structural test sled — complete
 - **M2** — complete generic compact hatchback
 - **M3** — heavy truck and car-vs-truck scenarios
 - **M4** — scenario editor and usable desktop UI
