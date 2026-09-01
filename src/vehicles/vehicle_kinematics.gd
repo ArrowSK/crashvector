@@ -17,7 +17,7 @@ static func angular_velocity_rad_s(model: StructuralModel) -> Vector3:
 	var center := model.center_of_mass_m()
 	var linear := model.average_velocity_ms()
 	var angular_momentum := Vector3.ZERO
-	var scalar_inertia := 0.0
+	var scalar_inertia: float = 0.0
 	for node in model.nodes:
 		var radius := node.position_m - center
 		var relative_velocity := node.velocity_ms - linear
@@ -33,18 +33,24 @@ static func translational_kinetic_energy_j(model: StructuralModel) -> float:
 
 static func rotational_kinetic_energy_j(model: StructuralModel) -> float:
 	var center := model.center_of_mass_m()
-	var inertia := 0.0
+	var inertia: float = 0.0
 	for node in model.nodes:
 		inertia += node.mass_kg * (node.position_m - center).length_squared()
 	return 0.5 * inertia * angular_velocity_rad_s(model).length_squared()
 
 static func deformation_kinetic_energy_j(model: StructuralModel) -> float:
-	return maxf(
-		model.total_kinetic_energy_j()
-		- translational_kinetic_energy_j(model)
-		- rotational_kinetic_energy_j(model),
-		0.0
-	)
+	if model.nodes.is_empty():
+		return 0.0
+	var center := model.center_of_mass_m()
+	var linear := linear_velocity_ms(model)
+	var angular := angular_velocity_rad_s(model)
+	var result: float = 0.0
+	for node in model.nodes:
+		var radius := node.position_m - center
+		var rigid_velocity := linear + angular.cross(radius)
+		var residual := node.velocity_ms - rigid_velocity
+		result += 0.5 * node.mass_kg * residual.length_squared()
+	return maxf(result, 0.0)
 
 static func reference_transform(
 	model: StructuralModel,
