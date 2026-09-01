@@ -49,14 +49,18 @@
 - Human-readable `.crashvector.json` save/load.
 - Pause, reset, and camera framing controls.
 
-## M5 — Analysis and replay
+## M5 — Analysis and replay — complete
 
-- Recorded replay state independent of live physics.
-- Timeline scrubbing and slow motion.
-- Crash-pulse and deformation graphs.
-- Delta-v and intrusion-oriented educational metrics.
-- Velocity, momentum, energy, and structural-state overlays.
-- Event markers for first contact, peak loading, structural failure, separation, and rest.
+- 120 Hz recorded structural replay state independent of subsequent live physics.
+- Timeline scrubbing and replay at 0.05x / 0.10x / 0.25x / 0.50x / 1.00x.
+- Crash-pulse and front-crush deformation graphs.
+- Primary and target delta-v metrics.
+- Peak simulated longitudinal deceleration.
+- Safety-cell deformation proxy for intrusion-oriented education.
+- Kinetic-energy and broken-structural-member summaries.
+- 3D velocity and momentum vectors plus the existing structural-state overlay.
+- Event markers for first contact, peak loading, structural failure, separation, and rest when the event is actually observed in the recorded window.
+- Replay regression tests verify snapshot restoration is independent of final live-physics state.
 
 ## M6 — Comparison
 

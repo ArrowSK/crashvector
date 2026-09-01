@@ -6,6 +6,7 @@ extends SceneTree
 
 const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/demo/crash_demo.gd",
+	"res://src/demo/crash_demo_m5.gd",
 	"res://src/structural/structural_sled_builder.gd",
 	"res://src/vehicles/compact_hatchback_builder.gd",
 	"res://src/vehicles/passenger_car_builder.gd",
@@ -16,6 +17,12 @@ const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/simulation/vehicle_pair_simulation.gd",
 	"res://src/simulation/vehicle_static_contact.gd",
 	"res://src/simulation/vehicle_static_simulation.gd",
+	"res://src/replay/structural_snapshot.gd",
+	"res://src/replay/replay_recording.gd",
+	"res://src/replay/replay_recorder.gd",
+	"res://src/analysis/crash_analysis.gd",
+	"res://src/analysis/analysis_overlay_3d.gd",
+	"res://src/ui/crash_metric_graph.gd",
 ]
 
 func _initialize() -> void:
