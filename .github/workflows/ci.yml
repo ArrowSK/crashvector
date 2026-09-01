@@ -28,3 +28,6 @@ jobs:
 
       - name: Run M3 vehicle and truck tests
         run: godot --headless --path . --script res://tests/m3_vehicle_truck.gd
+
+      - name: Run M4 scenario-editor tests
+        run: godot --headless --path . --script res://tests/m4_scenario_editor.gd

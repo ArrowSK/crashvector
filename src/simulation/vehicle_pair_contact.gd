@@ -6,6 +6,7 @@ class_name VehiclePairContact
 extends RefCounted
 
 var restitution: float = 0.03
+var friction_coefficient: float = 0.55
 var tangent_contact_radius_m: float = 0.80
 var position_correction_fraction: float = 0.85
 var penetration_slop_m: float = 0.001
@@ -48,12 +49,23 @@ func resolve_pairs(
 		if inverse_mass_sum <= 0.0:
 			continue
 
-		var relative_closing_speed := (a.velocity_ms - b.velocity_ms).dot(n)
+		var relative_velocity := a.velocity_ms - b.velocity_ms
+		var relative_closing_speed := relative_velocity.dot(n)
 		if relative_closing_speed > 0.0:
 			var before_j := a.kinetic_energy_j() + b.kinetic_energy_j()
-			var impulse_ns := (1.0 + clampf(restitution, 0.0, 1.0)) * relative_closing_speed / inverse_mass_sum
-			a.velocity_ms -= n * impulse_ns * a.inverse_mass
-			b.velocity_ms += n * impulse_ns * b.inverse_mass
+			var normal_impulse_ns := (1.0 + clampf(restitution, 0.0, 1.0)) * relative_closing_speed / inverse_mass_sum
+			a.velocity_ms -= n * normal_impulse_ns * a.inverse_mass
+			b.velocity_ms += n * normal_impulse_ns * b.inverse_mass
+
+			var tangent_velocity := relative_velocity - n * relative_closing_speed
+			var tangent_speed := tangent_velocity.length()
+			if tangent_speed > 0.000001 and friction_coefficient > 0.0:
+				var tangent_direction := tangent_velocity / tangent_speed
+				var desired_tangent_impulse := tangent_speed / inverse_mass_sum
+				var tangent_impulse := minf(desired_tangent_impulse, friction_coefficient * normal_impulse_ns)
+				a.velocity_ms -= tangent_direction * tangent_impulse * a.inverse_mass
+				b.velocity_ms += tangent_direction * tangent_impulse * b.inverse_mass
+
 			var after_j := a.kinetic_energy_j() + b.kinetic_energy_j()
 			accumulated_dissipation_j += maxf(before_j - after_j, 0.0)
 			contact_events += 1

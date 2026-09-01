@@ -8,6 +8,7 @@ extends Node3D
 @export_range(1000.0, 60000.0, 100.0, "or_greater") var total_mass_kg: float = 18000.0
 @export_range(0.0, 140.0, 1.0, "or_greater") var initial_speed_kmh: float = 0.0
 @export var origin_offset_m: Vector3 = Vector3(2.0, 0.0, 0.0)
+@export_range(-180.0, 180.0, 1.0) var heading_deg: float = 0.0
 @export_range(1, 16, 1) var solver_substeps: int = 6
 @export var show_structure: bool = false
 @export var auto_step: bool = true
@@ -22,6 +23,7 @@ var wheel_visuals: Array[MeshInstance3D] = []
 
 func _ready() -> void:
 	model = HeavyTruckBuilder.build(total_mass_kg, initial_speed_kmh, origin_offset_m)
+	model.rotate_y_about(origin_offset_m, deg_to_rad(heading_deg), true)
 	_build_visuals()
 	_build_structure_debugger()
 	update_from_model()
@@ -39,6 +41,11 @@ func toggle_structure_debug() -> void:
 	show_structure = not show_structure
 	if debug_renderer != null:
 		debug_renderer.visible = show_structure
+
+func set_structure_debug(value: bool) -> void:
+	show_structure = value
+	if debug_renderer != null:
+		debug_renderer.visible = value
 
 func global_linear_velocity_ms() -> Vector3:
 	return VehicleKinematics.linear_velocity_ms(model)

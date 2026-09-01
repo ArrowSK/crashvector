@@ -2,41 +2,72 @@
 
 ## Layering
 
-CrashVector deliberately separates structural mechanics, whole-vehicle kinematics, rendering and scenario orchestration.
+CrashVector separates structural mechanics, vehicle construction, contact resolution, scenario data, editor UI, and later replay/analysis layers.
 
 ### Structural layer
 
-- `StructuralNode` — lumped mass, position, velocity and accumulated force.
-- `StructuralBeam` — axial spring/damper response, plastic flow and fracture.
-- `StructuralModel` — fixed-substep graph integration and energy/contact diagnostics.
+- `StructuralNode` — lumped mass, position, velocity, and accumulated force.
+- `StructuralBeam` — axial spring/damper response, plastic flow, and fracture.
+- `StructuralModel` — fixed-substep graph integration plus energy/contact diagnostics. M4 adds whole-model translation and yaw rotation helpers so editor transforms are applied directly to the physical state rather than only to visuals.
 
 ### Passenger-car layer
 
-- `PassengerCarCatalog` defines generic B-, C- and D-segment development presets without production-model branding.
-- `PassengerCarBuilder` scales the M2 28-node architecture by preset dimensions, mass and stiffness.
-- `CompactHatchback` remains the compatibility vehicle node from M2, but can now instantiate any catalog preset.
-- `DeformableBodyShell`, `SimpleWheelRig` and `StructuralDebugRenderer` map structural state into the visible car.
+- `PassengerCarCatalog` defines generic B-, C-, and D-segment development presets without production-model branding.
+- `PassengerCarBuilder` scales the shared 28-node architecture by dimensions, mass, and stiffness.
+- `CompactHatchback` can instantiate any catalog preset and now supports an initial world heading.
+- `DeformableBodyShell`, `SimpleWheelRig`, and `StructuralDebugRenderer` map structural state into the visible car.
+
+A second `CompactHatchback` instance is used for car-vs-car scenarios. There is no hidden rigid proxy or truck substitution.
 
 ### Heavy-truck layer
 
-- `HeavyTruckBuilder` creates a 32-node tractor/trailer structural approximation with trailer, tractor, chassis, fifth-wheel and rear-underride roles.
-- `HeavyTruck` owns the truck model and low-resolution procedural visuals.
+- `HeavyTruckBuilder` creates the 32-node tractor/trailer structural approximation.
+- `HeavyTruck` owns truck visuals and now supports an initial world heading.
 
-### Coupled collision layer
+### Dynamic-pair collision layer
 
-- `VehiclePairContact` resolves paired node contacts with equal-and-opposite impulses.
-- `VehiclePairSimulation` advances the car and truck on a common substep clock, applies contact after each structural substep and tracks system momentum/energy diagnostics.
+- `VehiclePairContact` resolves paired node contacts using equal-and-opposite normal and Coulomb-limited tangent impulses.
+- `VehiclePairSimulation` advances any two structural models on one substep clock. It is used for both car-vs-truck and car-vs-car scenarios.
+- The pair normal is scenario-defined, so heading-aware rear-end and near head-on car-vs-car layouts can share the same deterministic contact implementation.
 
-The M3 rear-impact model intentionally contacts the lower front car nodes against the truck's rear-underride nodes. This makes underride geometry an explicit part of the structural scenario instead of replacing the truck with an immovable wall.
+M4 deliberately limits passenger-car pair contact to rear-end or near head-on layouts. Side-impact contact needs richer body-surface geometry and will not be approximated by pretending the existing front/rear node pairs are valid side structures.
+
+### Static-target collision layer
+
+- `VehicleStaticContact` resolves structural-node contact with a fixed wall, barrier, pole, or tree.
+- `VehicleStaticSimulation` advances the deformable car and applies static contact after each substep.
+- `StaticObstacle3D` renders the editor-visible target geometry from the same scenario transform used by the contact layer.
+
+### Scenario layer
+
+- `ScenarioConfig` is the in-memory source of truth for object types, generic vehicle classes, masses, speeds, world positions, headings, contact parameters, duration, and solver settings.
+- `ScenarioStore` serialises/deserialises human-readable `.crashvector.json` files.
+- Preflight validation belongs in `ScenarioConfig`, not scattered across UI callbacks, so saved scenarios and future command-line/batch runs can share the same constraints.
+
+### Editor layer
+
+`src/demo/crash_demo.gd` is now the M4 application editor rather than a keyboard-only demo. It owns:
+
+- top-level scenario actions;
+- object palette;
+- selected-object inspector;
+- 3D move/rotate interactions;
+- preview reconstruction;
+- preflight invocation;
+- runtime simulation state;
+- save/load file dialogs;
+- current diagnostics display.
+
+The editor rebuilds a clean physical preview before every run. This avoids continuing from partially deformed state after parameter edits.
 
 ## Determinism
 
-Identical scenario inputs, engine version and solver configuration are expected to produce identical state within regression tolerance. CI covers the deterministic structural baseline and coupled-contact invariants.
+Identical scenario inputs, engine version, and solver configuration are expected to produce identical state within regression tolerance. CI covers structural determinism, paired-contact momentum conservation, static contact, and scenario serialisation invariants.
 
 ## Units
 
-Internal calculations use SI units: metres, seconds, kilograms, newtons, joules and radians. Display conversion belongs at the UI/analysis boundary.
+Internal calculations use SI units: metres, seconds, kilograms, newtons, joules, and radians. The editor displays km/h where useful but converts at the UI/physics boundary.
 
 ## Scope boundary
 
-M3 is still an educational development model. Generic car classes are representative categories rather than specific production vehicles. The heavy truck is a simplified deformable tractor/trailer graph and does not yet include a true articulated multibody fifth-wheel joint, tyre-force model or suspension-force model.
+M4 makes CrashVector usable as a scenario-building application, but it does not make the vehicle models production-specific or validated. The B/C/D cars remain generic representative classes, the heavy truck remains a simplified tractor/trailer graph, and broadside/complex oblique contact awaits a richer contact-geometry system.

@@ -53,6 +53,22 @@ func set_uniform_velocity(velocity_ms: Vector3) -> void:
 			node.velocity_ms = velocity_ms
 	capture_initial_energy()
 
+func translate_all_nodes(offset_m: Vector3) -> void:
+	if offset_m.is_zero_approx():
+		return
+	for node in nodes:
+		node.position_m += offset_m
+
+func rotate_y_about(pivot_m: Vector3, angle_rad: float, rotate_velocities: bool = true) -> void:
+	if is_zero_approx(angle_rad):
+		return
+	var basis := Basis(Vector3.UP, angle_rad)
+	for node in nodes:
+		node.position_m = pivot_m + basis * (node.position_m - pivot_m)
+		if rotate_velocities:
+			node.velocity_ms = basis * node.velocity_ms
+	capture_initial_energy()
+
 func capture_initial_energy() -> void:
 	initial_energy_j = total_kinetic_energy_j() + total_elastic_energy_j()
 
