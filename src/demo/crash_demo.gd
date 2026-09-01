@@ -9,14 +9,14 @@ extends Node3D
 
 const BARRIER_X_M: float = 5.0
 
-var sled: StructuralSled
+var vehicle: CompactHatchback
 var metrics_label: Label
 var event_label: Label
 
 func _ready() -> void:
 	_build_environment()
 	_build_ui()
-	_spawn_structural_sled(vehicle_speed_kmh)
+	_spawn_vehicle(vehicle_speed_kmh)
 	_update_metrics()
 
 func _physics_process(_delta: float) -> void:
@@ -27,16 +27,19 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	match event.keycode:
 		KEY_R:
-			_spawn_structural_sled(vehicle_speed_kmh)
+			_spawn_vehicle(vehicle_speed_kmh)
 		KEY_1:
 			vehicle_speed_kmh = 50.0
-			_spawn_structural_sled(vehicle_speed_kmh)
+			_spawn_vehicle(vehicle_speed_kmh)
 		KEY_2:
 			vehicle_speed_kmh = 90.0
-			_spawn_structural_sled(vehicle_speed_kmh)
+			_spawn_vehicle(vehicle_speed_kmh)
 		KEY_3:
 			vehicle_speed_kmh = 140.0
-			_spawn_structural_sled(vehicle_speed_kmh)
+			_spawn_vehicle(vehicle_speed_kmh)
+		KEY_D:
+			if vehicle != null:
+				vehicle.toggle_structure_debug()
 
 func _build_environment() -> void:
 	var world_environment := WorldEnvironment.new()
@@ -45,20 +48,20 @@ func _build_environment() -> void:
 	environment.background_color = Color(0.035, 0.045, 0.06)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color(0.45, 0.48, 0.55)
-	environment.ambient_light_energy = 0.8
+	environment.ambient_light_energy = 0.85
 	world_environment.environment = environment
 	add_child(world_environment)
 
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-50.0, -35.0, 0.0)
-	sun.light_energy = 1.4
+	sun.rotation_degrees = Vector3(-48.0, -32.0, 0.0)
+	sun.light_energy = 1.5
 	sun.shadow_enabled = true
 	add_child(sun)
 
 	var camera := Camera3D.new()
-	camera.position = Vector3(0.0, 7.0, 17.0)
+	camera.position = Vector3(-0.5, 5.8, 14.5)
 	add_child(camera)
-	camera.look_at(Vector3(0.5, 0.8, 0.0), Vector3.UP)
+	camera.look_at(Vector3(0.8, 0.85, 0.0), Vector3.UP)
 	camera.current = true
 
 	_create_static_box(
@@ -97,16 +100,17 @@ func _create_static_box(node_name: String, position: Vector3, size: Vector3, col
 	body.add_child(mesh_instance)
 	return body
 
-func _spawn_structural_sled(speed_kmh: float) -> void:
-	if sled != null and is_instance_valid(sled):
-		sled.queue_free()
-	sled = StructuralSled.new()
-	sled.name = "CompactHatchbackStructuralSled"
-	sled.total_mass_kg = vehicle_mass_kg
-	sled.initial_speed_kmh = speed_kmh
-	sled.barrier_x_m = BARRIER_X_M
-	sled.solver_substeps = 4
-	add_child(sled)
+func _spawn_vehicle(speed_kmh: float) -> void:
+	if vehicle != null and is_instance_valid(vehicle):
+		vehicle.queue_free()
+	vehicle = CompactHatchback.new()
+	vehicle.name = "GenericCompactHatchback"
+	vehicle.total_mass_kg = vehicle_mass_kg
+	vehicle.initial_speed_kmh = speed_kmh
+	vehicle.barrier_x_m = BARRIER_X_M
+	vehicle.solver_substeps = 6
+	vehicle.show_structure = true
+	add_child(vehicle)
 	if event_label != null:
 		event_label.text = "Event: approaching rigid barrier"
 
@@ -116,7 +120,7 @@ func _build_ui() -> void:
 
 	var panel := PanelContainer.new()
 	panel.position = Vector2(18.0, 18.0)
-	panel.custom_minimum_size = Vector2(430.0, 310.0)
+	panel.custom_minimum_size = Vector2(485.0, 370.0)
 	canvas.add_child(panel)
 
 	var margin := MarginContainer.new()
@@ -131,12 +135,12 @@ func _build_ui() -> void:
 	margin.add_child(column)
 
 	var title := Label.new()
-	title.text = "CrashVector — M1 Structural Solver"
+	title.text = "CrashVector — M2 Generic Compact Hatchback"
 	title.add_theme_font_size_override("font_size", 20)
 	column.add_child(title)
 
 	var description := Label.new()
-	description.text = "Node/beam test sled — colours show structural state"
+	description.text = "Procedural body shell mapped to a zone-based structural graph"
 	column.add_child(description)
 
 	metrics_label = Label.new()
@@ -147,40 +151,45 @@ func _build_ui() -> void:
 	column.add_child(event_label)
 
 	var legend := Label.new()
-	legend.text = "Cyan: elastic  •  Yellow: near yield  •  Orange: permanent deformation  •  Red: failed"
+	legend.text = "Green: safety cell  •  Cyan: crush structure  •  Yellow: near yield  •  Orange: permanent deformation  •  Red: failed"
 	legend.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(legend)
 
 	var hint := Label.new()
-	hint.text = "1 = 50 km/h   2 = 90 km/h   3 = 140 km/h   R = reset"
+	hint.text = "1 = 50 km/h   2 = 90 km/h   3 = 140 km/h   D = structure view   R = reset"
 	column.add_child(hint)
 
 func _update_metrics() -> void:
-	if metrics_label == null or sled == null or sled.model == null:
+	if metrics_label == null or vehicle == null or vehicle.model == null:
 		return
-	var model := sled.model
-	var speed_kmh := PhysicsMetrics.ms_to_kmh(model.average_velocity_ms().length())
-	var initial_kj := model.initial_energy_j / 1000.0
-	var kinetic_kj := model.total_kinetic_energy_j() / 1000.0
-	var elastic_kj := model.total_elastic_energy_j() / 1000.0
+	var model := vehicle.model
+	var speed_kmh := PhysicsMetrics.ms_to_kmh(vehicle.global_linear_velocity_ms().length())
+	var angular_speed := vehicle.global_angular_velocity_rad_s().length()
+	var translational_kj := VehicleKinematics.translational_kinetic_energy_j(model) / 1000.0
+	var rotational_kj := VehicleKinematics.rotational_kinetic_energy_j(model) / 1000.0
+	var deformation_motion_kj := VehicleKinematics.deformation_kinetic_energy_j(model) / 1000.0
 	var plastic_kj := model.total_plastic_energy_j() / 1000.0
 	var dissipated_kj := (
 		model.total_damping_energy_j()
 		+ model.total_fracture_energy_j()
 		+ model.contact_dissipation_j
 	) / 1000.0
-	metrics_label.text = "Mass: %.0f kg\nInitial speed: %.0f km/h   Current COM speed: %.1f km/h\nInitial kinetic energy: %.1f kJ\nCurrent kinetic: %.1f kJ   Elastic: %.1f kJ\nPlastic work: %.1f kJ   Other dissipation: %.1f kJ\nMax permanent beam deformation: %.0f mm\nBroken beams: %d / %d\nEnergy-balance diagnostic error: %.2f%%" % [
+	metrics_label.text = "Mass: %.0f kg\nInitial speed: %.0f km/h   Current COM speed: %.1f km/h\nInitial kinetic energy: %.1f kJ\nRigid translation: %.1f kJ   Rigid rotation: %.1f kJ\nInternal deformation motion: %.1f kJ   Angular speed: %.2f rad/s\nPlastic work: %.1f kJ   Other dissipation: %.1f kJ\nFront-crush permanent deformation: %.0f mm\nSafety-cell permanent deformation: %.0f mm\nBroken beams: %d / %d   Front bumper: %s\nEnergy-balance diagnostic error: %.2f%%" % [
 		model.total_mass_kg(),
-		sled.initial_speed_kmh,
+		vehicle.initial_speed_kmh,
 		speed_kmh,
-		initial_kj,
-		kinetic_kj,
-		elastic_kj,
+		model.initial_energy_j / 1000.0,
+		translational_kj,
+		rotational_kj,
+		deformation_motion_kj,
+		angular_speed,
 		plastic_kj,
 		dissipated_kj,
-		model.max_permanent_deformation_m() * 1000.0,
+		vehicle.front_crush_deformation_m() * 1000.0,
+		vehicle.safety_cell_deformation_m() * 1000.0,
 		model.broken_beam_count(),
 		model.beams.size(),
+		"detached" if vehicle.front_bumper_detached else "attached",
 		model.energy_balance_relative_error() * 100.0,
 	]
 

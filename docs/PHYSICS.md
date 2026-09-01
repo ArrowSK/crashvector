@@ -2,7 +2,7 @@
 
 CrashVector is an educational simulator. Numerical outputs must be labelled according to the confidence of the underlying model and must not be presented as certified accident reconstruction or occupant-injury prediction.
 
-## M0 reference quantities
+## Reference quantities
 
 For mass `m` and velocity vector `v`:
 
@@ -10,52 +10,60 @@ For mass `m` and velocity vector `v`:
 - linear momentum: `m * v`;
 - km/h to m/s: divide by `3.6`.
 
-The M0 regression case uses a 1,150 kg test body at 140 km/h:
+The regression reference uses a 1,150 kg body at 140 km/h:
 
 - 38.8888889 m/s;
 - 869,598.765 J kinetic energy;
 - 44,722.222 kg·m/s momentum magnitude.
 
-## M1 structural model
+## Structural response
 
-M1 uses a lightweight lumped-mass axial node/beam model. It is not a finite-element model and it does not represent sheet-metal shell elements, welds, adhesives, detailed joints, or material-rate effects.
+The node/beam solver is a lumped-mass educational model. Each beam has:
 
-Each structural node stores mass, position, velocity, and accumulated force. Each beam stores:
-
-- original and current rest length;
 - axial stiffness;
 - axial damping;
+- elastic strain;
 - yield strain;
-- maximum allowed plastic strain;
-- break strain;
-- plastic-flow rate;
-- accumulated plastic, damping, and fracture-energy diagnostics.
+- plastic rest-length evolution;
+- maximum plastic strain;
+- fracture strain.
 
-For an intact beam, the solver calculates spring force from extension relative to the current rest length and damping force from relative axial velocity. When total engineering strain exceeds the yield threshold, the rest length moves gradually toward the deformed length, bounded by the configured maximum plastic strain. This produces permanent deformation after load removal. A beam is marked broken when absolute total strain reaches its configured break threshold.
+This provides progressive permanent crush and member failure without claiming continuum finite-element fidelity.
 
-The development sled uses three stiffness profiles: a relatively soft front crush segment, an intermediate transition segment, and a substantially stiffer cabin segment. These are development parameters, not measurements of any production vehicle.
+## M2 structural zones
 
-## Integration and stability
+The generic hatchback separates structure into deliberately different development profiles:
 
-The structural graph advances at Godot's 240 Hz physics rate with four internal solver substeps by default. The explicit semi-implicit integration scheme is intentionally simple and deterministic. Stiffness, damping, node mass, and substep count must be treated together when assessing numerical stability.
+- rear crush zone;
+- passenger safety cell;
+- front transition zone;
+- front crush zone.
 
-M1 barrier contact is handled directly by the structural solver as a rigid longitudinal plane. This isolates deformation behaviour for development. Coupling the structural graph to the global rigid-body vehicle representation is part of the later vehicle-integration work.
+The safety-cell beam stiffness is intentionally higher and its allowable plastic deformation lower than the front crush zone. This encodes the design principle that sacrificial structures should absorb deformation before the passenger compartment, but the numerical values are not sourced from any production vehicle.
+
+## Global versus internal motion
+
+Because the structural graph is the authoritative state, M2 extracts global vehicle motion from the nodes rather than adding a second independent rigid-body trajectory.
+
+Whole-vehicle linear velocity is the mass-weighted average nodal velocity. Approximate angular velocity is derived from nodal angular momentum about the centre of mass using a scalar inertia approximation. The remaining nodal kinetic energy after translation and approximate rotation is reported as internal/deformation motion.
+
+This decomposition is diagnostic. It is not a six-degree-of-freedom rigid-body replacement and will be refined as the vehicle model develops.
 
 ## Energy bookkeeping
 
-M1 records:
+The solver tracks:
 
-- current translational kinetic energy of structural nodes;
-- elastic strain energy stored in intact beams;
+- current nodal kinetic energy;
+- elastic beam energy;
 - accumulated plastic work;
-- accumulated damping dissipation;
-- elastic energy released into the fracture bucket when a beam fails;
-- kinetic energy removed by rigid barrier contact.
+- accumulated damping loss;
+- fracture energy at member failure;
+- rigid-barrier contact dissipation.
 
-`energy_balance_relative_error()` reports the difference between initial mechanical energy and the sum of the tracked buckets. It is a **numerical diagnostic**, not a validated physical energy partition. Plastic and fracture terms are deliberately approximate at this stage and will require calibration before quantitative interpretation.
+The energy-balance diagnostic compares those tracked terms against the captured initial energy. It is primarily a regression/debugging signal. Large residuals indicate numerical or accounting problems even if the animation appears plausible.
 
-A solver that develops non-finite state or creates unbounded energy is considered defective even if the animation appears plausible.
+## Exterior and wheel physics boundary
 
-## Validation boundary
+The M2 procedural body shell follows structural nodes but does not itself contribute mass or stiffness. The M2 wheel/suspension system is also a visual attachment approximation and does not yet provide tyre forces or suspension reaction forces to the structure.
 
-M1 proves that the implementation can produce elastic loading, permanent deformation, failure, contact, deterministic replay state, and auditable energy bookkeeping. It does **not** establish crashworthiness accuracy for a real car. Vehicle-level calibration is deferred until the generic hatchback architecture and deformation mapping exist.
+Those limitations must remain visible in documentation and in any interpretation of M2 results.

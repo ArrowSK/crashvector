@@ -6,24 +6,25 @@ CrashVector is being built to bridge the gap between simple game collisions and 
 
 > CrashVector is an educational physics visualisation tool. It is not a certified accident-reconstruction, vehicle-homologation, structural-engineering, or occupant-injury prediction system.
 
-## Current milestone: M1 — Structural Proof
+## Current milestone: M2 — Generic Compact Hatchback
 
-The repository now contains a deterministic lightweight node/beam structural solver on top of the M0 physics and telemetry baseline.
+M2 turns the M1 structural proof into the first complete generic vehicle architecture.
 
-M1 adds:
+The current demo includes:
 
-- point-mass structural nodes;
-- axial beams with stiffness and damping;
-- elastic response;
-- plastic yield and permanent rest-length change;
-- configurable failure strain and broken-beam state;
-- structural energy bookkeeping for elastic storage, plastic work, damping, fracture, and barrier-contact loss;
-- a 20-node compact-hatchback test sled with differentiated cabin, transition, and front-crush stiffness profiles;
-- live structural debug rendering;
-- 50 / 90 / 140 km/h selectable barrier-impact demonstrations;
-- deterministic headless structural regression tests.
+- a 28-node, zone-based compact-hatchback structural graph;
+- separate rear crush, passenger safety-cell, front transition, and front crush zones;
+- a deliberately stiffer passenger cell than the sacrificial front/rear structures;
+- mass distribution across seven longitudinal stations;
+- extraction of whole-vehicle translation, approximate rigid rotation, and internal deformation motion from the nodal solution;
+- a live procedural exterior body shell whose vertices follow the deforming structure;
+- four wheel/suspension visual anchors following the live structural nodes;
+- a detachable front bumper for severe front-structure damage;
+- live structural debug rendering and zone colouring;
+- 50 / 90 / 140 km/h barrier-impact demonstrations;
+- regression tests for vehicle architecture, global kinematics, barrier deformation, finite state, and determinism.
 
-The M1 object is still a **structural test sled, not a calibrated vehicle model**. Its geometry and stiffness values are engineering-development parameters intended to prove the solver architecture. Vehicle-specific calibration begins much later.
+The M2 hatchback remains a **generic development vehicle, not a calibrated real make/model**. Geometry, stiffness, yield, and fracture parameters are engineering-development values used to establish the architecture. They must not be interpreted as Ford Fiesta, Volkswagen Polo, Renault Clio, or any other production vehicle data.
 
 ## Reference scenario
 
@@ -39,41 +40,44 @@ These M0 reference values remain covered by regression tests.
 
 Install Godot 4.4.1 or newer, clone the repository, open `project.godot`, and run the project.
 
-The M1 scene launches the structural test sled at 50 km/h toward a rigid barrier.
-
 Controls:
 
 - `1` — 50 km/h
 - `2` — 90 km/h
 - `3` — 140 km/h
+- `D` — toggle structural debug view
 - `R` — reset the current speed
 
-Beam colours in the debug view indicate structural state: cyan for ordinary elastic loading, yellow near yield, orange after permanent deformation, and red after failure.
+Structural colours: green identifies the passenger safety cell, cyan ordinary crush structure, yellow near-yield loading, orange permanent deformation, and red failed members.
 
 Headless tests:
 
 ```bash
 godot --headless --path . --script res://tests/m0_smoke.gd
 godot --headless --path . --script res://tests/m1_structural.gd
+godot --headless --path . --script res://tests/m2_hatchback.gd
 ```
 
 ## Architecture direction
 
-CrashVector uses Godot for the application, rendering, and world simulation. The structural subsystem is intentionally separate and deterministic:
+CrashVector currently uses a deterministic lumped-mass structural graph as the source of truth for the prototype vehicle.
 
-1. `StructuralNode` stores point mass, position, velocity, and accumulated force;
-2. `StructuralBeam` calculates axial spring/damper response, plastic flow, and fracture;
-3. `StructuralModel` advances the graph in fixed substeps and maintains energy/contact diagnostics;
-4. `StructuralSledBuilder` creates the current development frame;
-5. `StructuralSled` renders the graph for debugging.
+1. `StructuralNode` stores point mass, position, velocity, and accumulated force.
+2. `StructuralBeam` calculates axial spring/damper response, plastic flow, and fracture.
+3. `StructuralModel` advances the graph and maintains energy/contact diagnostics.
+4. `CompactHatchbackBuilder` defines the generic vehicle geometry, mass distribution, and structural zones.
+5. `VehicleKinematics` separates global translation/approximate rotation from internal deformation motion.
+6. `DeformableBodyShell` maps the live structural nodes into a visible hatchback-shaped surface.
+7. `SimpleWheelRig` supplies the current wheel/suspension visual approximation.
+8. `CompactHatchback` composes those systems into the M2 vehicle.
 
-M2 will turn this proof into a generic compact-hatchback architecture, add an explicit passenger safety cell and crush-zone layout, and begin coupling structural deformation to the visible vehicle body.
+The current wheel system and exterior shell are deliberately lightweight visual/architectural layers. Detailed tyre forces, suspension dynamics, production-quality body panels, glass, doors, and underbody geometry are later work.
 
 ## Roadmap
 
 - **M0** — physics skeleton and telemetry — complete
 - **M1** — deformable structural test sled — complete
-- **M2** — complete generic compact hatchback
+- **M2** — generic compact hatchback architecture — complete
 - **M3** — heavy truck and car-vs-truck scenarios
 - **M4** — scenario editor and usable desktop UI
 - **M5** — analysis, replay, crash pulse, and overlays

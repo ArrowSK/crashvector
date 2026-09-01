@@ -106,14 +106,41 @@ func center_of_mass_m() -> Vector3:
 	return weighted / total_mass
 
 func average_velocity_ms() -> Vector3:
-	var momentum := Vector3.ZERO
-	var total_mass := 0.0
-	for node in nodes:
-		momentum += node.velocity_ms * node.mass_kg
-		total_mass += node.mass_kg
+	var momentum := total_momentum_kg_ms()
+	var total_mass := total_mass_kg()
 	if total_mass <= 0.0:
 		return Vector3.ZERO
 	return momentum / total_mass
+
+func total_momentum_kg_ms() -> Vector3:
+	var momentum := Vector3.ZERO
+	for node in nodes:
+		momentum += node.velocity_ms * node.mass_kg
+	return momentum
+
+func average_position_for_nodes(indices: PackedInt32Array) -> Vector3:
+	if indices.is_empty():
+		return Vector3.ZERO
+	var result := Vector3.ZERO
+	var count := 0
+	for index in indices:
+		if index < 0 or index >= nodes.size():
+			continue
+		result += nodes[index].position_m
+		count += 1
+	return Vector3.ZERO if count == 0 else result / float(count)
+
+func average_velocity_for_nodes(indices: PackedInt32Array) -> Vector3:
+	if indices.is_empty():
+		return Vector3.ZERO
+	var weighted := Vector3.ZERO
+	var total_mass := 0.0
+	for index in indices:
+		if index < 0 or index >= nodes.size():
+			continue
+		weighted += nodes[index].velocity_ms * nodes[index].mass_kg
+		total_mass += nodes[index].mass_kg
+	return Vector3.ZERO if total_mass <= 0.0 else weighted / total_mass
 
 func total_kinetic_energy_j() -> float:
 	var result := 0.0
@@ -163,10 +190,24 @@ func energy_balance_relative_error() -> float:
 		return 0.0
 	return absf(energy_balance_error_j()) / initial_energy_j
 
+func role_beam_count(role: StringName) -> int:
+	var result := 0
+	for beam in beams:
+		if beam.role == role:
+			result += 1
+	return result
+
 func broken_beam_count() -> int:
 	var result := 0
 	for beam in beams:
 		if beam.broken:
+			result += 1
+	return result
+
+func broken_beam_count_for_role(role: StringName) -> int:
+	var result := 0
+	for beam in beams:
+		if beam.role == role and beam.broken:
 			result += 1
 	return result
 
@@ -176,10 +217,24 @@ func max_absolute_strain() -> float:
 		result = maxf(result, absf(beam.last_total_strain))
 	return result
 
+func max_absolute_strain_for_role(role: StringName) -> float:
+	var result := 0.0
+	for beam in beams:
+		if beam.role == role:
+			result = maxf(result, absf(beam.last_total_strain))
+	return result
+
 func max_permanent_deformation_m() -> float:
 	var result := 0.0
 	for beam in beams:
 		result = maxf(result, absf(beam.permanent_deformation_m()))
+	return result
+
+func max_permanent_deformation_for_role(role: StringName) -> float:
+	var result := 0.0
+	for beam in beams:
+		if beam.role == role:
+			result = maxf(result, absf(beam.permanent_deformation_m()))
 	return result
 
 func state_signature() -> PackedFloat64Array:
