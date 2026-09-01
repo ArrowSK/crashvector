@@ -9,6 +9,7 @@ var vehicle_model: StructuralModel
 var truck_model: StructuralModel
 var vehicle_contact_nodes := PackedInt32Array()
 var truck_contact_nodes := PackedInt32Array()
+var contact_normal := Vector3.RIGHT
 var contact := VehiclePairContact.new()
 var elapsed_s: float = 0.0
 var initial_energy_j: float = 0.0
@@ -18,18 +19,32 @@ func configure(
 	car: StructuralModel,
 	car_contact_nodes: PackedInt32Array,
 	truck: StructuralModel,
-	truck_rear_contact_nodes: PackedInt32Array
+	truck_rear_contact_nodes: PackedInt32Array,
+	normal: Vector3 = Vector3.RIGHT,
+	friction_coefficient: float = 0.55,
+	restitution: float = 0.03
 ) -> void:
 	vehicle_model = car
 	truck_model = truck
-	vehicle_contact_nodes = car_contact_nodes
-	truck_contact_nodes = truck_rear_contact_nodes
+	vehicle_contact_nodes = car_contact_nodes.duplicate()
+	contact_normal = normal.normalized()
+	if contact_normal.is_zero_approx():
+		contact_normal = Vector3.RIGHT
+	truck_contact_nodes = _best_transverse_pair_order(
+		vehicle_model,
+		vehicle_contact_nodes,
+		truck_model,
+		truck_rear_contact_nodes,
+		contact_normal
+	)
 	vehicle_model.barrier_enabled = false
 	truck_model.barrier_enabled = false
 	initial_energy_j = vehicle_model.initial_energy_j + truck_model.initial_energy_j
 	initial_momentum_kg_ms = vehicle_model.total_momentum_kg_ms() + truck_model.total_momentum_kg_ms()
 	elapsed_s = 0.0
 	contact = VehiclePairContact.new()
+	contact.friction_coefficient = clampf(friction_coefficient, 0.0, 1.5)
+	contact.restitution = clampf(restitution, 0.0, 0.5)
 
 func step(delta_s: float, substeps: int = 8) -> void:
 	if delta_s <= 0.0 or vehicle_model == null or truck_model == null:
@@ -44,7 +59,7 @@ func step(delta_s: float, substeps: int = 8) -> void:
 			vehicle_contact_nodes,
 			truck_model,
 			truck_contact_nodes,
-			Vector3.RIGHT,
+			contact_normal,
 			elapsed_s
 		)
 		elapsed_s += h
@@ -52,8 +67,8 @@ func step(delta_s: float, substeps: int = 8) -> void:
 func closing_speed_kmh() -> float:
 	if vehicle_model == null or truck_model == null:
 		return 0.0
-	var relative := vehicle_model.average_velocity_ms().x - truck_model.average_velocity_ms().x
-	return PhysicsMetrics.ms_to_kmh(maxf(relative, 0.0))
+	var relative_velocity := vehicle_model.average_velocity_ms() - truck_model.average_velocity_ms()
+	return PhysicsMetrics.ms_to_kmh(maxf(relative_velocity.dot(contact_normal), 0.0))
 
 func current_total_momentum_kg_ms() -> Vector3:
 	return vehicle_model.total_momentum_kg_ms() + truck_model.total_momentum_kg_ms()
@@ -68,3 +83,38 @@ func energy_balance_relative_error() -> float:
 	if initial_energy_j <= 0.0:
 		return 0.0
 	return absf(initial_energy_j - accounted_energy_j()) / initial_energy_j
+
+func _best_transverse_pair_order(
+	model_a: StructuralModel,
+	indices_a: PackedInt32Array,
+	model_b: StructuralModel,
+	indices_b: PackedInt32Array,
+	normal: Vector3
+) -> PackedInt32Array:
+	var result := indices_b.duplicate()
+	if indices_a.size() != 2 or indices_b.size() != 2:
+		return result
+	if not _valid_index(model_a, indices_a[0]) or not _valid_index(model_a, indices_a[1]):
+		return result
+	if not _valid_index(model_b, indices_b[0]) or not _valid_index(model_b, indices_b[1]):
+		return result
+	var direct_score := (
+		_transverse_distance_squared(model_a.nodes[indices_a[0]].position_m, model_b.nodes[indices_b[0]].position_m, normal)
+		+ _transverse_distance_squared(model_a.nodes[indices_a[1]].position_m, model_b.nodes[indices_b[1]].position_m, normal)
+	)
+	var reversed_score := (
+		_transverse_distance_squared(model_a.nodes[indices_a[0]].position_m, model_b.nodes[indices_b[1]].position_m, normal)
+		+ _transverse_distance_squared(model_a.nodes[indices_a[1]].position_m, model_b.nodes[indices_b[0]].position_m, normal)
+	)
+	if reversed_score + 0.000001 < direct_score:
+		result[0] = indices_b[1]
+		result[1] = indices_b[0]
+	return result
+
+func _transverse_distance_squared(a: Vector3, b: Vector3, normal: Vector3) -> float:
+	var delta := b - a
+	var tangent := delta - normal * delta.dot(normal)
+	return tangent.length_squared()
+
+func _valid_index(model: StructuralModel, index: int) -> bool:
+	return model != null and index >= 0 and index < model.nodes.size()

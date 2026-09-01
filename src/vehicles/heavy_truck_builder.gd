@@ -5,11 +5,11 @@
 class_name HeavyTruckBuilder
 extends RefCounted
 
-const STATION_X := PackedFloat64Array([0.0, 1.5, 3.0, 4.5, 6.0, 7.2, 8.4, 9.5])
-const LOWER_Y := PackedFloat64Array([0.52, 0.72, 0.72, 0.72, 0.72, 0.62, 0.60, 0.64])
-const UPPER_Y := PackedFloat64Array([1.10, 3.65, 3.65, 3.65, 3.65, 3.15, 3.15, 2.50])
-const HALF_WIDTH_Z := PackedFloat64Array([1.05, 1.22, 1.22, 1.22, 1.22, 1.18, 1.18, 1.10])
-const STATION_MASS_SHARE := PackedFloat64Array([0.05, 0.10, 0.11, 0.12, 0.15, 0.17, 0.17, 0.13])
+const STATION_X: Array[float] = [0.0, 1.5, 3.0, 4.5, 6.0, 7.2, 8.4, 9.5]
+const LOWER_Y: Array[float] = [0.52, 0.72, 0.72, 0.72, 0.72, 0.62, 0.60, 0.64]
+const UPPER_Y: Array[float] = [1.10, 3.65, 3.65, 3.65, 3.65, 3.15, 3.15, 2.50]
+const HALF_WIDTH_Z: Array[float] = [1.05, 1.22, 1.22, 1.22, 1.22, 1.18, 1.18, 1.10]
+const STATION_MASS_SHARE: Array[float] = [0.05, 0.10, 0.11, 0.12, 0.15, 0.17, 0.17, 0.13]
 
 const REAR_STATION: int = 0
 const TRAILER_END_STATION: int = 4
@@ -24,7 +24,7 @@ static func build(
 	model.barrier_enabled = false
 	var mass := maxf(total_mass_kg, 1000.0)
 	for station in range(STATION_X.size()):
-		var node_mass := mass * STATION_MASS_SHARE[station] / 4.0
+		var node_mass: float = mass * STATION_MASS_SHARE[station] / 4.0
 		model.add_node(origin_offset_m + Vector3(STATION_X[station], LOWER_Y[station], -HALF_WIDTH_Z[station]), node_mass)
 		model.add_node(origin_offset_m + Vector3(STATION_X[station], LOWER_Y[station], HALF_WIDTH_Z[station]), node_mass)
 		model.add_node(origin_offset_m + Vector3(STATION_X[station], UPPER_Y[station], -HALF_WIDTH_Z[station]), node_mass)
@@ -70,7 +70,7 @@ static func wheel_anchor_indices() -> PackedInt32Array:
 
 static func _add_cross_section(model: StructuralModel, station: int) -> void:
 	var role := _profile_for_station(station)
-	var corners := [0, 1, 3, 2]
+	var corners: Array[int] = [0, 1, 3, 2]
 	for i in range(corners.size()):
 		_add_profile_beam(model, node_index(station, corners[i]), node_index(station, corners[(i + 1) % corners.size()]), role)
 	_add_profile_beam(model, node_index(station, 0), node_index(station, 3), role)

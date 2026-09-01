@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "title": "B-segment vs C-segment rear impact",
+  "scenario_type": "single_car_impact",
+  "target_type": "passenger_car",
+  "car": {
+    "class_id": "b_segment_hatchback",
+    "mass_kg": 1150.0,
+    "speed_kmh": 90.0,
+    "position_m": [-6.0, 0.0, 0.0],
+    "heading_deg": 0.0
+  },
+  "target": {
+    "car_class_id": "c_segment_compact",
+    "mass_kg": 1375.0,
+    "speed_kmh": 30.0,
+    "position_m": [2.5, 0.0, 0.0],
+    "heading_deg": 0.0
+  },
+  "contact": {
+    "friction": 0.55,
+    "restitution": 0.03
+  },
+  "simulation": {
+    "duration_s": 4.0,
+    "solver_substeps": 8,
+    "show_structure": false
+  }
+}

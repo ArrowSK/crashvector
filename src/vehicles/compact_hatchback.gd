@@ -7,9 +7,10 @@ extends Node3D
 
 @export var vehicle_preset_id: StringName = PassengerCarCatalog.B_SEGMENT_HATCHBACK
 @export_range(1.0, 100000.0, 1.0, "or_greater") var total_mass_kg: float = 1150.0
-@export_range(1.0, 300.0, 1.0, "or_greater") var initial_speed_kmh: float = 50.0
+@export_range(0.0, 300.0, 1.0, "or_greater") var initial_speed_kmh: float = 50.0
 @export var barrier_x_m: float = 5.0
 @export var origin_offset_m: Vector3 = Vector3.ZERO
+@export_range(-180.0, 180.0, 1.0) var heading_deg: float = 0.0
 @export_range(1, 16, 1) var solver_substeps: int = 6
 @export var show_structure: bool = true
 @export var auto_step: bool = true
@@ -24,6 +25,7 @@ var front_bumper_velocity_ms := Vector3.ZERO
 
 func _ready() -> void:
 	model = PassengerCarBuilder.build(vehicle_preset_id, total_mass_kg, initial_speed_kmh, barrier_x_m, origin_offset_m)
+	model.rotate_y_about(origin_offset_m, deg_to_rad(heading_deg), true)
 	_build_body_shell()
 	_build_wheels()
 	_build_structure_debugger()
@@ -43,6 +45,11 @@ func toggle_structure_debug() -> void:
 	show_structure = not show_structure
 	if debug_renderer != null:
 		debug_renderer.visible = show_structure
+
+func set_structure_debug(value: bool) -> void:
+	show_structure = value
+	if debug_renderer != null:
+		debug_renderer.visible = value
 
 func vehicle_class_name() -> String:
 	return PassengerCarCatalog.display_name(vehicle_preset_id)
@@ -113,7 +120,8 @@ func _update_front_bumper(delta: float) -> void:
 		return
 	if not front_bumper_detached:
 		var front_nodes := CompactHatchbackBuilder.station_nodes(CompactHatchbackBuilder.FRONT_STATION)
-		front_bumper.position = model.average_position_for_nodes(front_nodes) + Vector3(0.10, -0.12, 0.0)
+		var forward := Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
+		front_bumper.position = model.average_position_for_nodes(front_nodes) + forward * 0.10 + Vector3(0.0, -0.12, 0.0)
 		var should_detach := (
 			model.broken_beam_count_for_role(&"front_crush") > 0
 			or model.max_permanent_deformation_for_role(&"front_crush") > 0.18

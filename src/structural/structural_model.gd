@@ -53,6 +53,22 @@ func set_uniform_velocity(velocity_ms: Vector3) -> void:
 			node.velocity_ms = velocity_ms
 	capture_initial_energy()
 
+func translate_all_nodes(offset_m: Vector3) -> void:
+	if offset_m.is_zero_approx():
+		return
+	for node in nodes:
+		node.position_m += offset_m
+
+func rotate_y_about(pivot_m: Vector3, angle_rad: float, rotate_velocities: bool = true) -> void:
+	if is_zero_approx(angle_rad):
+		return
+	var basis := Basis(Vector3.UP, angle_rad)
+	for node in nodes:
+		node.position_m = pivot_m + basis * (node.position_m - pivot_m)
+		if rotate_velocities:
+			node.velocity_ms = basis * node.velocity_ms
+	capture_initial_energy()
+
 func capture_initial_energy() -> void:
 	initial_energy_j = total_kinetic_energy_j() + total_elastic_energy_j()
 
@@ -90,33 +106,48 @@ func _resolve_barrier_contacts() -> void:
 				first_contact_time_s = elapsed_s
 
 func total_mass_kg() -> float:
-	var result := 0.0
+	var result: float = 0.0
 	for node in nodes:
 		result += node.mass_kg
 	return result
 
 func center_of_mass_m() -> Vector3:
-	var weighted := Vector3.ZERO
-	var total_mass := 0.0
+	var weighted_x: float = 0.0
+	var weighted_y: float = 0.0
+	var weighted_z: float = 0.0
+	var total_mass: float = 0.0
 	for node in nodes:
-		weighted += node.position_m * node.mass_kg
+		weighted_x += float(node.position_m.x) * node.mass_kg
+		weighted_y += float(node.position_m.y) * node.mass_kg
+		weighted_z += float(node.position_m.z) * node.mass_kg
 		total_mass += node.mass_kg
 	if total_mass <= 0.0:
 		return Vector3.ZERO
-	return weighted / total_mass
+	return Vector3(weighted_x / total_mass, weighted_y / total_mass, weighted_z / total_mass)
 
 func average_velocity_ms() -> Vector3:
-	var momentum := total_momentum_kg_ms()
-	var total_mass := total_mass_kg()
+	var weighted_x: float = 0.0
+	var weighted_y: float = 0.0
+	var weighted_z: float = 0.0
+	var total_mass: float = 0.0
+	for node in nodes:
+		weighted_x += float(node.velocity_ms.x) * node.mass_kg
+		weighted_y += float(node.velocity_ms.y) * node.mass_kg
+		weighted_z += float(node.velocity_ms.z) * node.mass_kg
+		total_mass += node.mass_kg
 	if total_mass <= 0.0:
 		return Vector3.ZERO
-	return momentum / total_mass
+	return Vector3(weighted_x / total_mass, weighted_y / total_mass, weighted_z / total_mass)
 
 func total_momentum_kg_ms() -> Vector3:
-	var momentum := Vector3.ZERO
+	var momentum_x: float = 0.0
+	var momentum_y: float = 0.0
+	var momentum_z: float = 0.0
 	for node in nodes:
-		momentum += node.velocity_ms * node.mass_kg
-	return momentum
+		momentum_x += float(node.velocity_ms.x) * node.mass_kg
+		momentum_y += float(node.velocity_ms.y) * node.mass_kg
+		momentum_z += float(node.velocity_ms.z) * node.mass_kg
+	return Vector3(momentum_x, momentum_y, momentum_z)
 
 func average_position_for_nodes(indices: PackedInt32Array) -> Vector3:
 	if indices.is_empty():
@@ -133,14 +164,21 @@ func average_position_for_nodes(indices: PackedInt32Array) -> Vector3:
 func average_velocity_for_nodes(indices: PackedInt32Array) -> Vector3:
 	if indices.is_empty():
 		return Vector3.ZERO
-	var weighted := Vector3.ZERO
-	var total_mass := 0.0
+	var weighted_x: float = 0.0
+	var weighted_y: float = 0.0
+	var weighted_z: float = 0.0
+	var total_mass: float = 0.0
 	for index in indices:
 		if index < 0 or index >= nodes.size():
 			continue
-		weighted += nodes[index].velocity_ms * nodes[index].mass_kg
-		total_mass += nodes[index].mass_kg
-	return Vector3.ZERO if total_mass <= 0.0 else weighted / total_mass
+		var node := nodes[index]
+		weighted_x += float(node.velocity_ms.x) * node.mass_kg
+		weighted_y += float(node.velocity_ms.y) * node.mass_kg
+		weighted_z += float(node.velocity_ms.z) * node.mass_kg
+		total_mass += node.mass_kg
+	if total_mass <= 0.0:
+		return Vector3.ZERO
+	return Vector3(weighted_x / total_mass, weighted_y / total_mass, weighted_z / total_mass)
 
 func total_kinetic_energy_j() -> float:
 	var result := 0.0

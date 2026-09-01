@@ -5,7 +5,7 @@
 class_name StructuralSledBuilder
 extends RefCounted
 
-const STATION_X := PackedFloat64Array([-4.0, -2.5, -1.0, 0.5, 2.0])
+const STATION_X: Array[float] = [-4.0, -2.5, -1.0, 0.5, 2.0]
 const LOWER_Y: float = 0.55
 const UPPER_Y: float = 1.45
 const HALF_WIDTH_Z: float = 0.82
@@ -16,7 +16,8 @@ static func build_compact_sled(total_mass_kg: float = 1150.0, speed_kmh: float =
 	var node_count := STATION_X.size() * 4
 	var node_mass := maxf(total_mass_kg, 1.0) / float(node_count)
 
-	for x in STATION_X:
+	for station in range(STATION_X.size()):
+		var x: float = STATION_X[station]
 		model.add_node(Vector3(x, LOWER_Y, -HALF_WIDTH_Z), node_mass)
 		model.add_node(Vector3(x, LOWER_Y, HALF_WIDTH_Z), node_mass)
 		model.add_node(Vector3(x, UPPER_Y, -HALF_WIDTH_Z), node_mass)
@@ -35,7 +36,7 @@ static func _node_index(station: int, corner: int) -> int:
 	return station * 4 + corner
 
 static func _add_cross_section(model: StructuralModel, station: int) -> void:
-	var corners := [0, 1, 3, 2]
+	var corners: Array[int] = [0, 1, 3, 2]
 	for i in range(corners.size()):
 		var a: int = corners[i]
 		var b: int = corners[(i + 1) % corners.size()]

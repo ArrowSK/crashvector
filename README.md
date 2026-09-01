@@ -6,58 +6,65 @@ CrashVector is being built to bridge the gap between simple game collisions and 
 
 > CrashVector is an educational physics visualisation tool. It is not a certified accident-reconstruction, vehicle-homologation, structural-engineering, or occupant-injury prediction system.
 
-## Current milestone: M3 — Passenger Car vs Heavy Truck
+## Current milestone: M4 — Scenario Editor
 
-M3 turns the M2 compact-hatchback proof into a small generic vehicle family and adds the first coupled car/truck collision scenario.
+M4 replaces the keyboard-driven development demo with the first usable desktop scenario editor.
+
+The editor now provides:
+
+- a primary passenger-car object;
+- impact targets for **another passenger car**, heavy truck, rigid wall, concrete barrier, pole, or tree;
+- generic B-, C-, and D-segment passenger-car classes with editable mass and speed;
+- editable truck mass and speed;
+- position and heading controls in the inspector;
+- direct left-drag placement and right-drag rotation in the 3D view;
+- contact-friction, restitution, solver-substep, duration, and structural-debug controls;
+- preflight validation before simulation;
+- New / Open / Save / Simulate / Pause / Reset / Frame actions;
+- human-readable `.crashvector.json` scenario files.
+
+### Car vs car
+
+Car-vs-car is a first-class M4 scenario, not a special case hidden behind the truck model. Either vehicle can use any of the three generic passenger-car classes and have its own mass, speed, position, and heading.
+
+M4 supports:
+
+- rear-end car-vs-car impacts when both vehicles have similar headings;
+- near head-on car-vs-car impacts by rotating the target car approximately 180 degrees;
+- independent B / C / D class combinations.
+
+Broadside and strongly oblique car-vs-car contact is intentionally rejected by preflight for now because the current paired-node contact model does not yet provide a trustworthy side-impact contact surface. That belongs in a later contact-geometry upgrade rather than being faked.
 
 ### Generic passenger-car classes
 
-The application now ships three development presets:
+The application currently ships:
 
 - **B-Segment Small Hatchback** — 1,150 kg default mass;
 - **C-Segment Compact Car** — 1,375 kg default mass;
 - **D-Segment Midsize Car** — 1,575 kg default mass.
 
-These are representative vehicle classes, not replicas of production vehicles. Their geometry and structural parameters are deliberately generic and must not be interpreted as manufacturer-specific crash predictions.
-
-All three presets retain the M2 28-node zone architecture, with scaled dimensions, mass and structural stiffness while preserving separate rear-crush, safety-cell, transition and front-crush regions.
+These correspond to general size classes only. CrashVector does not use production model names, manufacturer badges, proprietary CAD, or OEM-specific crash-performance claims.
 
 ### Heavy truck
 
-M3 adds a generic heavy truck combination with:
+The M3 generic heavy-truck model remains available with its 32-node tractor/trailer structural approximation and editable total mass. The M4 editor exposes truck position, heading, mass, and speed directly rather than through development keyboard shortcuts.
 
-- 32 structural nodes;
-- configurable 18 t / 32 t / 40 t total mass presets;
-- trailer and tractor structural regions;
-- a distinct rear underride-guard structure;
-- a simplified fifth-wheel connection region;
-- six visual wheel anchors;
-- configurable 0 / 50 / 80 km/h initial truck speed.
+### Static targets
 
-The truck is intentionally generic. The current tractor/trailer connection is a structural approximation rather than a full articulated multibody joint.
-
-### Coupled collision physics
-
-`VehiclePairSimulation` advances both deformable structures on the same substep clock. `VehiclePairContact` exchanges equal-and-opposite contact impulses between paired structural contact nodes, preserving linear momentum within numerical tolerance while recording contact dissipation and penetration diagnostics.
-
-The first reference scenario is a passenger car striking the rear underride structure of the heavy truck.
+M4 also adds editor-selectable rigid wall, concrete barrier, pole, and tree targets. These use a deterministic static-contact layer that resolves vehicle-node contact, friction, restitution, penetration correction, and contact-energy diagnostics.
 
 ## Run locally
 
 Install Godot 4.4.1 or newer, clone the repository, open `project.godot`, and run the project.
 
-Controls:
+Typical workflow:
 
-- `1` — car at 50 km/h
-- `2` — car at 90 km/h
-- `3` — car at 140 km/h
-- `V` — cycle B / C / D passenger-car classes
-- `M` — cycle truck mass: 18 / 32 / 40 t
-- `K` — cycle truck speed: 0 / 50 / 80 km/h
-- `D` — toggle structural debug views
-- `R` — reset the current scenario
-
-The diagnostics panel shows vehicle masses and speeds, closing speed, car kinetic energy, front-crush and safety-cell deformation, truck rear-guard deformation, pair-contact count, peak node penetration, momentum-balance error and energy-balance error.
+1. Select the primary passenger car and choose its class, mass, speed, position, and heading.
+2. Choose an impact target from the left panel. Selecting **Passenger Car** creates a true car-vs-car scenario.
+3. Configure the target in the right inspector or move/rotate it directly in the 3D view.
+4. Press **Simulate**. Preflight blocks layouts the current contact model does not support safely.
+5. Use **Reset** to return to the editable starting state.
+6. Use **Save** to write a `.crashvector.json` scenario and **Open** to load it again.
 
 ## Development status
 
@@ -65,7 +72,7 @@ The diagnostics panel shows vehicle masses and speeds, closing speed, car kineti
 - **M1** — deformable structural test sled — complete
 - **M2** — generic compact hatchback architecture — complete
 - **M3** — generic passenger-car classes and heavy-truck collision — complete
-- **M4** — scenario editor and usable desktop UI
+- **M4** — scenario editor, car-vs-car, static targets, and save/load — complete
 - **M5** — analysis, replay, crash pulse, and overlays
 - **M6** — synchronized scenario comparison
 - **M7** — offline video export and cinematic cameras
@@ -73,7 +80,7 @@ The diagnostics panel shows vehicle masses and speeds, closing speed, car kineti
 
 ## Verification
 
-CI imports the complete Godot project and runs the M0, M1, M2 and M3 headless regression suites. M3 adds checks for the three generic passenger-car presets, heavy-truck architecture, coupled-contact momentum conservation, rear-impact deformation and finite numerical state.
+CI imports the complete Godot project and runs the M0, M1, M2, M3, and M4 headless suites. M4 adds regression coverage for scenario JSON round trips, filesystem save/load, preflight rules, heading transforms, static-wall contact, rear-end car-vs-car impacts, head-on car-vs-car impacts, deformation, momentum conservation, and finite numerical state.
 
 ## Licence
 

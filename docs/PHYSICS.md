@@ -4,38 +4,57 @@ CrashVector is an educational simulator. Numerical outputs must be labelled acco
 
 ## Passenger-car presets
 
-M3 introduces generic B-, C- and D-segment passenger-car presets. The classes vary representative mass, structural length/width scaling and stiffness scaling. These parameters are development assumptions, not manufacturer data and not homologation models.
+CrashVector currently uses generic B-, C-, and D-segment passenger-car presets. The classes vary representative mass, structural length/width scaling, and stiffness scaling. These parameters are development assumptions, not manufacturer data and not homologation models.
 
-## Coupled car/truck contact
+M4 allows two independent passenger-car instances in the same scenario. This is intentionally class-based rather than production-model based.
 
-The M3 coupled-contact solver uses paired structural nodes at the car front and truck rear underride structure. For an active contact pair it:
+## World transforms
 
-1. detects normal penetration and verifies transverse proximity;
-2. measures relative closing speed along the contact normal;
-3. computes an impulse from the two nodal inverse masses and configured restitution;
-4. applies equal-and-opposite velocity changes;
-5. performs mass-weighted positional correction for residual penetration;
-6. records kinetic-energy loss attributed to contact.
+The structural graph itself is transformed when an editor user moves or rotates a vehicle. Heading is therefore not a cosmetic mesh rotation: node positions and velocities are yaw-rotated around the configured vehicle origin and initial energy is recaptured after the transform.
 
-Because the impulse applied to the two nodes is equal and opposite, system linear momentum is conserved apart from floating-point tolerance. The structural beams then transmit those local changes through each vehicle.
+This lets the same structural model represent rear-end and near head-on layouts without changing the underlying car definition.
+
+## Dynamic vehicle-pair contact
+
+`VehiclePairSimulation` is used for both car-vs-truck and car-vs-car impacts. For each configured structural-node pair, `VehiclePairContact`:
+
+1. detects penetration along the scenario contact normal and verifies transverse proximity;
+2. measures relative normal and tangent velocity;
+3. computes a normal impulse from the two nodal inverse masses and configured restitution;
+4. applies equal-and-opposite normal velocity changes;
+5. applies a Coulomb-limited tangent impulse using the configured contact-friction coefficient;
+6. performs inverse-mass-weighted positional correction for residual penetration;
+7. records kinetic-energy loss attributed to contact.
+
+Because every contact impulse is applied equally and oppositely to the two nodes, system linear momentum is conserved apart from floating-point tolerance. The structural beams then distribute the local contact response through both deformable vehicles.
+
+### Car vs car
+
+For rear-end layouts, the primary car's lower front nodes contact the target car's lower rear nodes.
+
+For near head-on layouts, the primary front nodes contact the target front nodes after the target structural graph and velocity have been rotated by approximately 180 degrees.
+
+M4 deliberately rejects broadside and strongly oblique car-vs-car layouts. The current paired-node contact representation does not yet provide a sufficiently meaningful side-impact surface, door structure contact patch, wheel-to-body contact, or sliding multi-point manifold. Side-impact support should arrive with a richer geometric contact layer, not by stretching the front/rear approximation beyond its intended range.
+
+## Car vs heavy truck
+
+The heavy-truck reference scenario contacts the car's lower front structural nodes against the truck's low rear-underride nodes. This is a simplified geometric representation of a rear-underride interaction. It does not claim compliance with any specific guard standard or reproduce a particular truck design.
+
+## Static-target contact
+
+M4 adds a separate fixed-target contact solver for wall, concrete barrier, pole, and tree scenarios.
+
+Wall and barrier targets use oriented vertical planes with finite lateral and vertical bounds. Pole and tree targets use vertical cylindrical contact regions. When a node penetrates a static target, the solver applies normal restitution, Coulomb-limited tangent friction, positional correction, and contact-energy accounting.
+
+Static targets are externally fixed in M4. They therefore do not exchange momentum with a second simulated rigid body. This is appropriate for the current educational wall/barrier/pole/tree presets but should not be confused with modelling a deformable roadside structure or uprooting tree.
 
 ## Energy bookkeeping
 
-For a coupled scenario the diagnostic accounting is the sum of:
+For a dynamic-pair scenario, the diagnostic accounting is the sum of both structural models' kinetic, elastic, plastic, damping, fracture, and local contact terms plus pair-contact dissipation.
 
-- car kinetic and elastic energy;
-- truck kinetic and elastic energy;
-- plastic work;
-- damping loss;
-- fracture energy;
-- any per-model barrier-contact loss;
-- car/truck pair-contact dissipation.
+For a static-target scenario, fixed-target contact dissipation is added to the passenger-car structural model's accounting.
 
-The current bookkeeping remains a diagnostic rather than a validated thermodynamic partition. It is intended to expose numerical defects and make hidden energy creation visible.
-
-## Underride model
-
-The first M3 truck scenario deliberately contacts the car's lower front structural nodes against the truck's low rear guard nodes. This is a simplified geometric representation of a rear-underride interaction. It does not claim compliance with any specific guard standard or reproduce a particular truck design.
+The bookkeeping remains a numerical diagnostic rather than a validated thermodynamic partition. Its purpose is to expose hidden energy creation, instability, and solver regressions.
 
 ## M0 reference quantities
 
