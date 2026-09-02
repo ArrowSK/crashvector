@@ -5,6 +5,13 @@
 class_name PassengerCarBuilder
 extends RefCounted
 
+# M8 calibration note:
+# The original M2/M3 front profiles were intentionally stiff development
+# placeholders. The frontal profiles below are now anchored to the first
+# documented full-frontal rigid-barrier correlation condition. Because the
+# structural graph has many members working in parallel, member stiffnesses
+# are much lower than a whole-vehicle force/displacement stiffness.
+
 static func build(
 	preset_id: StringName = PassengerCarCatalog.B_SEGMENT_HATCHBACK,
 	total_mass_kg: float = -1.0,
@@ -94,9 +101,13 @@ static func _add_profile_beam(model: StructuralModel, a: int, b: int, profile: S
 	var s := maxf(stiffness_scale, 0.1)
 	match profile:
 		&"front_crush":
-			model.add_beam(a, b, profile, 900000.0 * s, 3800.0 * sqrt(s), 0.035, 0.55, 0.75, 18.0)
+			# Progressive sacrificial rail/front-sheet surrogate. The high plastic
+			# flow absorbs energy through permanent crush rather than elastic rebound.
+			model.add_beam(a, b, profile, 150000.0 * s, 1200.0 * sqrt(s), 0.020, 0.68, 0.88, 30.0)
 		&"front_transition":
-			model.add_beam(a, b, profile, 2100000.0 * s, 5400.0 * sqrt(s), 0.050, 0.36, 0.56, 12.0)
+			# Stronger than the nose, but still allowed to yield so the crash pulse
+			# is distributed before loads reach the safety cell.
+			model.add_beam(a, b, profile, 450000.0 * s, 2200.0 * sqrt(s), 0.035, 0.48, 0.68, 20.0)
 		&"rear_crush":
 			model.add_beam(a, b, profile, 1250000.0 * s, 4200.0 * sqrt(s), 0.040, 0.42, 0.64, 15.0)
 		_:
