@@ -13,12 +13,21 @@ static func run_speed_sweep(base_scenario: ScenarioConfig, speeds_kmh: Array[flo
 	for speed in speeds_kmh:
 		var config := _clone_scenario(base_scenario)
 		config.car_speed_kmh = speed
-		results.append(_run_variant(config, "%.0f km/h" % speed, &"speed"))
+		results.append(_run_variant(config, _speed_label(speed), &"speed"))
 	return results
 
-static func run_vehicle_class_sweep(base_scenario: ScenarioConfig) -> Array[Dictionary]:
+static func run_vehicle_class_sweep(
+	base_scenario: ScenarioConfig,
+	preset_ids: Array[StringName] = [
+		PassengerCarCatalog.B_SEGMENT_HATCHBACK,
+		PassengerCarCatalog.C_SEGMENT_COMPACT,
+		PassengerCarCatalog.D_SEGMENT_MIDSIZE,
+	]
+) -> Array[Dictionary]:
 	var results: Array[Dictionary] = []
-	for preset_id in PassengerCarCatalog.preset_ids():
+	for preset_id in preset_ids:
+		if not PassengerCarCatalog.preset_ids().has(preset_id):
+			continue
 		var config := _clone_scenario(base_scenario)
 		config.car_preset_id = preset_id
 		config.car_mass_kg = PassengerCarCatalog.default_mass_kg(preset_id)
@@ -64,7 +73,7 @@ static func _run_variant(config: ScenarioConfig, label: String, sweep_type: Stri
 			primary,
 			_front_contact_nodes(),
 			target,
-			_front_contact_nodes() if config.target_car_uses_front_contact() else _rear_contact_nodes(),
+			_front_contact_nodes() if config.target_vehicle_uses_front_contact() else _rear_contact_nodes(),
 			config.car_forward(),
 			config.contact_friction,
 			config.restitution
@@ -79,6 +88,34 @@ static func _run_variant(config: ScenarioConfig, label: String, sweep_type: Stri
 			_front_contact_nodes(),
 			target,
 			HeavyTruckBuilder.rear_contact_nodes(),
+			config.car_forward(),
+			config.contact_friction,
+			config.restitution
+		)
+	elif config.target_type == ScenarioConfig.TARGET_LORRY:
+		target = RigidLorryBuilder.build(config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
+		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
+		target.barrier_enabled = false
+		pair_simulation = VehiclePairSimulation.new()
+		pair_simulation.configure(
+			primary,
+			_front_contact_nodes(),
+			target,
+			RigidLorryBuilder.rear_contact_nodes(),
+			config.car_forward(),
+			config.contact_friction,
+			config.restitution
+		)
+	elif config.target_type == ScenarioConfig.TARGET_MOTORCYCLE:
+		target = MotorcycleBuilder.build(config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
+		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
+		target.barrier_enabled = false
+		pair_simulation = VehiclePairSimulation.new()
+		pair_simulation.configure(
+			primary,
+			_front_contact_nodes(),
+			target,
+			MotorcycleBuilder.front_contact_nodes() if config.target_vehicle_uses_front_contact() else MotorcycleBuilder.rear_contact_nodes(),
 			config.car_forward(),
 			config.contact_friction,
 			config.restitution
@@ -182,6 +219,10 @@ static func _target_metrics(model: StructuralModel, target_type: StringName) -> 
 		result["safety_cell_m"] = model.max_permanent_deformation_for_role(&"safety_cell")
 	elif target_type == ScenarioConfig.TARGET_TRUCK:
 		result["rear_guard_m"] = model.max_permanent_deformation_for_role(&"underride_guard")
+	elif target_type == ScenarioConfig.TARGET_LORRY:
+		result["rear_guard_m"] = model.max_permanent_deformation_for_role(&"lorry_rear_guard")
+	elif target_type == ScenarioConfig.TARGET_MOTORCYCLE:
+		result["frame_deformation_m"] = model.max_permanent_deformation_for_role(&"motorcycle_frame")
 	return result
 
 static func _context(pair_simulation: VehiclePairSimulation, static_simulation: VehicleStaticSimulation) -> Dictionary:
@@ -213,3 +254,8 @@ static func _rear_contact_nodes() -> PackedInt32Array:
 		CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.REAR_STATION, 0),
 		CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.REAR_STATION, 1),
 	])
+
+static func _speed_label(speed_kmh: float) -> String:
+	if absf(speed_kmh - roundf(speed_kmh)) < 0.001:
+		return "%.0f km/h" % speed_kmh
+	return "%.1f km/h" % speed_kmh

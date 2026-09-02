@@ -41,8 +41,20 @@ func condition() -> Dictionary:
 func observations() -> Dictionary:
 	return data.get("published_observations", {})
 
+func source_corridors() -> Dictionary:
+	return data.get("source_correlation_corridors", {})
+
+func regression_corridors() -> Dictionary:
+	return data.get("project_regression_corridors", {})
+
+# Backward-compatible aggregate accessor for older callers. New M8 code should
+# use source_corridors() and regression_corridors() so externally supported
+# observations are never silently mixed with project-only guardrails.
 func corridors() -> Dictionary:
-	return data.get("crashvector_correlation_corridors", {})
+	var result := source_corridors().duplicate(true)
+	for key in regression_corridors().keys():
+		result[key] = regression_corridors()[key]
+	return result
 
 func scope() -> Dictionary:
 	return data.get("scope", {})

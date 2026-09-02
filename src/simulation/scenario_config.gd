@@ -8,6 +8,8 @@ extends RefCounted
 const FORMAT_VERSION: int = 1
 const TARGET_PASSENGER_CAR: StringName = &"passenger_car"
 const TARGET_TRUCK: StringName = &"heavy_truck"
+const TARGET_LORRY: StringName = &"rigid_lorry"
+const TARGET_MOTORCYCLE: StringName = &"motorcycle"
 const TARGET_WALL: StringName = &"rigid_wall"
 const TARGET_BARRIER: StringName = &"concrete_barrier"
 const TARGET_POLE: StringName = &"pole"
@@ -32,14 +34,29 @@ var solver_substeps: int = 8
 var show_structure: bool = false
 
 static func target_ids() -> Array[StringName]:
-	return [TARGET_PASSENGER_CAR, TARGET_TRUCK, TARGET_WALL, TARGET_BARRIER, TARGET_POLE, TARGET_TREE]
+	return [
+		TARGET_PASSENGER_CAR,
+		TARGET_TRUCK,
+		TARGET_LORRY,
+		TARGET_MOTORCYCLE,
+		TARGET_WALL,
+		TARGET_BARRIER,
+		TARGET_POLE,
+		TARGET_TREE,
+	]
 
 static func target_display_name(id: StringName) -> String:
 	match id:
 		TARGET_PASSENGER_CAR:
 			return "Passenger Car"
+		TARGET_TRUCK:
+			return "Heavy Articulated Truck"
+		TARGET_LORRY:
+			return "Rigid Lorry / Box Truck"
+		TARGET_MOTORCYCLE:
+			return "Motorcycle (riderless)"
 		TARGET_WALL:
-			return "Rigid Wall"
+			return "Rigid Wall (full-frontal)"
 		TARGET_BARRIER:
 			return "Concrete Barrier"
 		TARGET_POLE:
@@ -47,7 +64,7 @@ static func target_display_name(id: StringName) -> String:
 		TARGET_TREE:
 			return "Tree"
 		_:
-			return "Heavy Truck"
+			return "Unknown target"
 
 func reset_defaults() -> void:
 	title = "Car vs Truck"
@@ -74,8 +91,11 @@ func car_forward() -> Vector3:
 func heading_delta_deg() -> float:
 	return absf(wrapf(car_heading_deg - target_heading_deg, -180.0, 180.0))
 
-func target_car_uses_front_contact() -> bool:
+func target_vehicle_uses_front_contact() -> bool:
 	return heading_delta_deg() > 90.0
+
+func target_car_uses_front_contact() -> bool:
+	return target_vehicle_uses_front_contact()
 
 func validation_errors() -> Array[String]:
 	var errors: Array[String] = []
@@ -94,16 +114,31 @@ func validation_errors() -> Array[String]:
 			errors.append("Target passenger-car mass must be between 500 and 5,000 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 300.0:
 			errors.append("Target passenger-car speed must be between 0 and 300 km/h")
-		var delta := heading_delta_deg()
-		if delta > 25.0 and delta < 155.0:
-			errors.append("M4 car/car contact supports rear-end or near head-on layouts, not broadside impacts yet")
+		var car_delta := heading_delta_deg()
+		if car_delta > 25.0 and car_delta < 155.0:
+			errors.append("Passenger-car pair contact supports rear-end or near head-on layouts, not broadside impacts yet")
 	elif target_type == TARGET_TRUCK:
 		if target_mass_kg < 3500.0 or target_mass_kg > 60000.0:
 			errors.append("Heavy-truck mass must be between 3,500 and 60,000 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 140.0:
 			errors.append("Heavy-truck speed must be between 0 and 140 km/h")
 		if heading_delta_deg() > 25.0:
-			errors.append("M4 car/truck rear-contact model supports heading differences up to 25 degrees")
+			errors.append("Car/truck rear-contact model supports heading differences up to 25 degrees")
+	elif target_type == TARGET_LORRY:
+		if target_mass_kg < 3500.0 or target_mass_kg > 26000.0:
+			errors.append("Rigid-lorry mass must be between 3,500 and 26,000 kg")
+		if target_speed_kmh < 0.0 or target_speed_kmh > 140.0:
+			errors.append("Rigid-lorry speed must be between 0 and 140 km/h")
+		if heading_delta_deg() > 25.0:
+			errors.append("Car/lorry rear-contact model supports heading differences up to 25 degrees")
+	elif target_type == TARGET_MOTORCYCLE:
+		if target_mass_kg < 80.0 or target_mass_kg > 600.0:
+			errors.append("Motorcycle mass must be between 80 and 600 kg")
+		if target_speed_kmh < 0.0 or target_speed_kmh > 250.0:
+			errors.append("Motorcycle speed must be between 0 and 250 km/h")
+		var motorcycle_delta := heading_delta_deg()
+		if motorcycle_delta > 25.0 and motorcycle_delta < 155.0:
+			errors.append("Motorcycle contact supports rear-end or near head-on layouts, not broadside impacts yet")
 	if contact_friction < 0.0 or contact_friction > 1.5:
 		errors.append("Contact friction must be between 0 and 1.5")
 	if restitution < 0.0 or restitution > 0.5:

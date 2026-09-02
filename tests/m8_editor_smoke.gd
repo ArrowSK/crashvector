@@ -25,6 +25,23 @@ func _run_smoke() -> void:
 		push_error("M8 editor smoke did not create calibration button")
 		quit(1)
 		return
+	var comparison_ui := instance.get_node_or_null("M6ComparisonUI")
+	if comparison_ui == null or _find_named(comparison_ui, "CustomSpeedPanel") == null:
+		push_error("M8 editor smoke did not create custom speed-comparison controls")
+		quit(1)
+		return
+	if not ScenarioConfig.target_ids().has(ScenarioConfig.TARGET_WALL):
+		push_error("M8 editor lost rigid-wall crash target")
+		quit(1)
+		return
+	if not ScenarioConfig.target_ids().has(ScenarioConfig.TARGET_LORRY):
+		push_error("M8 editor did not expose rigid lorry target")
+		quit(1)
+		return
+	if not ScenarioConfig.target_ids().has(ScenarioConfig.TARGET_MOTORCYCLE):
+		push_error("M8 editor did not expose riderless motorcycle target")
+		quit(1)
+		return
 	instance.queue_free()
 	await process_frame
 	print("CrashVector M8 editor runtime smoke test passed.")

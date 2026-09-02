@@ -154,7 +154,7 @@ func _build_m6_ui() -> void:
 	comparison_speed_option = OptionButton.new()
 	var speeds: Array[float] = [0.05, 0.10, 0.25, 0.50, 1.00]
 	for value in speeds:
-		comparison_speed_option.add_item("%.2gx" % value)
+		comparison_speed_option.add_item("%.2fx" % value)
 		comparison_speed_option.set_item_metadata(comparison_speed_option.item_count - 1, value)
 	comparison_speed_option.select(2)
 	comparison_speed_option.item_selected.connect(_on_comparison_speed_selected)

@@ -10,10 +10,12 @@ func _initialize() -> void:
 	var failures: Array[String] = []
 	_test_passenger_car_catalog(failures)
 	_test_heavy_truck_architecture(failures)
+	_test_lorry_architecture(failures)
+	_test_motorcycle_architecture(failures)
 	_test_pair_contact_conserves_momentum(failures)
 	_test_rear_impact_scenario(failures)
 	if failures.is_empty():
-		print("CrashVector M3 vehicle-class and heavy-truck tests passed.")
+		print("CrashVector M3 vehicle-class and heavy-vehicle tests passed.")
 		quit(0)
 		return
 	for failure in failures:
@@ -22,8 +24,16 @@ func _initialize() -> void:
 
 func _test_passenger_car_catalog(failures: Array[String]) -> void:
 	var ids := PassengerCarCatalog.preset_ids()
-	if ids.size() != 3:
-		failures.append("M3 must expose exactly three initial generic passenger-car classes")
+	var expected: Array[StringName] = [
+		PassengerCarCatalog.A_SEGMENT_CITY,
+		PassengerCarCatalog.B_SEGMENT_HATCHBACK,
+		PassengerCarCatalog.C_SEGMENT_COMPACT,
+		PassengerCarCatalog.D_SEGMENT_MIDSIZE,
+		PassengerCarCatalog.J_SEGMENT_SUV,
+		PassengerCarCatalog.M_SEGMENT_MPV,
+	]
+	if ids != expected:
+		failures.append("Passenger-car catalog must expose A/B/C/D/J/M generic classes in stable order")
 	var previous_mass := 0.0
 	var previous_span := 0.0
 	for id in ids:
@@ -36,16 +46,16 @@ func _test_passenger_car_catalog(failures: Array[String]) -> void:
 			failures.append("Passenger-car preset %s mass does not match its catalog default" % id)
 		var span := _model_x_span(model)
 		if previous_mass > 0.0 and mass <= previous_mass:
-			failures.append("Passenger-car class masses must increase from B to D segment")
+			failures.append("Generic passenger-car preset masses must increase through the current A/B/C/D/J/M development set")
 		if previous_span > 0.0 and span <= previous_span:
-			failures.append("Passenger-car structural length must increase from B to D segment")
+			failures.append("Generic passenger-car structural length must increase through the current A/B/C/D/J/M development set")
 		previous_mass = mass
 		previous_span = span
 
 func _test_heavy_truck_architecture(failures: Array[String]) -> void:
 	var truck := HeavyTruckBuilder.build(18000.0, 0.0, Vector3.ZERO)
 	if truck.nodes.size() != 32:
-		failures.append("M3 heavy truck must contain 32 structural nodes")
+		failures.append("M3 heavy articulated truck must contain 32 structural nodes")
 	if absf(truck.total_mass_kg() - 18000.0) > 0.001:
 		failures.append("Heavy-truck mass distribution does not sum to configured mass")
 	if HeavyTruckBuilder.rear_contact_nodes().size() != 2:
@@ -53,6 +63,30 @@ func _test_heavy_truck_architecture(failures: Array[String]) -> void:
 	for role in [&"underride_guard", &"trailer_structure", &"trailer_chassis", &"fifth_wheel", &"tractor_structure", &"tractor_chassis"]:
 		if truck.role_beam_count(role) <= 0:
 			failures.append("Heavy truck is missing structural role: %s" % role)
+
+func _test_lorry_architecture(failures: Array[String]) -> void:
+	var lorry := RigidLorryBuilder.build(12000.0, 0.0, Vector3.ZERO)
+	if lorry.nodes.size() != 24:
+		failures.append("Rigid lorry must contain 24 structural nodes")
+	if absf(lorry.total_mass_kg() - 12000.0) > 0.001:
+		failures.append("Rigid-lorry mass distribution does not sum to configured mass")
+	if RigidLorryBuilder.rear_contact_nodes().size() != 2:
+		failures.append("Rigid lorry must expose two rear contact nodes")
+	for role in [&"lorry_rear_guard", &"lorry_cargo_structure", &"lorry_cargo_chassis", &"lorry_cab_structure", &"lorry_cab_chassis"]:
+		if lorry.role_beam_count(role) <= 0:
+			failures.append("Rigid lorry is missing structural role: %s" % role)
+
+func _test_motorcycle_architecture(failures: Array[String]) -> void:
+	var motorcycle := MotorcycleBuilder.build(220.0, 0.0, Vector3.ZERO)
+	if motorcycle.nodes.size() != 16:
+		failures.append("Riderless motorcycle must contain 16 structural nodes")
+	if absf(motorcycle.total_mass_kg() - 220.0) > 0.001:
+		failures.append("Motorcycle mass distribution does not sum to configured mass")
+	if MotorcycleBuilder.front_contact_nodes().size() != 2 or MotorcycleBuilder.rear_contact_nodes().size() != 2:
+		failures.append("Motorcycle must expose paired front and rear contact nodes")
+	for role in [&"motorcycle_frame", &"motorcycle_rear", &"motorcycle_fork"]:
+		if motorcycle.role_beam_count(role) <= 0:
+			failures.append("Motorcycle is missing structural role: %s" % role)
 
 func _test_pair_contact_conserves_momentum(failures: Array[String]) -> void:
 	var car := StructuralModel.new()

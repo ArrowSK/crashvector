@@ -9,8 +9,11 @@ func _initialize() -> void:
 	_test_reference_metadata(failures)
 	_test_scope_labels(failures)
 	_test_reference_correlation(failures)
+	_test_expanded_vehicle_classes(failures)
+	_test_new_target_validation(failures)
+	_test_custom_wall_speed_comparison(failures)
 	if failures.is_empty():
-		print("CrashVector M8 calibration tests passed.")
+		print("CrashVector M8 calibration and expansion tests passed.")
 		quit(0)
 		return
 	for failure in failures:
@@ -38,6 +41,14 @@ func _test_reference_metadata(failures: Array[String]) -> void:
 	var observations := reference.observations()
 	if absf(float(observations.get("crash_pulse_duration_s_approx", 0.0)) - 0.120) > 0.0001:
 		failures.append("M8 reference lost the published approximately 120 ms pulse observation")
+	var source_corridors := reference.source_corridors()
+	if not source_corridors.has("pulse_duration_s"):
+		failures.append("M8 must retain the published-pulse correlation corridor")
+	if source_corridors.has("delta_v_kmh"):
+		failures.append("Delta-v must not be represented as a source-derived NHTSA corridor")
+	var regression_corridors := reference.regression_corridors()
+	if not regression_corridors.has("delta_v_kmh"):
+		failures.append("M8 must retain a clearly labelled project delta-v regression guardrail")
 
 func _test_scope_labels(failures: Array[String]) -> void:
 	var reference := CalibrationReference.load_default()
@@ -74,8 +85,76 @@ func _test_reference_correlation(failures: Array[String]) -> void:
 	for key in ["pulse_duration_s", "delta_v_kmh", "peak_deceleration_g", "front_crush_mm", "safety_cell_proxy_mm", "energy_balance_relative_error"]:
 		if not is_finite(float(metrics.get(key, NAN))):
 			failures.append("M8 calibration metric became non-finite: %s" % key)
+	if not bool(assessment.get("source_correlation_passed", false)):
+		failures.append("M8 reference pulse left the source-correlation corridor: %s" % JSON.stringify(metrics))
+	if not bool(assessment.get("project_regression_passed", false)):
+		failures.append("M8 reference left a project numerical regression guardrail: %s" % JSON.stringify(metrics))
 	if not bool(assessment.get("passed", false)):
-		failures.append("M8 reference result left its stored correlation corridors: %s" % JSON.stringify(metrics))
+		failures.append("M8 reference assessment did not pass overall")
 	var checks: Array = assessment.get("checks", [])
 	if checks.size() != 4:
-		failures.append("M8 must gate pulse duration, delta-v, safety-cell proxy, and energy balance")
+		failures.append("M8 must gate pulse duration plus three project numerical regressions")
+	var source_count := 0
+	var regression_count := 0
+	for check in checks:
+		if StringName(String(check.get("category", ""))) == &"source_correlation":
+			source_count += 1
+		else:
+			regression_count += 1
+	if source_count != 1 or regression_count != 3:
+		failures.append("M8 source evidence and project regression categories were mixed")
+
+func _test_expanded_vehicle_classes(failures: Array[String]) -> void:
+	var ids := PassengerCarCatalog.preset_ids()
+	for id in [PassengerCarCatalog.A_SEGMENT_CITY, PassengerCarCatalog.J_SEGMENT_SUV, PassengerCarCatalog.M_SEGMENT_MPV]:
+		if not ids.has(id):
+			failures.append("Expanded passenger-car catalog is missing %s" % id)
+		continue
+		var model := PassengerCarBuilder.build(id, -1.0, 50.0, 100.0)
+		if model.nodes.size() != 28 or model.total_mass_kg() <= 0.0:
+			failures.append("Expanded passenger-car preset %s did not build correctly" % id)
+
+func _test_new_target_validation(failures: Array[String]) -> void:
+	var lorry := ScenarioConfig.new()
+	lorry.target_type = ScenarioConfig.TARGET_LORRY
+	lorry.target_mass_kg = 12000.0
+	lorry.target_speed_kmh = 0.0
+	lorry.target_position_m = Vector3(3.0, 0.0, 0.0)
+	if not lorry.validation_errors().is_empty():
+		failures.append("Default rigid-lorry scenario should pass preflight: %s" % "; ".join(lorry.validation_errors()))
+
+	var motorcycle := ScenarioConfig.new()
+	motorcycle.target_type = ScenarioConfig.TARGET_MOTORCYCLE
+	motorcycle.target_mass_kg = 220.0
+	motorcycle.target_speed_kmh = 0.0
+	motorcycle.target_position_m = Vector3(3.0, 0.0, 0.0)
+	if not motorcycle.validation_errors().is_empty():
+		failures.append("Default riderless-motorcycle scenario should pass preflight: %s" % "; ".join(motorcycle.validation_errors()))
+
+func _test_custom_wall_speed_comparison(failures: Array[String]) -> void:
+	var config := ScenarioConfig.new()
+	config.title = "130 vs 140 wall demonstration"
+	config.target_type = ScenarioConfig.TARGET_WALL
+	config.car_preset_id = PassengerCarCatalog.B_SEGMENT_HATCHBACK
+	config.car_mass_kg = PassengerCarCatalog.default_mass_kg(config.car_preset_id)
+	config.car_position_m = Vector3(-3.2, 0.0, 0.0)
+	config.target_position_m = Vector3.ZERO
+	config.duration_s = 0.8
+	config.solver_substeps = 8
+	var results := ComparisonRunner.run_speed_sweep(config, [130.0, 140.0])
+	if results.size() != 2:
+		failures.append("Custom speed comparison must support exactly two requested speeds")
+		return
+	for result in results:
+		if not String(result.get("error", "")).is_empty():
+			failures.append("Custom rigid-wall speed comparison failed: %s" % result.get("error", ""))
+			return
+	var analysis_130: Dictionary = results[0].get("analysis", {})
+	var analysis_140: Dictionary = results[1].get("analysis", {})
+	var energy_130 := float(analysis_130.get("initial_kinetic_energy_kj", 0.0))
+	var energy_140 := float(analysis_140.get("initial_kinetic_energy_kj", 0.0))
+	if energy_140 <= energy_130:
+		failures.append("140 km/h comparison must have more initial kinetic energy than 130 km/h")
+	var expected_ratio := (140.0 * 140.0) / (130.0 * 130.0)
+	if absf((energy_140 / maxf(energy_130, 0.0001)) - expected_ratio) > 0.002:
+		failures.append("Custom speed comparison lost kinetic-energy v-squared behaviour")

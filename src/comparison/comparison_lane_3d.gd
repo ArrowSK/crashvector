@@ -10,6 +10,8 @@ var lane_offset_m := Vector3.ZERO
 var primary: CompactHatchback
 var target_car: CompactHatchback
 var truck: HeavyTruck
+var lorry: RigidLorry
+var motorcycle: Motorcycle
 var obstacle: StaticObstacle3D
 var lane_label: Label3D
 var live_label: Label3D
@@ -34,11 +36,14 @@ func apply_time(time_s: float) -> void:
 	if target_car != null:
 		_apply_model_frame(target_car, frame.get("target_state", {}), true)
 	elif truck != null:
-		var target_state: Variant = frame.get("target_state", {})
-		if target_state is Dictionary:
-			StructuralSnapshot.apply(truck.model, target_state)
-			truck.model.translate_all_nodes(lane_offset_m)
-			truck.step_external(0.0)
+		_apply_structural_target_frame(truck.model, frame.get("target_state", {}))
+		truck.step_external(0.0)
+	elif lorry != null:
+		_apply_structural_target_frame(lorry.model, frame.get("target_state", {}))
+		lorry.step_external(0.0)
+	elif motorcycle != null:
+		_apply_structural_target_frame(motorcycle.model, frame.get("target_state", {}))
+		motorcycle.step_external(0.0)
 	_update_live_label(frame)
 
 func set_primary_paint_id(value: StringName) -> void:
@@ -53,6 +58,10 @@ func set_structure_debug(enabled: bool) -> void:
 		target_car.set_structure_debug(enabled)
 	if truck != null:
 		truck.set_structure_debug(enabled)
+	if lorry != null:
+		lorry.set_structure_debug(enabled)
+	if motorcycle != null:
+		motorcycle.set_structure_debug(enabled)
 
 func _apply_model_frame(vehicle: CompactHatchback, state: Variant, reset_bumper: bool) -> void:
 	if vehicle == null or vehicle.model == null or not (state is Dictionary):
@@ -63,6 +72,12 @@ func _apply_model_frame(vehicle: CompactHatchback, state: Variant, reset_bumper:
 		vehicle.apply_replay_visual_state({})
 	else:
 		vehicle.step_external(0.0)
+
+func _apply_structural_target_frame(model: StructuralModel, state: Variant) -> void:
+	if model == null or not (state is Dictionary):
+		return
+	StructuralSnapshot.apply(model, state)
+	model.translate_all_nodes(lane_offset_m)
 
 func _build_lane() -> void:
 	var config := result.get("scenario") as ScenarioConfig
@@ -103,6 +118,26 @@ func _build_lane() -> void:
 		truck.auto_step = false
 		truck.show_structure = false
 		add_child(truck)
+	elif config.target_type == ScenarioConfig.TARGET_LORRY:
+		lorry = RigidLorry.new()
+		lorry.name = "ComparisonLorry"
+		lorry.total_mass_kg = config.target_mass_kg
+		lorry.initial_speed_kmh = config.target_speed_kmh
+		lorry.origin_offset_m = config.target_position_m + lane_offset_m
+		lorry.heading_deg = config.target_heading_deg
+		lorry.auto_step = false
+		lorry.show_structure = false
+		add_child(lorry)
+	elif config.target_type == ScenarioConfig.TARGET_MOTORCYCLE:
+		motorcycle = Motorcycle.new()
+		motorcycle.name = "ComparisonMotorcycle"
+		motorcycle.total_mass_kg = config.target_mass_kg
+		motorcycle.initial_speed_kmh = config.target_speed_kmh
+		motorcycle.origin_offset_m = config.target_position_m + lane_offset_m
+		motorcycle.heading_deg = config.target_heading_deg
+		motorcycle.auto_step = false
+		motorcycle.show_structure = false
+		add_child(motorcycle)
 	else:
 		obstacle = StaticObstacle3D.new()
 		obstacle.name = "ComparisonObstacle"

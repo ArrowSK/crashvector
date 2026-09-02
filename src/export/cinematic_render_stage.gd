@@ -14,6 +14,8 @@ var timeline: CinematicTimeline
 var primary: CompactHatchback
 var target_car: CompactHatchback
 var truck: HeavyTruck
+var lorry: RigidLorry
+var motorcycle: Motorcycle
 var obstacle: StaticObstacle3D
 var camera: Camera3D
 
@@ -129,6 +131,26 @@ func _build_scene() -> void:
 		truck.auto_step = false
 		truck.show_structure = false
 		add_child(truck)
+	elif scenario.target_type == ScenarioConfig.TARGET_LORRY:
+		lorry = RigidLorry.new()
+		lorry.name = "RenderLorry"
+		lorry.total_mass_kg = scenario.target_mass_kg
+		lorry.initial_speed_kmh = scenario.target_speed_kmh
+		lorry.origin_offset_m = scenario.target_position_m
+		lorry.heading_deg = scenario.target_heading_deg
+		lorry.auto_step = false
+		lorry.show_structure = false
+		add_child(lorry)
+	elif scenario.target_type == ScenarioConfig.TARGET_MOTORCYCLE:
+		motorcycle = Motorcycle.new()
+		motorcycle.name = "RenderMotorcycle"
+		motorcycle.total_mass_kg = scenario.target_mass_kg
+		motorcycle.initial_speed_kmh = scenario.target_speed_kmh
+		motorcycle.origin_offset_m = scenario.target_position_m
+		motorcycle.heading_deg = scenario.target_heading_deg
+		motorcycle.auto_step = false
+		motorcycle.show_structure = false
+		add_child(motorcycle)
 	else:
 		obstacle = StaticObstacle3D.new()
 		obstacle.name = "RenderObstacle"
@@ -146,19 +168,9 @@ func _build_road() -> void:
 	var midpoint := (scenario.car_position_m + scenario.target_position_m) * 0.5
 	var separation := scenario.car_position_m.distance_to(scenario.target_position_m)
 	var length_m := maxf(34.0, separation + 28.0)
-	_add_box(
-		"RenderRoad",
-		Vector3(midpoint.x, -0.20, midpoint.z),
-		Vector3(length_m, 0.40, 10.0),
-		Color(0.055, 0.060, 0.072)
-	)
+	_add_box("RenderRoad", Vector3(midpoint.x, -0.20, midpoint.z), Vector3(length_m, 0.40, 10.0), Color(0.055, 0.060, 0.072))
 	for index in range(-6, 7):
-		_add_box(
-			"LaneMark%d" % index,
-			Vector3(midpoint.x + float(index) * 3.0, 0.018, midpoint.z),
-			Vector3(1.6, 0.025, 0.065),
-			Color(0.82, 0.80, 0.67)
-		)
+		_add_box("LaneMark%d" % index, Vector3(midpoint.x + float(index) * 3.0, 0.018, midpoint.z), Vector3(1.6, 0.025, 0.065), Color(0.82, 0.80, 0.67))
 
 func _add_box(node_name: String, position_m: Vector3, box_size: Vector3, color: Color) -> void:
 	var instance := MeshInstance3D.new()
@@ -188,11 +200,7 @@ func _build_overlay() -> void:
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title_label.add_theme_font_size_override("font_size", font_size * 2)
-	title_label.text = "%s\n%s vs %s" % [
-		scenario.title,
-		PassengerCarCatalog.display_name(scenario.car_preset_id),
-		ScenarioConfig.target_display_name(scenario.target_type),
-	]
+	title_label.text = "%s\n%s vs %s" % [scenario.title, PassengerCarCatalog.display_name(scenario.car_preset_id), ScenarioConfig.target_display_name(scenario.target_type)]
 	canvas.add_child(title_label)
 
 	hud_label = Label.new()
@@ -252,17 +260,17 @@ func _apply_target_frame(frame: Dictionary) -> void:
 	elif truck != null and truck.model != null and state is Dictionary:
 		StructuralSnapshot.apply(truck.model, state)
 		truck.step_external(0.0)
+	elif lorry != null and lorry.model != null and state is Dictionary:
+		StructuralSnapshot.apply(lorry.model, state)
+		lorry.step_external(0.0)
+	elif motorcycle != null and motorcycle.model != null and state is Dictionary:
+		StructuralSnapshot.apply(motorcycle.model, state)
+		motorcycle.step_external(0.0)
 
 func _apply_camera(frame: Dictionary, replay_time_s: float) -> void:
 	if camera == null:
 		return
-	var pose := CinematicCameraPlanner.pose_for_frame(
-		frame,
-		scenario,
-		profile.camera_id,
-		replay_time_s,
-		timeline.first_contact_s
-	)
+	var pose := CinematicCameraPlanner.pose_for_frame(frame, scenario, profile.camera_id, replay_time_s, timeline.first_contact_s)
 	var position_value: Vector3 = pose.get("position", Vector3(0.0, 4.0, 8.0))
 	var target_value: Vector3 = pose.get("target", Vector3.ZERO)
 	camera.position = position_value
@@ -283,13 +291,7 @@ func _update_overlay(frame: Dictionary, output_time_s: float, replay_time_s: flo
 	var speed := float(metrics.get("speed_kmh", 0.0))
 	var crush_mm := float(metrics.get("front_crush_m", 0.0)) * 1000.0
 	var slow_tag := " • 0.25× impact slow motion" if phase == &"slow_motion" else ""
-	hud_label.text = "%s\n%.0f km/h • front crush %.0f mm • t %.2f s%s" % [
-		PassengerCarCatalog.display_name(scenario.car_preset_id),
-		speed,
-		crush_mm,
-		replay_time_s,
-		slow_tag,
-	]
+	hud_label.text = "%s\n%.0f km/h • front crush %.0f mm • t %.2f s%s" % [PassengerCarCatalog.display_name(scenario.car_preset_id), speed, crush_mm, replay_time_s, slow_tag]
 
 func _result_text() -> String:
 	return (

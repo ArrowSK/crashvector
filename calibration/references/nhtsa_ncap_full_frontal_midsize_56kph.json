@@ -24,12 +24,26 @@
     "crash_pulse_duration_s_approx": 0.120,
     "brake_pedal_intrusion_mm": -3.0,
     "foot_rest_intrusion_mm": 8.0,
-    "notes": "The report describes the test pulse as about 120 ms and the driver-compartment intrusions as minuscule. Pedal and foot-rest measurements are not equivalent to CrashVector's structural safety-cell beam-deformation proxy."
+    "notes": "The report describes the test pulse as about 120 ms and the driver-compartment intrusions as minuscule. Pedal and foot-rest measurements are not equivalent to CrashVector's structural safety-cell beam-deformation proxy. The source does not provide the final rebound velocity used by CrashVector to compute longitudinal delta-v."
   },
-  "crashvector_correlation_corridors": {
-    "pulse_duration_s": {"min": 0.080, "max": 0.160, "basis": "Project engineering corridor around the published approximately 120 ms pulse duration."},
-    "delta_v_kmh": {"min": 50.0, "max": 63.0, "basis": "Rigid-barrier longitudinal velocity-change consistency corridor around the 56.5 km/h test condition."},
-    "safety_cell_proxy_mm": {"min": 0.0, "max": 45.0, "basis": "CrashVector-only structural proxy. This is deliberately not labelled as pedal, foot-rest, or occupant-space intrusion."},
+  "source_correlation_corridors": {
+    "pulse_duration_s": {
+      "min": 0.080,
+      "max": 0.160,
+      "basis": "Project correlation corridor around the published approximately 120 ms crash-pulse duration."
+    }
+  },
+  "project_regression_corridors": {
+    "delta_v_kmh": {
+      "min": 50.0,
+      "max": 75.0,
+      "basis": "CrashVector numerical sanity corridor for a 56.5 km/h rigid-wall impact. The upper bound explicitly allows post-impact rebound in the simplified structural/contact model. It is not a delta-v measurement published by NHTSA and must not be presented as one."
+    },
+    "safety_cell_proxy_mm": {
+      "min": 0.0,
+      "max": 45.0,
+      "basis": "CrashVector-only structural regression proxy. It is deliberately not labelled as pedal, foot-rest, occupant-space intrusion, or an NHTSA acceptance criterion."
+    },
     "energy_balance_relative_error_max": 0.35
   },
   "scope": {
@@ -39,6 +53,6 @@
     "directly_correlated_mass_min_kg": 1500.0,
     "directly_correlated_mass_max_kg": 1800.0,
     "target_type": "rigid_wall",
-    "warning": "Passing this reference is a limited structural correlation check, not vehicle certification, occupant-injury validation, or manufacturer-specific crash prediction."
+    "warning": "Passing this reference is a limited structural correlation check, not vehicle certification, occupant-injury validation, or manufacturer-specific crash prediction. Delta-v, safety-cell proxy, and energy-balance limits are project regression guardrails rather than published NHTSA corridors."
   }
 }
