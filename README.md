@@ -1,107 +1,273 @@
-# CrashVector
+<p align="center">
+  <img src="assets/branding/crashvector-icon.jpg" alt="CrashVector — educational 3D crash simulation" width="170">
+</p>
 
-**Open-source vehicle collision simulation for education and visualisation.**
+<h1 align="center">CrashVector</h1>
 
-CrashVector bridges the gap between simple game collisions and specialist crash-engineering software. It combines physically informed structural deformation, an easy desktop scenario editor, recorded replay and analysis, synchronized visual comparison, cinematic video export, and an explicit calibration/evidence scope.
+<p align="center">
+  <strong>Build a crash. Change the speed. Compare the outcome.</strong>
+</p>
 
-> CrashVector is an educational physics visualisation tool. It is not a certified accident-reconstruction, vehicle-homologation, structural-engineering, manufacturer crash-performance, biomechanical, or occupant-injury prediction system.
+<p align="center">
+  Educational 3D collision simulation with deformable generic vehicles, road users, replay, analysis and cinematic export.
+</p>
 
-## Current milestone: M8 — Calibration, scenario library, and evidence scope
+<p align="center">
+  <img alt="M8 complete" src="https://img.shields.io/badge/milestone-M8%20complete-ff4d1f?style=for-the-badge">
+  <a href="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+</p>
 
-M8 keeps the validation claim deliberately narrow while making the simulator easier to explore. The editor now provides ready-to-run defaults for all supported vehicle and road-user types, so a user can select an object and press **Simulate** without entering a mass or other advanced values first. Mass, speed, position, heading, contact parameters, and selected presets remain editable when needed.
+<p align="center">
+  <img alt="Godot 4.4.1+" src="https://img.shields.io/badge/Godot-4.4.1%2B-478cbf">
+  <img alt="MPL 2.0" src="https://img.shields.io/badge/license-MPL--2.0-6c7a89">
+  <img alt="Generic models" src="https://img.shields.io/badge/models-generic%20classes-19b5a5">
+  <img alt="Educational simulation" src="https://img.shields.io/badge/scope-educational-19b5a5">
+</p>
 
-The first direct correlation reference uses the NHTSA NCAP full-frontal rigid-barrier condition documented in **DOT HS 812 237**, laboratory test **7078**. CrashVector runs a generic D-segment midsize development vehicle at the documented **1,661 kg** test mass and **56.5 km/h** impact speed and checks the published crash-pulse observation together with clearly separated CrashVector numerical/structural regression guardrails. See `docs/CALIBRATION.md`.
+CrashVector is an open-source desktop crash-simulation sandbox for people who want to **see what speed, mass and impact configuration change** without turning the exercise into specialist engineering software.
 
-The editor labels scenarios as **Reference-correlated**, **Near reference**, **Class-scaled**, or **Extrapolated**. Road-user scenarios, dynamic vehicle-pair impacts, and high-speed demonstrations remain explicitly extrapolated; a successful lower-speed wall correlation does not silently validate them.
+Set up a vehicle and target, press **Simulate**, scrub the recorded crash, compare alternatives side by side, and export a cinematic video. The physics is intentionally visible and measurable, but the claims stay conservative.
 
-## Easy scenario setup
+> **Current state:** **M8 is complete on `main`**, including the full vehicle/road-user library, arbitrary speed comparison, Comparison Lab and the first evidence-labelled calibration reference. CrashVector currently runs from source in **Godot 4.4.1+**; a packaged desktop release has not been published yet.
 
-A typical first run is intentionally short:
+> **Scope:** CrashVector is an educational physics visualisation tool. It is **not** certified accident reconstruction, homologation, manufacturer crash-performance prediction, biomechanics, medical/injury prediction or a safety-rating system.
 
-1. Pick the primary passenger-car class.
-2. Pick an impact target. CrashVector automatically supplies a useful default type and mass.
-3. Optionally change speed, mass, position, heading, or presentation colour.
-4. Press **Simulate**.
-5. Scrub the recorded replay, inspect the crash analysis, or open a comparison/video workflow.
+## The normal workflow
 
-### Generic passenger-car classes
+For a first run, you should not need to understand the solver or enter every parameter.
 
-- **A-Segment City Car** — 950 kg default
-- **B-Segment Small Hatchback** — 1,150 kg default
-- **C-Segment Compact Car** — 1,375 kg default
-- **D-Segment Midsize Car** — 1,575 kg default
-- **J-Segment SUV / Crossover** — 1,850 kg default
-- **M-Segment MPV / Minivan** — 2,050 kg default
+```text
+choose vehicle + target
+          ↓
+     set speed
+   (defaults exist)
+          ↓
+       Simulate
+          ↓
+ replay · analysis · compare
+          ↓
+  optional cinematic video
+```
 
-These are representative development classes only. CrashVector does not use production model names, manufacturer badges, proprietary CAD, or OEM-specific crash-performance claims.
+A typical scenario is simply:
 
-### Impact targets and defaults
+1. choose a passenger-car class;
+2. choose the impact target — CrashVector fills in a sensible default preset and mass;
+3. change the speed, colour or advanced values only if you want to;
+4. press **Simulate**;
+5. inspect the replay, open **Visual Compare / Comparison Lab**, or export a video.
 
-The target palette includes another passenger car, an articulated heavy truck, a rigid lorry / box truck, a riderless motorcycle, a riderless bicycle, a pedestrian proxy, rigid wall, concrete barrier, pole, and tree.
+Mass is editable, but it is never mandatory setup work.
 
-Useful defaults include:
+## What CrashVector can do today
 
-- **Rigid lorry / box truck** — 12,000 kg
-- **Motorcycle** — 220 kg, riderless
-- **City bicycle** — 16 kg; alternatives: 9 kg road bicycle and 24 kg e-bike
-- **Adult pedestrian** — 75 kg and 1.75 m; alternatives: 32 kg child-sized and 90 kg tall-adult presets
+| Area | What you get |
+| --- | --- |
+| Scenario editor | Visual setup for vehicle class, target, mass, speed, position, heading, contact parameters and presentation |
+| Passenger cars | Generic A / B / C / D / J / M classes with representative default masses |
+| Heavy vehicles | Articulated heavy truck and rigid lorry / box-truck development models |
+| Road users | Riderless motorcycle, riderless bicycle presets and an articulated pedestrian contact/trajectory proxy |
+| Static targets | Full-frontal rigid wall, concrete barrier, pole and tree |
+| Car vs car | Rear-end and near head-on layouts with independent class, mass and speed |
+| Replay & analysis | 120 Hz recorded replay, timeline scrubbing, Δv, crash pulse, peak simulated deceleration, crush and structural diagnostics |
+| Comparison | Exact user-entered speeds plus multi-type / multi-speed Comparison Lab |
+| Presentation | Car colours, structure/X-ray view, visual lanes, analysis overlays and cinematic cameras |
+| Video export | 1080p / 1440p / 4K offline replay rendering at 30/60 fps with external FFmpeg H.264 encoding |
+| Calibration | Evidence labels plus a narrow NHTSA full-frontal rigid-wall structural-correlation reference |
 
-The defaults are pre-filled, not mandatory data-entry fields. Changing a body/bicycle preset updates its default mass, but the mass can still be edited independently.
+## Vehicle and target library
 
-## Pedestrian and bicycle scope
+### Passenger-car classes
 
-The pedestrian is a lightweight articulated structural/contact proxy with feet supported before impact, stance release after vehicle contact, gravity, and simple ground contact. It is intended to make contact sequence and post-impact trajectory visible. It is **not** a dummy, bone/tissue model, injury model, or medical-outcome predictor.
+CrashVector uses **generic classes rather than production models**. There are no manufacturer badges, proprietary CAD files or claims that a class reproduces a particular real car.
 
-The bicycle is a deformable riderless frame/fork proxy. A future cyclist model should couple a separately modelled rider to the bicycle rather than pretending that bicycle mass represents the person.
+| Class | Representative type | Default mass |
+| --- | --- | ---: |
+| A | City car | 950 kg |
+| B | Small hatchback | 1,150 kg |
+| C | Compact car | 1,375 kg |
+| D | Midsize car | 1,575 kg |
+| J | SUV / crossover | 1,850 kg |
+| M | MPV / minivan | 2,050 kg |
 
-## Car vs car and other dynamic impacts
+The default mass is only a starting point. You can override it directly in the scenario.
 
-Car-vs-car remains a first-class scenario. Either passenger car can use any A/B/C/D/J/M class with independent mass, speed, position, and heading. Rear-end and near head-on layouts are supported. Broadside and strongly oblique car-vs-car contact remains intentionally blocked until a richer side-contact geometry model is implemented.
+### Other targets
 
-The same paired structural-contact architecture is used for the supported car-vs-truck, car-vs-lorry, car-vs-motorcycle, car-vs-bicycle, and car-vs-pedestrian proxy scenarios. The latter two remain trajectory/contact visualisations only.
+The same editor can target:
 
-## Visual comparison — including custom speeds
+- another passenger car;
+- a heavy articulated truck;
+- a rigid lorry / box truck;
+- a riderless motorcycle;
+- a riderless bicycle;
+- a pedestrian proxy;
+- a rigid wall;
+- a concrete barrier;
+- a pole;
+- a tree.
 
-The original **Visual Compare** workflow remains available for quick synchronized comparisons. The **Comparison Lab** adds a more flexible batch workflow:
+Useful defaults include a **12,000 kg rigid lorry**, **220 kg riderless motorcycle**, and the road-user presets below.
 
-- choose up to **three vehicle classes, target types, or road-user presets**;
-- choose up to **three arbitrary primary-car speeds** from 0–300 km/h;
-- run the complete Cartesian combination in one batch — up to **nine independently simulated lanes**;
-- synchronize playback to first impact or scenario time;
-- compare Δv, peak simulated deceleration, front crush, energy, and the recorded 3D deformation/trajectory side by side.
+## Speed comparison is a first-class feature
 
-The speed values are not restricted to presets. For example, set **130 km/h** and **140 km/h**, disable the third speed, and CrashVector will calculate and display exactly those two impacts. At equal mass the 140 km/h case begins with about 16% more translational kinetic energy than the 130 km/h case, which the regression suite checks using the expected velocity-squared relationship.
+CrashVector does not force you into a few demonstration speeds.
 
-Comparison colours are presentation-only and never change the physics. Larger comparison matrices automatically cycle distinct car paints so the lanes remain visually distinguishable.
+**Visual Compare** accepts any two or three distinct primary-car speeds from **0–300 km/h**. The familiar 50 / 90 / 140 km/h values are just defaults.
 
-## Replay, analysis, and video
+So if the question is:
 
-Completed simulations are recorded at 120 Hz and can be scrubbed or replayed independently of live physics. Analysis includes primary/target delta-v where meaningful, longitudinal crash pulse, peak simulated deceleration, front-crush history, safety-cell deformation proxy, kinetic energy, structural failures, and event markers.
+> What actually changes between **130 km/h** and **140 km/h**?
 
-**Cinematic Video** renders from recorded replay state rather than re-running physics. It supports 1080p, 1440p, and 4K at 30/60 fps, cinematic camera presets, impact slow motion, educational overlays/result cards, independent passenger-car colours, and external FFmpeg H.264 MP4 encoding. Pedestrian/bicycle exports retain the explicit contact/trajectory-only disclaimer. FFmpeg is intentionally not bundled; see `docs/VIDEO_EXPORT.md`.
+enter **130** and **140**, disable the third lane, and run exactly those two simulations. At equal mass, 140 km/h starts with about **16% more translational kinetic energy** than 130 km/h because kinetic energy scales with velocity squared.
 
-## Run locally
+### Comparison Lab
 
-Install Godot 4.4.1 or newer, clone the repository, open `project.godot`, and run the project.
+For broader comparisons, **Comparison Lab** crosses:
+
+- up to **three classes, target types or road-user presets**;
+- with up to **three arbitrary speeds**;
+- for up to **nine independently simulated crashes in one batch**.
+
+Playback can be synchronized to **first impact** so the visual difference is immediately obvious, or to normal scenario time when that is more useful.
+
+Examples:
+
+```text
+A / C / J cars × 50 / 90 / 140 km/h
+Rigid wall / lorry / passenger car × 100 / 130 / 140 km/h
+Adult pedestrian / city bicycle / e-bike × 30 / 40 / 50 km/h
+```
+
+Presentation colours are deliberately separate from physics.
+
+## Pedestrian and bicycle models
+
+The road-user models are intentionally useful without pretending to be something they are not.
+
+### Pedestrian
+
+The pedestrian is a lightweight articulated contact/trajectory proxy. It can show the sequence of impact, stance release, body motion, gravity and simple ground contact.
+
+Presets:
+
+| Body preset | Default mass | Height |
+| --- | ---: | ---: |
+| Adult — default | 75 kg | 1.75 m |
+| Child-sized | 32 kg | 1.35 m |
+| Tall adult | 90 kg | 1.90 m |
+
+You may change the mass independently.
+
+It is **not** a crash-test dummy, bone/tissue model, AIS estimator, fatality predictor or medical model.
+
+### Bicycle
+
+The bicycle is a deformable **riderless** frame/fork proxy.
+
+| Bicycle preset | Default mass |
+| --- | ---: |
+| City bicycle — default | 16 kg |
+| Road bicycle | 9 kg |
+| E-bike | 24 kg |
+
+A future cyclist model should couple a separately modelled human to the bicycle rather than hiding rider mass inside the bicycle itself.
+
+## Replay, analysis and visual presentation
+
+CrashVector records the completed simulation at **120 Hz**, so replay and presentation do not need to re-run the collision.
+
+You can:
+
+- scrub backward and forward through the crash;
+- replay at 0.05× / 0.10× / 0.25× / 0.50× / 1×;
+- inspect Δv, crash pulse, simulated deceleration, crush and structural failure;
+- toggle velocity / momentum / structure overlays;
+- choose different passenger-car paint colours;
+- compare several recorded crashes in synchronized 3D lanes.
+
+The visual shell follows the deforming structural model. The X-ray/structure view is there when you want to see what the visible body is responding to.
+
+## Cinematic video export
+
+**Cinematic Video** renders from the recorded replay rather than recalculating physics during export.
+
+Available presentation features include:
+
+- 1080p, 1440p and 4K;
+- 30 or 60 fps;
+- Auto Cinematic, Wide, Tracking, Impact Close-up and Aftermath Orbit cameras;
+- impact-centred slow motion;
+- title card, live overlays, watermark and result card;
+- independent passenger-car colours where applicable;
+- optional retained source frames;
+- machine-readable `.crashvector-video.json` metadata.
+
+CrashVector calls an **external FFmpeg installation** for H.264 MP4 encoding. FFmpeg is not bundled with the repository. See [Video export](docs/VIDEO_EXPORT.md).
+
+## Calibration and evidence labels
+
+CrashVector deliberately separates **a convincing visual** from **a validated engineering claim**.
+
+The first direct structural-correlation reference is the NHTSA NCAP full-frontal rigid-wall condition documented in **DOT HS 812 237 / laboratory test 7078**, using the documented **1,661 kg** test mass and **56.5 km/h** impact condition.
+
+The application labels scenarios as:
+
+- **Reference-correlated**
+- **Near reference**
+- **Class-scaled**
+- **Extrapolated**
+
+High-speed demonstrations, most vehicle-pair scenarios, motorcycle/bicycle/pedestrian impacts and other non-reference conditions remain explicitly extrapolated.
+
+See [Calibration and validation scope](docs/CALIBRATION.md) for what is source-derived and what is only a CrashVector numerical regression guardrail.
+
+## Known modelling boundaries
+
+CrashVector intentionally rejects some scenarios instead of making a visually plausible but unsupported claim.
+
+- Broadside and strongly oblique car-vs-car contact are not yet supported by the current front/rear paired-contact geometry.
+- Road-user output is trajectory/contact visualisation, not injury prediction.
+- Generic vehicle classes are not production-car crash models.
+- Static wall/barrier/pole/tree models are simplified fixed targets.
+- CI validates deterministic logic and editor runtime paths, but does not perform a real 4K GPU render or invoke the machine's FFmpeg binary.
+
+For deeper physics assumptions, see [Physics notes](docs/PHYSICS.md).
+
+## Run from source
+
+Requirements:
+
+- **Godot 4.4.1 or newer**
+- Git
+
+```bash
+git clone https://github.com/ArrowSK/crashvector.git
+cd crashvector
+godot --editor --path .
+```
+
+Or open `project.godot` directly in Godot and run the project.
+
+## Documentation
+
+| Guide | What it is for |
+| --- | --- |
+| [Roadmap](docs/ROADMAP.md) | M0–M8 implementation history and the next accuracy work |
+| [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, comparison, export and calibration layers |
+| [Physics notes](docs/PHYSICS.md) | Contact, energy accounting, structural assumptions and modelling boundaries |
+| [Calibration](docs/CALIBRATION.md) | Reference source, evidence labels and regression corridors |
+| [Scenario format](docs/SCENARIO_FORMAT.md) | Human-readable `.crashvector.json` save/load format |
+| [Video export](docs/VIDEO_EXPORT.md) | Offline rendering, camera modes, FFmpeg boundary and metadata |
 
 ## Development status
 
-- **M0** — physics skeleton and telemetry — complete
-- **M1** — deformable structural test sled — complete
-- **M2** — generic compact hatchback architecture — complete
-- **M3** — generic passenger-car classes and heavy-truck collision — complete
-- **M4** — scenario editor, car-vs-car, static targets, and save/load — complete
-- **M5** — analysis, replay, crash pulse, and overlays — complete
-- **M6** — synchronized visual comparison — complete
-- **M7** — cinematic offline video export — complete
-- **M8** — documented reference correlation, broader generic scenario library, road-user proxies, arbitrary comparison matrix, and explicit validation scope — complete
+**M0 through M8 are complete.** The full CI gate imports/parses the Godot project and runs the milestone regression suites, editor runtime smoke tests, calibration checks, road-user tests and comparison-matrix tests.
 
-## Verification
-
-CI imports and parses the complete Godot project and runs every M0–M8 regression suite plus runtime editor smoke tests. Additional road-user tests verify default presets, structural state, pedestrian stance release/contact trajectory, bicycle structure, scenario serialization, arbitrary type × speed matrices, and the 130/140 km/h kinetic-energy relationship.
-
-CI intentionally does not perform a real 4K GPU render or invoke FFmpeg; those remain runtime integration paths and are kept separate from deterministic headless logic tests.
+The next accuracy work should add additional independent public/licensed crash references, richer side-impact contact geometry, tyre/suspension behaviour and other explicit validation milestones rather than silently extending the M8 evidence claim.
 
 ## Licence
 
-CrashVector source code is licensed under the Mozilla Public License 2.0. Third-party assets and dependencies may have their own licences and must be documented before distribution.
+CrashVector source code is licensed under the **Mozilla Public License 2.0 (MPL-2.0)**. See [LICENSE](LICENSE).
+
+Third-party components and externally installed tools may carry their own licences; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
