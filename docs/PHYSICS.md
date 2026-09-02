@@ -56,6 +56,21 @@ For a static-target scenario, fixed-target contact dissipation is added to the p
 
 The bookkeeping remains a numerical diagnostic rather than a validated thermodynamic partition. Its purpose is to expose hidden energy creation, instability, and solver regressions.
 
+## M8 correlation boundary
+
+M8 adds the first external structural-correlation reference rather than changing the basic node/beam equations. The directly correlated condition is intentionally narrow: a generic D-segment midsize passenger car at approximately 56 km/h in a full-frontal rigid-wall impact, using the NHTSA DOT HS 812 237 / test 7078 condition as the evidence source.
+
+The M8 regression compares the CrashVector result against project corridors for pulse duration, longitudinal delta-v, the safety-cell beam-deformation proxy, and energy-balance error. Published pedal/foot-rest intrusion values are preserved as source observations but are not re-labelled as beam deformation because the measurement definitions are different.
+
+The current evidence labels therefore mean:
+
+- `reference_correlated`: inside the narrow midsize rigid-wall mass/speed envelope;
+- `near_reference`: same class/impact family but just outside the direct envelope;
+- `class_scaled`: a generic B/C class is produced by the same structural scaling rules, without direct test correlation;
+- `extrapolated`: all other conditions, including 90/140 km/h and dynamic vehicle-pair impacts.
+
+A `reference_correlated` label is not a safety rating, homologation result, occupant-injury prediction, or claim that the generic D-segment structure reproduces a specific production vehicle. See `docs/CALIBRATION.md` for the source and corridor definitions.
+
 ## M0 reference quantities
 
 The original regression remains unchanged: a 1,150 kg body at 140 km/h has 38.8888889 m/s speed, 869,598.765 J translational kinetic energy and 44,722.222 kg·m/s momentum magnitude.
