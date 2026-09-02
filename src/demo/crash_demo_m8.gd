@@ -135,9 +135,46 @@ func _on_run_calibration_pressed() -> void:
 	var lines: Array[String] = []
 	lines.append("Result: %s" % ("PASS — within stored M8 corridors" if bool(assessment.get("passed", false)) else "OUTSIDE CORRIDOR — development review required"))
 	lines.append("Pulse duration: %.0f ms • Δv: %.1f km/h • peak deceleration: %.1f g" % [float(metrics.get("pulse_duration_s", 0.0)) * 1000.0, float(metrics.get("delta_v_kmh", 0.0)), float(metrics.get("peak_deceleration_g", 0.0))])
-	lines.append("Front crush proxy: %.0f mm • safety-cell proxy: %.1f mm • energy-balance error: %.1f%%" % [float(metrics.get("front_crush_mm", 0.0)), float(metrics.get("safety_cell_proxy_mm", 0.0)), float(metrics.get("energy_balance_relative_error", 0.0)) * 100.0])
+	lines.append("Front crush proxy: %.0f mm • safety-cell proxy: %.1f mm • energy-balance error: %.1f%s" % [float(metrics.get("front_crush_mm", 0.0)), float(metrics.get("safety_cell_proxy_mm", 0.0)), float(metrics.get("energy_balance_relative_error", 0.0)) * 100.0, "%"])
 	for check in assessment.get("checks", []):
 		var corridor: Dictionary = check.get("corridor", {})
 		lines.append("%s: %s (%.3f; corridor %.3f–%.3f %s)" % [String(check.get("name", "Metric")), "PASS" if bool(check.get("passed", false)) else "FAIL", float(check.get("value", 0.0)), float(corridor.get("min", 0.0)), float(corridor.get("max", 0.0)), String(check.get("unit", ""))])
 	lines.append("This is a limited structural correlation check, not certification or injury validation.")
 	calibration_result_label.text = "\n".join(lines)
+
+# Override the inherited M4 metrics formatter because Godot's percent-style
+# formatter treats a literal %% as an unsupported format character.
+func _update_metrics() -> void:
+	if metrics_label == null or car == null or car.model == null:
+		return
+	var car_speed := PhysicsMetrics.ms_to_kmh(car.global_linear_velocity_ms().length())
+	var initial_energy_kj := PhysicsMetrics.kinetic_energy_from_speed_kmh(scenario.car_mass_kg, scenario.car_speed_kmh) / 1000.0
+	var contact_count := 0
+	var peak_penetration_mm := 0.0
+	var energy_error_percent := 0.0
+	var extra := ""
+	if pair_simulation != null:
+		contact_count = pair_simulation.contact.contact_events
+		peak_penetration_mm = pair_simulation.contact.maximum_penetration_m * 1000.0
+		energy_error_percent = pair_simulation.energy_balance_relative_error() * 100.0
+		if target_car != null:
+			var target_speed := PhysicsMetrics.ms_to_kmh(target_car.global_linear_velocity_ms().length())
+			extra = "%s • %.0f kg • %.1f km/h • closing %.1f km/h • momentum error %.3f kg·m/s" % [
+				target_car.vehicle_class_name(), target_car.model.total_mass_kg(), target_speed,
+				pair_simulation.closing_speed_kmh(), pair_simulation.momentum_error_kg_ms(),
+			]
+		elif truck != null:
+			var truck_speed := PhysicsMetrics.ms_to_kmh(truck.global_linear_velocity_ms().length())
+			extra = "Heavy Truck • %.0f kg • %.1f km/h • closing %.1f km/h • momentum error %.3f kg·m/s" % [
+				truck.model.total_mass_kg(), truck_speed, pair_simulation.closing_speed_kmh(), pair_simulation.momentum_error_kg_ms(),
+			]
+	elif static_simulation != null:
+		contact_count = static_simulation.contact.contact_events
+		peak_penetration_mm = static_simulation.contact.maximum_penetration_m * 1000.0
+		energy_error_percent = static_simulation.energy_balance_relative_error() * 100.0
+		extra = "Static target: %s" % ScenarioConfig.target_display_name(scenario.target_type)
+	metrics_label.text = "%s • %.0f kg • %.1f km/h • initial KE %.1f kJ\nFront crush %.0f mm • safety cell %.0f mm • contacts %d • peak penetration %.1f mm • energy diagnostic %.2f%s\n%s" % [
+		car.vehicle_class_name(), car.model.total_mass_kg(), car_speed, initial_energy_kj,
+		car.front_crush_deformation_m() * 1000.0, car.safety_cell_deformation_m() * 1000.0,
+		contact_count, peak_penetration_mm, energy_error_percent, "%", extra,
+	]
