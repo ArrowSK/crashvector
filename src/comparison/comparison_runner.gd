@@ -65,14 +65,12 @@ static func run_matrix(
 					config.apply_target_defaults(variant_id)
 					variant_label = ScenarioConfig.target_display_name(variant_id)
 				MATRIX_BODY_PRESETS:
-					if config.target_type == ScenarioConfig.TARGET_PEDESTRIAN:
-						if not RoadUserCatalog.pedestrian_ids().has(variant_id):
-							continue
+					if RoadUserCatalog.is_pedestrian_id(variant_id):
+						config.apply_target_defaults(ScenarioConfig.TARGET_PEDESTRIAN)
 						config.target_preset_id = variant_id
 						config.target_mass_kg = RoadUserCatalog.default_mass_kg(variant_id)
-					elif config.target_type == ScenarioConfig.TARGET_BICYCLE:
-						if not RoadUserCatalog.bicycle_ids().has(variant_id):
-							continue
+					elif RoadUserCatalog.is_bicycle_id(variant_id):
+						config.apply_target_defaults(ScenarioConfig.TARGET_BICYCLE)
 						config.target_preset_id = variant_id
 						config.target_mass_kg = RoadUserCatalog.default_mass_kg(variant_id)
 					else:
