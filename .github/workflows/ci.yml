@@ -46,3 +46,9 @@ jobs:
 
       - name: Run M6 editor runtime smoke test
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m6_editor_smoke.gd
+
+      - name: Run M7 cinematic export tests
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m7_video_export.gd
+
+      - name: Run M7 editor runtime smoke test
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m7_editor_smoke.gd
