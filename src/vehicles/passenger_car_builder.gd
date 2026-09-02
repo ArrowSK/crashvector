@@ -101,13 +101,13 @@ static func _add_profile_beam(model: StructuralModel, a: int, b: int, profile: S
 	var s := maxf(stiffness_scale, 0.1)
 	match profile:
 		&"front_crush":
-			# Progressive sacrificial rail/front-sheet surrogate. The high plastic
-			# flow absorbs energy through permanent crush rather than elastic rebound.
-			model.add_beam(a, b, profile, 150000.0 * s, 1200.0 * sqrt(s), 0.020, 0.68, 0.88, 30.0)
+			# Progressive sacrificial rail/front-sheet surrogate. Fast plastic flow
+			# reduces elastic rebound while preserving a distributed crash pulse.
+			model.add_beam(a, b, profile, 150000.0 * s, 1200.0 * sqrt(s), 0.020, 0.68, 0.88, 45.0)
 		&"front_transition":
 			# Stronger than the nose, but still allowed to yield so the crash pulse
 			# is distributed before loads reach the safety cell.
-			model.add_beam(a, b, profile, 450000.0 * s, 2200.0 * sqrt(s), 0.035, 0.48, 0.68, 20.0)
+			model.add_beam(a, b, profile, 450000.0 * s, 2200.0 * sqrt(s), 0.035, 0.48, 0.68, 30.0)
 		&"rear_crush":
 			model.add_beam(a, b, profile, 1250000.0 * s, 4200.0 * sqrt(s), 0.040, 0.42, 0.64, 15.0)
 		_:
