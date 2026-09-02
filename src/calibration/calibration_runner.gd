@@ -10,7 +10,8 @@ static func run_default_reference() -> Dictionary:
 	if reference == null:
 		return {"ok": false, "message": "Calibration reference could not be loaded."}
 	var config := reference.make_scenario()
-	var results := ComparisonRunner.run_speed_sweep(config, [config.car_speed_kmh])
+	var speeds: Array[float] = [config.car_speed_kmh]
+	var results := ComparisonRunner.run_speed_sweep(config, speeds)
 	if results.is_empty():
 		return {"ok": false, "message": "Reference simulation produced no result.", "reference": reference}
 	var result := results[0]
