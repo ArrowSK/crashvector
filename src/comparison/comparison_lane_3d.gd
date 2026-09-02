@@ -12,6 +12,8 @@ var target_car: CompactHatchback
 var truck: HeavyTruck
 var lorry: RigidLorry
 var motorcycle: Motorcycle
+var bicycle: Bicycle
+var pedestrian: Pedestrian
 var obstacle: StaticObstacle3D
 var lane_label: Label3D
 var live_label: Label3D
@@ -32,18 +34,25 @@ func apply_time(time_s: float) -> void:
 	var frame := recording.frame_at_time(time_s)
 	if frame.is_empty():
 		return
-	_apply_model_frame(primary, frame.get("primary_state", {}), true)
+	_apply_car_frame(primary, frame.get("primary_state", {}))
+	var target_state: Variant = frame.get("target_state", {})
 	if target_car != null:
-		_apply_model_frame(target_car, frame.get("target_state", {}), true)
+		_apply_car_frame(target_car, target_state)
 	elif truck != null:
-		_apply_structural_target_frame(truck.model, frame.get("target_state", {}))
+		_apply_structural_frame(truck.model, target_state)
 		truck.step_external(0.0)
 	elif lorry != null:
-		_apply_structural_target_frame(lorry.model, frame.get("target_state", {}))
+		_apply_structural_frame(lorry.model, target_state)
 		lorry.step_external(0.0)
 	elif motorcycle != null:
-		_apply_structural_target_frame(motorcycle.model, frame.get("target_state", {}))
+		_apply_structural_frame(motorcycle.model, target_state)
 		motorcycle.step_external(0.0)
+	elif bicycle != null:
+		_apply_structural_frame(bicycle.model, target_state)
+		bicycle.step_external(0.0)
+	elif pedestrian != null:
+		_apply_structural_frame(pedestrian.model, target_state)
+		pedestrian.step_external(0.0)
 	_update_live_label(frame)
 
 func set_primary_paint_id(value: StringName) -> void:
@@ -62,18 +71,19 @@ func set_structure_debug(enabled: bool) -> void:
 		lorry.set_structure_debug(enabled)
 	if motorcycle != null:
 		motorcycle.set_structure_debug(enabled)
+	if bicycle != null:
+		bicycle.set_structure_debug(enabled)
+	if pedestrian != null:
+		pedestrian.set_structure_debug(enabled)
 
-func _apply_model_frame(vehicle: CompactHatchback, state: Variant, reset_bumper: bool) -> void:
+func _apply_car_frame(vehicle: CompactHatchback, state: Variant) -> void:
 	if vehicle == null or vehicle.model == null or not (state is Dictionary):
 		return
 	StructuralSnapshot.apply(vehicle.model, state)
 	vehicle.model.translate_all_nodes(lane_offset_m)
-	if reset_bumper:
-		vehicle.apply_replay_visual_state({})
-	else:
-		vehicle.step_external(0.0)
+	vehicle.apply_replay_visual_state({})
 
-func _apply_structural_target_frame(model: StructuralModel, state: Variant) -> void:
+func _apply_structural_frame(model: StructuralModel, state: Variant) -> void:
 	if model == null or not (state is Dictionary):
 		return
 	StructuralSnapshot.apply(model, state)
@@ -96,53 +106,75 @@ func _build_lane() -> void:
 	primary.show_structure = false
 	add_child(primary)
 
-	if config.target_type == ScenarioConfig.TARGET_PASSENGER_CAR:
-		target_car = CompactHatchback.new()
-		target_car.name = "ComparisonTargetCar"
-		target_car.vehicle_preset_id = config.target_car_preset_id
-		target_car.paint_id = CarPaintCatalog.SILVER
-		target_car.total_mass_kg = config.target_mass_kg
-		target_car.initial_speed_kmh = config.target_speed_kmh
-		target_car.origin_offset_m = config.target_position_m + lane_offset_m
-		target_car.heading_deg = config.target_heading_deg
-		target_car.auto_step = false
-		target_car.show_structure = false
-		add_child(target_car)
-	elif config.target_type == ScenarioConfig.TARGET_TRUCK:
-		truck = HeavyTruck.new()
-		truck.name = "ComparisonTruck"
-		truck.total_mass_kg = config.target_mass_kg
-		truck.initial_speed_kmh = config.target_speed_kmh
-		truck.origin_offset_m = config.target_position_m + lane_offset_m
-		truck.heading_deg = config.target_heading_deg
-		truck.auto_step = false
-		truck.show_structure = false
-		add_child(truck)
-	elif config.target_type == ScenarioConfig.TARGET_LORRY:
-		lorry = RigidLorry.new()
-		lorry.name = "ComparisonLorry"
-		lorry.total_mass_kg = config.target_mass_kg
-		lorry.initial_speed_kmh = config.target_speed_kmh
-		lorry.origin_offset_m = config.target_position_m + lane_offset_m
-		lorry.heading_deg = config.target_heading_deg
-		lorry.auto_step = false
-		lorry.show_structure = false
-		add_child(lorry)
-	elif config.target_type == ScenarioConfig.TARGET_MOTORCYCLE:
-		motorcycle = Motorcycle.new()
-		motorcycle.name = "ComparisonMotorcycle"
-		motorcycle.total_mass_kg = config.target_mass_kg
-		motorcycle.initial_speed_kmh = config.target_speed_kmh
-		motorcycle.origin_offset_m = config.target_position_m + lane_offset_m
-		motorcycle.heading_deg = config.target_heading_deg
-		motorcycle.auto_step = false
-		motorcycle.show_structure = false
-		add_child(motorcycle)
-	else:
-		obstacle = StaticObstacle3D.new()
-		obstacle.name = "ComparisonObstacle"
-		add_child(obstacle)
-		obstacle.configure(config.target_type, config.target_position_m + lane_offset_m, config.target_heading_deg)
+	match config.target_type:
+		ScenarioConfig.TARGET_PASSENGER_CAR:
+			target_car = CompactHatchback.new()
+			target_car.name = "ComparisonTargetCar"
+			target_car.vehicle_preset_id = config.target_car_preset_id
+			target_car.paint_id = CarPaintCatalog.SILVER
+			target_car.total_mass_kg = config.target_mass_kg
+			target_car.initial_speed_kmh = config.target_speed_kmh
+			target_car.origin_offset_m = config.target_position_m + lane_offset_m
+			target_car.heading_deg = config.target_heading_deg
+			target_car.auto_step = false
+			target_car.show_structure = false
+			add_child(target_car)
+		ScenarioConfig.TARGET_TRUCK:
+			truck = HeavyTruck.new()
+			truck.name = "ComparisonTruck"
+			truck.total_mass_kg = config.target_mass_kg
+			truck.initial_speed_kmh = config.target_speed_kmh
+			truck.origin_offset_m = config.target_position_m + lane_offset_m
+			truck.heading_deg = config.target_heading_deg
+			truck.auto_step = false
+			truck.show_structure = false
+			add_child(truck)
+		ScenarioConfig.TARGET_LORRY:
+			lorry = RigidLorry.new()
+			lorry.name = "ComparisonLorry"
+			lorry.total_mass_kg = config.target_mass_kg
+			lorry.initial_speed_kmh = config.target_speed_kmh
+			lorry.origin_offset_m = config.target_position_m + lane_offset_m
+			lorry.heading_deg = config.target_heading_deg
+			lorry.auto_step = false
+			lorry.show_structure = false
+			add_child(lorry)
+		ScenarioConfig.TARGET_MOTORCYCLE:
+			motorcycle = Motorcycle.new()
+			motorcycle.name = "ComparisonMotorcycle"
+			motorcycle.total_mass_kg = config.target_mass_kg
+			motorcycle.initial_speed_kmh = config.target_speed_kmh
+			motorcycle.origin_offset_m = config.target_position_m + lane_offset_m
+			motorcycle.heading_deg = config.target_heading_deg
+			motorcycle.auto_step = false
+			motorcycle.show_structure = false
+			add_child(motorcycle)
+		ScenarioConfig.TARGET_BICYCLE:
+			bicycle = Bicycle.new()
+			bicycle.name = "ComparisonBicycle"
+			bicycle.bicycle_preset_id = config.target_preset_id
+			bicycle.total_mass_kg = config.target_mass_kg
+			bicycle.initial_speed_kmh = config.target_speed_kmh
+			bicycle.origin_offset_m = config.target_position_m + lane_offset_m
+			bicycle.heading_deg = config.target_heading_deg
+			bicycle.auto_step = false
+			bicycle.show_structure = false
+			add_child(bicycle)
+		ScenarioConfig.TARGET_PEDESTRIAN:
+			pedestrian = Pedestrian.new()
+			pedestrian.name = "ComparisonPedestrian"
+			pedestrian.body_preset_id = config.target_preset_id
+			pedestrian.total_mass_kg = config.target_mass_kg
+			pedestrian.origin_offset_m = config.target_position_m + lane_offset_m
+			pedestrian.heading_deg = config.target_heading_deg
+			pedestrian.auto_step = false
+			pedestrian.show_structure = false
+			add_child(pedestrian)
+		_:
+			obstacle = StaticObstacle3D.new()
+			obstacle.name = "ComparisonObstacle"
+			add_child(obstacle)
+			obstacle.configure(config.target_type, config.target_position_m + lane_offset_m, config.target_heading_deg)
 
 	lane_label = Label3D.new()
 	lane_label.name = "VariantLabel"

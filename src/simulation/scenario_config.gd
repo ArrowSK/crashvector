@@ -10,6 +10,8 @@ const TARGET_PASSENGER_CAR: StringName = &"passenger_car"
 const TARGET_TRUCK: StringName = &"heavy_truck"
 const TARGET_LORRY: StringName = &"rigid_lorry"
 const TARGET_MOTORCYCLE: StringName = &"motorcycle"
+const TARGET_BICYCLE: StringName = &"bicycle"
+const TARGET_PEDESTRIAN: StringName = &"pedestrian"
 const TARGET_WALL: StringName = &"rigid_wall"
 const TARGET_BARRIER: StringName = &"concrete_barrier"
 const TARGET_POLE: StringName = &"pole"
@@ -23,6 +25,7 @@ var car_speed_kmh: float = 50.0
 var car_position_m: Vector3 = Vector3(-6.0, 0.0, 0.0)
 var car_heading_deg: float = 0.0
 var target_car_preset_id: StringName = PassengerCarCatalog.C_SEGMENT_COMPACT
+var target_preset_id: StringName = &""
 var target_mass_kg: float = 18000.0
 var target_speed_kmh: float = 0.0
 var target_position_m: Vector3 = Vector3(2.5, 0.0, 0.0)
@@ -39,6 +42,8 @@ static func target_ids() -> Array[StringName]:
 		TARGET_TRUCK,
 		TARGET_LORRY,
 		TARGET_MOTORCYCLE,
+		TARGET_BICYCLE,
+		TARGET_PEDESTRIAN,
 		TARGET_WALL,
 		TARGET_BARRIER,
 		TARGET_POLE,
@@ -55,6 +60,10 @@ static func target_display_name(id: StringName) -> String:
 			return "Rigid Lorry / Box Truck"
 		TARGET_MOTORCYCLE:
 			return "Motorcycle (riderless)"
+		TARGET_BICYCLE:
+			return "Bicycle (riderless)"
+		TARGET_PEDESTRIAN:
+			return "Pedestrian"
 		TARGET_WALL:
 			return "Rigid Wall (full-frontal)"
 		TARGET_BARRIER:
@@ -68,15 +77,13 @@ static func target_display_name(id: StringName) -> String:
 
 func reset_defaults() -> void:
 	title = "Car vs Truck"
-	target_type = TARGET_TRUCK
 	car_preset_id = PassengerCarCatalog.B_SEGMENT_HATCHBACK
 	car_mass_kg = PassengerCarCatalog.default_mass_kg(car_preset_id)
 	car_speed_kmh = 50.0
 	car_position_m = Vector3(-6.0, 0.0, 0.0)
 	car_heading_deg = 0.0
 	target_car_preset_id = PassengerCarCatalog.C_SEGMENT_COMPACT
-	target_mass_kg = 18000.0
-	target_speed_kmh = 0.0
+	target_preset_id = &""
 	target_position_m = Vector3(2.5, 0.0, 0.0)
 	target_heading_deg = 0.0
 	contact_friction = 0.55
@@ -84,6 +91,34 @@ func reset_defaults() -> void:
 	duration_s = 4.0
 	solver_substeps = 8
 	show_structure = false
+	apply_target_defaults(TARGET_TRUCK)
+
+func apply_target_defaults(id: StringName) -> void:
+	target_type = id
+	target_speed_kmh = 0.0
+	match id:
+		TARGET_PASSENGER_CAR:
+			target_car_preset_id = PassengerCarCatalog.C_SEGMENT_COMPACT
+			target_preset_id = &""
+			target_mass_kg = PassengerCarCatalog.default_mass_kg(target_car_preset_id)
+		TARGET_TRUCK:
+			target_preset_id = &""
+			target_mass_kg = 18000.0
+		TARGET_LORRY:
+			target_preset_id = &""
+			target_mass_kg = 12000.0
+		TARGET_MOTORCYCLE:
+			target_preset_id = &""
+			target_mass_kg = 220.0
+		TARGET_BICYCLE:
+			target_preset_id = RoadUserCatalog.BICYCLE_CITY
+			target_mass_kg = RoadUserCatalog.default_mass_kg(target_preset_id)
+		TARGET_PEDESTRIAN:
+			target_preset_id = RoadUserCatalog.PEDESTRIAN_ADULT
+			target_mass_kg = RoadUserCatalog.default_mass_kg(target_preset_id)
+		_:
+			target_preset_id = &""
+			target_mass_kg = 0.0
 
 func car_forward() -> Vector3:
 	return Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(car_heading_deg)).normalized()
@@ -139,6 +174,23 @@ func validation_errors() -> Array[String]:
 		var motorcycle_delta := heading_delta_deg()
 		if motorcycle_delta > 25.0 and motorcycle_delta < 155.0:
 			errors.append("Motorcycle contact supports rear-end or near head-on layouts, not broadside impacts yet")
+	elif target_type == TARGET_BICYCLE:
+		if not RoadUserCatalog.bicycle_ids().has(target_preset_id):
+			errors.append("Unknown bicycle preset")
+		if target_mass_kg < 5.0 or target_mass_kg > 60.0:
+			errors.append("Bicycle mass must be between 5 and 60 kg")
+		if target_speed_kmh < 0.0 or target_speed_kmh > 80.0:
+			errors.append("Bicycle speed must be between 0 and 80 km/h")
+		var bicycle_delta := heading_delta_deg()
+		if bicycle_delta > 25.0 and bicycle_delta < 155.0:
+			errors.append("Bicycle contact supports rear-end or near head-on layouts, not broadside impacts yet")
+	elif target_type == TARGET_PEDESTRIAN:
+		if not RoadUserCatalog.pedestrian_ids().has(target_preset_id):
+			errors.append("Unknown pedestrian body preset")
+		if target_mass_kg < 15.0 or target_mass_kg > 200.0:
+			errors.append("Pedestrian mass must be between 15 and 200 kg")
+		if absf(target_speed_kmh) > 0.001:
+			errors.append("The current pedestrian proxy starts stationary; pedestrian walking/running motion is not modelled yet")
 	if contact_friction < 0.0 or contact_friction > 1.5:
 		errors.append("Contact friction must be between 0 and 1.5")
 	if restitution < 0.0 or restitution > 0.5:
@@ -169,6 +221,7 @@ func to_dictionary() -> Dictionary:
 		},
 		"target": {
 			"car_class_id": String(target_car_preset_id),
+			"preset_id": String(target_preset_id),
 			"mass_kg": target_mass_kg,
 			"speed_kmh": target_speed_kmh,
 			"position_m": _vector_to_array(target_position_m),
@@ -200,6 +253,7 @@ static func from_dictionary(data: Dictionary) -> ScenarioConfig:
 	config.car_heading_deg = float(car_data.get("heading_deg", config.car_heading_deg))
 	var target_data: Dictionary = data.get("target", {})
 	config.target_car_preset_id = StringName(String(target_data.get("car_class_id", String(config.target_car_preset_id))))
+	config.target_preset_id = StringName(String(target_data.get("preset_id", String(config.target_preset_id))))
 	config.target_mass_kg = float(target_data.get("mass_kg", config.target_mass_kg))
 	config.target_speed_kmh = float(target_data.get("speed_kmh", config.target_speed_kmh))
 	config.target_position_m = _array_to_vector(target_data.get("position_m", []), config.target_position_m)

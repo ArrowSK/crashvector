@@ -58,3 +58,9 @@ jobs:
 
       - name: Run M8 editor runtime smoke test
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m8_editor_smoke.gd
+
+      - name: Run road-user and comparison-matrix tests
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/road_users_comparison.gd
+
+      - name: Run road-user editor runtime smoke test
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/road_users_editor_smoke.gd

@@ -16,6 +16,8 @@ var target_car: CompactHatchback
 var truck: HeavyTruck
 var lorry: RigidLorry
 var motorcycle: Motorcycle
+var bicycle: Bicycle
+var pedestrian: Pedestrian
 var obstacle: StaticObstacle3D
 var camera: Camera3D
 
@@ -109,53 +111,75 @@ func _build_scene() -> void:
 	primary.show_structure = false
 	add_child(primary)
 
-	if scenario.target_type == ScenarioConfig.TARGET_PASSENGER_CAR:
-		target_car = CompactHatchback.new()
-		target_car.name = "RenderTargetCar"
-		target_car.vehicle_preset_id = scenario.target_car_preset_id
-		target_car.total_mass_kg = scenario.target_mass_kg
-		target_car.initial_speed_kmh = scenario.target_speed_kmh
-		target_car.origin_offset_m = scenario.target_position_m
-		target_car.heading_deg = scenario.target_heading_deg
-		target_car.paint_id = profile.target_paint_id
-		target_car.auto_step = false
-		target_car.show_structure = false
-		add_child(target_car)
-	elif scenario.target_type == ScenarioConfig.TARGET_TRUCK:
-		truck = HeavyTruck.new()
-		truck.name = "RenderTruck"
-		truck.total_mass_kg = scenario.target_mass_kg
-		truck.initial_speed_kmh = scenario.target_speed_kmh
-		truck.origin_offset_m = scenario.target_position_m
-		truck.heading_deg = scenario.target_heading_deg
-		truck.auto_step = false
-		truck.show_structure = false
-		add_child(truck)
-	elif scenario.target_type == ScenarioConfig.TARGET_LORRY:
-		lorry = RigidLorry.new()
-		lorry.name = "RenderLorry"
-		lorry.total_mass_kg = scenario.target_mass_kg
-		lorry.initial_speed_kmh = scenario.target_speed_kmh
-		lorry.origin_offset_m = scenario.target_position_m
-		lorry.heading_deg = scenario.target_heading_deg
-		lorry.auto_step = false
-		lorry.show_structure = false
-		add_child(lorry)
-	elif scenario.target_type == ScenarioConfig.TARGET_MOTORCYCLE:
-		motorcycle = Motorcycle.new()
-		motorcycle.name = "RenderMotorcycle"
-		motorcycle.total_mass_kg = scenario.target_mass_kg
-		motorcycle.initial_speed_kmh = scenario.target_speed_kmh
-		motorcycle.origin_offset_m = scenario.target_position_m
-		motorcycle.heading_deg = scenario.target_heading_deg
-		motorcycle.auto_step = false
-		motorcycle.show_structure = false
-		add_child(motorcycle)
-	else:
-		obstacle = StaticObstacle3D.new()
-		obstacle.name = "RenderObstacle"
-		add_child(obstacle)
-		obstacle.configure(scenario.target_type, scenario.target_position_m, scenario.target_heading_deg)
+	match scenario.target_type:
+		ScenarioConfig.TARGET_PASSENGER_CAR:
+			target_car = CompactHatchback.new()
+			target_car.name = "RenderTargetCar"
+			target_car.vehicle_preset_id = scenario.target_car_preset_id
+			target_car.total_mass_kg = scenario.target_mass_kg
+			target_car.initial_speed_kmh = scenario.target_speed_kmh
+			target_car.origin_offset_m = scenario.target_position_m
+			target_car.heading_deg = scenario.target_heading_deg
+			target_car.paint_id = profile.target_paint_id
+			target_car.auto_step = false
+			target_car.show_structure = false
+			add_child(target_car)
+		ScenarioConfig.TARGET_TRUCK:
+			truck = HeavyTruck.new()
+			truck.name = "RenderTruck"
+			truck.total_mass_kg = scenario.target_mass_kg
+			truck.initial_speed_kmh = scenario.target_speed_kmh
+			truck.origin_offset_m = scenario.target_position_m
+			truck.heading_deg = scenario.target_heading_deg
+			truck.auto_step = false
+			truck.show_structure = false
+			add_child(truck)
+		ScenarioConfig.TARGET_LORRY:
+			lorry = RigidLorry.new()
+			lorry.name = "RenderLorry"
+			lorry.total_mass_kg = scenario.target_mass_kg
+			lorry.initial_speed_kmh = scenario.target_speed_kmh
+			lorry.origin_offset_m = scenario.target_position_m
+			lorry.heading_deg = scenario.target_heading_deg
+			lorry.auto_step = false
+			lorry.show_structure = false
+			add_child(lorry)
+		ScenarioConfig.TARGET_MOTORCYCLE:
+			motorcycle = Motorcycle.new()
+			motorcycle.name = "RenderMotorcycle"
+			motorcycle.total_mass_kg = scenario.target_mass_kg
+			motorcycle.initial_speed_kmh = scenario.target_speed_kmh
+			motorcycle.origin_offset_m = scenario.target_position_m
+			motorcycle.heading_deg = scenario.target_heading_deg
+			motorcycle.auto_step = false
+			motorcycle.show_structure = false
+			add_child(motorcycle)
+		ScenarioConfig.TARGET_BICYCLE:
+			bicycle = Bicycle.new()
+			bicycle.name = "RenderBicycle"
+			bicycle.bicycle_preset_id = scenario.target_preset_id
+			bicycle.total_mass_kg = scenario.target_mass_kg
+			bicycle.initial_speed_kmh = scenario.target_speed_kmh
+			bicycle.origin_offset_m = scenario.target_position_m
+			bicycle.heading_deg = scenario.target_heading_deg
+			bicycle.auto_step = false
+			bicycle.show_structure = false
+			add_child(bicycle)
+		ScenarioConfig.TARGET_PEDESTRIAN:
+			pedestrian = Pedestrian.new()
+			pedestrian.name = "RenderPedestrian"
+			pedestrian.body_preset_id = scenario.target_preset_id
+			pedestrian.total_mass_kg = scenario.target_mass_kg
+			pedestrian.origin_offset_m = scenario.target_position_m
+			pedestrian.heading_deg = scenario.target_heading_deg
+			pedestrian.auto_step = false
+			pedestrian.show_structure = false
+			add_child(pedestrian)
+		_:
+			obstacle = StaticObstacle3D.new()
+			obstacle.name = "RenderObstacle"
+			add_child(obstacle)
+			obstacle.configure(scenario.target_type, scenario.target_position_m, scenario.target_heading_deg)
 
 	camera = Camera3D.new()
 	camera.name = "CinematicCamera"
@@ -218,7 +242,7 @@ func _build_overlay() -> void:
 	watermark_label.offset_bottom = -8.0
 	watermark_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	watermark_label.add_theme_font_size_override("font_size", maxi(font_size - 4, 16))
-	watermark_label.text = "CrashVector • educational simulation • generic vehicle classes"
+	watermark_label.text = "CrashVector • educational simulation • generic classes / road-user proxies"
 	watermark_label.modulate = Color(1.0, 1.0, 1.0, 0.70)
 	canvas.add_child(watermark_label)
 
@@ -253,19 +277,27 @@ func _apply_primary_frame(frame: Dictionary) -> void:
 
 func _apply_target_frame(frame: Dictionary) -> void:
 	var state: Variant = frame.get("target_state", {})
-	if target_car != null and target_car.model != null and state is Dictionary:
+	if not (state is Dictionary):
+		return
+	if target_car != null and target_car.model != null:
 		StructuralSnapshot.apply(target_car.model, state)
 		var visual_state: Variant = frame.get("target_visual_state", {})
 		target_car.apply_replay_visual_state(visual_state if visual_state is Dictionary else {})
-	elif truck != null and truck.model != null and state is Dictionary:
+	elif truck != null and truck.model != null:
 		StructuralSnapshot.apply(truck.model, state)
 		truck.step_external(0.0)
-	elif lorry != null and lorry.model != null and state is Dictionary:
+	elif lorry != null and lorry.model != null:
 		StructuralSnapshot.apply(lorry.model, state)
 		lorry.step_external(0.0)
-	elif motorcycle != null and motorcycle.model != null and state is Dictionary:
+	elif motorcycle != null and motorcycle.model != null:
 		StructuralSnapshot.apply(motorcycle.model, state)
 		motorcycle.step_external(0.0)
+	elif bicycle != null and bicycle.model != null:
+		StructuralSnapshot.apply(bicycle.model, state)
+		bicycle.step_external(0.0)
+	elif pedestrian != null and pedestrian.model != null:
+		StructuralSnapshot.apply(pedestrian.model, state)
+		pedestrian.step_external(0.0)
 
 func _apply_camera(frame: Dictionary, replay_time_s: float) -> void:
 	if camera == null:
@@ -294,14 +326,18 @@ func _update_overlay(frame: Dictionary, output_time_s: float, replay_time_s: flo
 	hud_label.text = "%s\n%.0f km/h • front crush %.0f mm • t %.2f s%s" % [PassengerCarCatalog.display_name(scenario.car_preset_id), speed, crush_mm, replay_time_s, slow_tag]
 
 func _result_text() -> String:
+	var scope_note := "Educational simulation — not certified reconstruction or injury prediction"
+	if scenario.target_type == ScenarioConfig.TARGET_PEDESTRIAN or scenario.target_type == ScenarioConfig.TARGET_BICYCLE:
+		scope_note = "Road-user contact/trajectory visualisation only — no injury probability or medical outcome"
 	return (
 		"CRASH ANALYSIS\n\nΔv %.1f km/h   •   peak simulated deceleration %.1f g\n"
 		+ "Maximum front crush %.0f mm   •   safety-cell deformation proxy %.0f mm\n"
-		+ "Initial kinetic energy %.1f kJ\n\nEducational simulation — not certified reconstruction or injury prediction"
+		+ "Initial kinetic energy %.1f kJ\n\n%s"
 	) % [
 		float(analysis.get("final_delta_v_kmh", 0.0)),
 		float(analysis.get("peak_deceleration_g", 0.0)),
 		float(analysis.get("max_front_crush_mm", 0.0)),
 		float(analysis.get("max_safety_cell_deformation_mm", 0.0)),
 		float(analysis.get("initial_kinetic_energy_kj", 0.0)),
+		scope_note,
 	]

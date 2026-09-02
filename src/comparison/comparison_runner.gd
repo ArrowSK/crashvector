@@ -7,10 +7,13 @@ extends RefCounted
 
 const DT: float = 1.0 / 240.0
 const REPLAY_INTERVAL: float = 1.0 / 120.0
+const MATRIX_CAR_CLASSES: StringName = &"car_classes"
+const MATRIX_TARGET_TYPES: StringName = &"target_types"
+const MATRIX_BODY_PRESETS: StringName = &"body_presets"
 
 static func run_speed_sweep(base_scenario: ScenarioConfig, speeds_kmh: Array[float] = [50.0, 90.0, 140.0]) -> Array[Dictionary]:
 	var results: Array[Dictionary] = []
-	for speed in speeds_kmh:
+	for speed in _normalise_speeds(speeds_kmh):
 		var config := _clone_scenario(base_scenario)
 		config.car_speed_kmh = speed
 		results.append(_run_variant(config, _speed_label(speed), &"speed"))
@@ -25,13 +28,60 @@ static func run_vehicle_class_sweep(
 	]
 ) -> Array[Dictionary]:
 	var results: Array[Dictionary] = []
-	for preset_id in preset_ids:
+	for preset_id in _normalise_ids(preset_ids, 3):
 		if not PassengerCarCatalog.preset_ids().has(preset_id):
 			continue
 		var config := _clone_scenario(base_scenario)
 		config.car_preset_id = preset_id
 		config.car_mass_kg = PassengerCarCatalog.default_mass_kg(preset_id)
 		results.append(_run_variant(config, PassengerCarCatalog.display_name(preset_id), &"vehicle_class"))
+	return results
+
+static func run_matrix(
+	base_scenario: ScenarioConfig,
+	matrix_mode: StringName,
+	variant_ids: Array[StringName],
+	speeds_kmh: Array[float]
+) -> Array[Dictionary]:
+	var results: Array[Dictionary] = []
+	var speeds := _normalise_speeds(speeds_kmh)
+	var variants := _normalise_ids(variant_ids, 3)
+	if speeds.is_empty() or variants.is_empty():
+		return results
+	for variant_id in variants:
+		for speed in speeds:
+			var config := _clone_scenario(base_scenario)
+			var variant_label := ""
+			match matrix_mode:
+				MATRIX_CAR_CLASSES:
+					if not PassengerCarCatalog.preset_ids().has(variant_id):
+						continue
+					config.car_preset_id = variant_id
+					config.car_mass_kg = PassengerCarCatalog.default_mass_kg(variant_id)
+					variant_label = PassengerCarCatalog.display_name(variant_id)
+				MATRIX_TARGET_TYPES:
+					if not ScenarioConfig.target_ids().has(variant_id):
+						continue
+					config.apply_target_defaults(variant_id)
+					variant_label = ScenarioConfig.target_display_name(variant_id)
+				MATRIX_BODY_PRESETS:
+					if config.target_type == ScenarioConfig.TARGET_PEDESTRIAN:
+						if not RoadUserCatalog.pedestrian_ids().has(variant_id):
+							continue
+						config.target_preset_id = variant_id
+						config.target_mass_kg = RoadUserCatalog.default_mass_kg(variant_id)
+					elif config.target_type == ScenarioConfig.TARGET_BICYCLE:
+						if not RoadUserCatalog.bicycle_ids().has(variant_id):
+							continue
+						config.target_preset_id = variant_id
+						config.target_mass_kg = RoadUserCatalog.default_mass_kg(variant_id)
+					else:
+						continue
+					variant_label = RoadUserCatalog.display_name(variant_id)
+				_:
+					continue
+			config.car_speed_kmh = speed
+			results.append(_run_variant(config, "%s • %s" % [variant_label, _speed_label(speed)], &"matrix"))
 	return results
 
 static func _run_variant(config: ScenarioConfig, label: String, sweep_type: StringName) -> Dictionary:
@@ -57,6 +107,7 @@ static func _run_variant(config: ScenarioConfig, label: String, sweep_type: Stri
 	var target: StructuralModel = null
 	var pair_simulation: VehiclePairSimulation = null
 	var static_simulation: VehicleStaticSimulation = null
+	var pedestrian_target := false
 
 	if config.target_type == ScenarioConfig.TARGET_PASSENGER_CAR:
 		target = PassengerCarBuilder.build(
@@ -68,58 +119,28 @@ static func _run_variant(config: ScenarioConfig, label: String, sweep_type: Stri
 		)
 		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
 		target.barrier_enabled = false
-		pair_simulation = VehiclePairSimulation.new()
-		pair_simulation.configure(
-			primary,
-			_front_contact_nodes(),
-			target,
-			_front_contact_nodes() if config.target_vehicle_uses_front_contact() else _rear_contact_nodes(),
-			config.car_forward(),
-			config.contact_friction,
-			config.restitution
-		)
+		pair_simulation = _pair(primary, _front_contact_nodes(), target, _front_contact_nodes() if config.target_vehicle_uses_front_contact() else _rear_contact_nodes(), config)
 	elif config.target_type == ScenarioConfig.TARGET_TRUCK:
 		target = HeavyTruckBuilder.build(config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
 		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
-		target.barrier_enabled = false
-		pair_simulation = VehiclePairSimulation.new()
-		pair_simulation.configure(
-			primary,
-			_front_contact_nodes(),
-			target,
-			HeavyTruckBuilder.rear_contact_nodes(),
-			config.car_forward(),
-			config.contact_friction,
-			config.restitution
-		)
+		pair_simulation = _pair(primary, _front_contact_nodes(), target, HeavyTruckBuilder.rear_contact_nodes(), config)
 	elif config.target_type == ScenarioConfig.TARGET_LORRY:
 		target = RigidLorryBuilder.build(config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
 		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
-		target.barrier_enabled = false
-		pair_simulation = VehiclePairSimulation.new()
-		pair_simulation.configure(
-			primary,
-			_front_contact_nodes(),
-			target,
-			RigidLorryBuilder.rear_contact_nodes(),
-			config.car_forward(),
-			config.contact_friction,
-			config.restitution
-		)
+		pair_simulation = _pair(primary, _front_contact_nodes(), target, RigidLorryBuilder.rear_contact_nodes(), config)
 	elif config.target_type == ScenarioConfig.TARGET_MOTORCYCLE:
 		target = MotorcycleBuilder.build(config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
 		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
-		target.barrier_enabled = false
-		pair_simulation = VehiclePairSimulation.new()
-		pair_simulation.configure(
-			primary,
-			_front_contact_nodes(),
-			target,
-			MotorcycleBuilder.front_contact_nodes() if config.target_vehicle_uses_front_contact() else MotorcycleBuilder.rear_contact_nodes(),
-			config.car_forward(),
-			config.contact_friction,
-			config.restitution
-		)
+		pair_simulation = _pair(primary, _front_contact_nodes(), target, MotorcycleBuilder.front_contact_nodes() if config.target_vehicle_uses_front_contact() else MotorcycleBuilder.rear_contact_nodes(), config)
+	elif config.target_type == ScenarioConfig.TARGET_BICYCLE:
+		target = BicycleBuilder.build(config.target_preset_id, config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
+		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
+		pair_simulation = _pair(primary, _front_contact_nodes(), target, BicycleBuilder.front_contact_nodes() if config.target_vehicle_uses_front_contact() else BicycleBuilder.rear_contact_nodes(), config)
+	elif config.target_type == ScenarioConfig.TARGET_PEDESTRIAN:
+		target = PedestrianBuilder.build(config.target_preset_id, config.target_mass_kg, config.target_position_m)
+		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
+		pair_simulation = _pair(primary, _front_contact_nodes(), target, PedestrianBuilder.contact_nodes(), config)
+		pedestrian_target = true
 	else:
 		static_simulation = VehicleStaticSimulation.new()
 		static_simulation.configure(
@@ -140,6 +161,8 @@ static func _run_variant(config: ScenarioConfig, label: String, sweep_type: Stri
 		var step_s := minf(DT, config.duration_s - elapsed_s)
 		if pair_simulation != null:
 			pair_simulation.step(step_s, config.solver_substeps)
+			if pedestrian_target and pair_simulation.contact.contact_events > 0 and not PedestrianBuilder.stance_released(target):
+				PedestrianBuilder.release_stance(target)
 		else:
 			static_simulation.step(step_s, config.solver_substeps)
 		elapsed_s += step_s
@@ -162,6 +185,17 @@ static func _run_variant(config: ScenarioConfig, label: String, sweep_type: Stri
 		"analysis": analysis,
 		"error": "",
 	}
+
+static func _pair(
+	primary: StructuralModel,
+	primary_nodes: PackedInt32Array,
+	target: StructuralModel,
+	target_nodes: PackedInt32Array,
+	config: ScenarioConfig
+) -> VehiclePairSimulation:
+	var simulation := VehiclePairSimulation.new()
+	simulation.configure(primary, primary_nodes, target, target_nodes, config.car_forward(), config.contact_friction, config.restitution)
+	return simulation
 
 static func _capture(
 	recorder: ReplayRecorder,
@@ -223,6 +257,10 @@ static func _target_metrics(model: StructuralModel, target_type: StringName) -> 
 		result["rear_guard_m"] = model.max_permanent_deformation_for_role(&"lorry_rear_guard")
 	elif target_type == ScenarioConfig.TARGET_MOTORCYCLE:
 		result["frame_deformation_m"] = model.max_permanent_deformation_for_role(&"motorcycle_frame")
+	elif target_type == ScenarioConfig.TARGET_BICYCLE:
+		result["frame_deformation_m"] = model.max_permanent_deformation_for_role(&"bicycle_frame")
+	elif target_type == ScenarioConfig.TARGET_PEDESTRIAN:
+		result["body_deformation_m"] = model.max_permanent_deformation_m()
 	return result
 
 static func _context(pair_simulation: VehiclePairSimulation, static_simulation: VehicleStaticSimulation) -> Dictionary:
@@ -254,6 +292,30 @@ static func _rear_contact_nodes() -> PackedInt32Array:
 		CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.REAR_STATION, 0),
 		CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.REAR_STATION, 1),
 	])
+
+static func _normalise_speeds(values: Array[float]) -> Array[float]:
+	var result: Array[float] = []
+	for value in values:
+		var speed := clampf(value, 0.0, 300.0)
+		var duplicate := false
+		for existing in result:
+			if absf(existing - speed) < 0.001:
+				duplicate = true
+				break
+		if not duplicate:
+			result.append(speed)
+		if result.size() >= 3:
+			break
+	return result
+
+static func _normalise_ids(values: Array[StringName], maximum: int) -> Array[StringName]:
+	var result: Array[StringName] = []
+	for value in values:
+		if not result.has(value):
+			result.append(value)
+		if result.size() >= maximum:
+			break
+	return result
 
 static func _speed_label(speed_kmh: float) -> String:
 	if absf(speed_kmh - roundf(speed_kmh)) < 0.001:
