@@ -8,6 +8,7 @@ const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/demo/crash_demo.gd",
 	"res://src/demo/crash_demo_m5.gd",
 	"res://src/demo/crash_demo_m6.gd",
+	"res://src/demo/crash_demo_m7.gd",
 	"res://src/structural/structural_sled_builder.gd",
 	"res://src/vehicles/compact_hatchback_builder.gd",
 	"res://src/vehicles/passenger_car_builder.gd",
@@ -27,6 +28,12 @@ const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/comparison/comparison_runner.gd",
 	"res://src/comparison/comparison_lane_3d.gd",
 	"res://src/visual/car_paint_catalog.gd",
+	"res://src/export/cinematic_export_profile.gd",
+	"res://src/export/cinematic_timeline.gd",
+	"res://src/export/cinematic_camera_planner.gd",
+	"res://src/export/cinematic_render_stage.gd",
+	"res://src/export/ffmpeg_video_encoder.gd",
+	"res://src/export/cinematic_exporter.gd",
 ]
 
 func _initialize() -> void:
