@@ -26,7 +26,7 @@
 
 ## M3 — Generic vehicle classes and heavy vehicles — complete
 
-- Generic passenger-car presets now cover A, B, C, D, J and M classes.
+- Generic passenger-car presets cover A, B, C, D, J and M classes.
 - All passenger-car presets remain class-scaled versions of the shared 28-node architecture, not manufacturer models.
 - 32-node generic heavy articulated truck with 18 / 32 / 40 t development presets.
 - 24-node generic rigid lorry / box-truck target.
@@ -38,7 +38,6 @@
 
 - Desktop editor replaces keyboard-driven configuration.
 - Primary passenger car plus target palette.
-- Target palette includes passenger car, heavy articulated truck, rigid lorry, riderless motorcycle, rigid wall, concrete barrier, pole and tree.
 - Car-vs-car rear-end and near head-on scenarios.
 - Editable masses, speeds, positions and headings for dynamic vehicles.
 - Direct 3D move and rotate interaction.
@@ -52,7 +51,7 @@
 - 120 Hz recorded structural replay state independent of subsequent live physics.
 - Timeline scrubbing and replay at 0.05x / 0.10x / 0.25x / 0.50x / 1.00x.
 - Crash-pulse and front-crush deformation graphs.
-- Primary and target delta-v metrics.
+- Primary and target delta-v metrics where meaningful.
 - Peak simulated longitudinal deceleration.
 - Safety-cell deformation proxy.
 - Kinetic-energy and broken-structural-member summaries.
@@ -64,10 +63,9 @@
 - Deterministic user-defined two- or three-speed sweeps from 0–300 km/h.
 - Convenience defaults remain 50 / 90 / 140 km/h.
 - Explicit support for close comparisons such as 130 vs 140 km/h.
-- B / C / D core class sweep retained as the default three-lane class comparison.
+- B / C / D core class sweep retained as a convenient three-lane class comparison.
 - Impact-synchronized or scenario-time playback.
-- Shared comparison timeline and 0.05x / 0.10x / 0.25x / 0.50x / 1.00x playback.
-- Per-lane live speed and crush labels.
+- Shared comparison timeline and slow-motion replay speeds.
 - Side-by-side delta-v, peak deceleration, crush, safety-cell deformation and kinetic-energy results.
 - Visual kinetic-energy/deformation bars and presentation-only car paint.
 - Optional structural X-ray view.
@@ -83,7 +81,7 @@
 - Optional retained source frames and machine-readable metadata sidecar.
 - Cancellation and progress reporting.
 
-## M8 — Calibration and validation scope — complete
+## M8 — Calibration, broader scenario library, and validation scope — complete
 
 - Machine-readable NHTSA DOT HS 812 237 / laboratory test 7078 reference.
 - Full-frontal rigid-wall reference condition at 1,661 kg and 56.5 km/h.
@@ -91,10 +89,17 @@
 - Delta-v, safety-cell proxy and energy-balance thresholds explicitly separated as CrashVector numerical regression guardrails rather than NHTSA measurements.
 - Rebound-aware delta-v sanity range documented instead of forcing the solver into an unsupported external corridor.
 - Evidence labels: Reference-correlated, Near reference, Class-scaled and Extrapolated.
-- High-speed, lorry, motorcycle and non-reference collision modes remain explicitly extrapolated.
+- High-speed, dynamic-pair, heavy-vehicle, motorcycle and road-user modes remain explicitly extrapolated.
 - In-app calibration check and video-export evidence metadata.
-- CI regression for calibration metadata, source/project separation, expanded vehicle construction and a 130 vs 140 km/h rigid-wall comparison with the expected kinetic-energy `v²` relationship.
+- Easy target defaults so users can select an object and simulate without mandatory mass entry.
+- Riderless bicycle presets: city bicycle, road bicycle and e-bike, with editable mass.
+- Pedestrian body presets: default adult, child-sized and tall adult, with editable mass and articulated contact/trajectory proxy behaviour.
+- Comparison Lab supports up to three vehicle classes, target types, or road-user presets crossed with up to three arbitrary primary-car speeds, for up to nine independently simulated comparison lanes in one run.
+- Exact close-speed comparison remains supported, including 130 vs 140 km/h.
+- Road-user replay, analysis presentation and cinematic rendering retain explicit contact/trajectory-only disclaimers.
+- Full MPL-2.0 license text is included in the repository.
+- CI regression covers the complete M0–M8 suite, road-user construction/trajectory behaviour, scenario serialization, editor runtime, comparison matrices, calibration scope and the 130/140 km/h `v²` energy relationship.
 
 ## Beyond M8
 
-Further accuracy work should add additional independent public/licensed reference tests before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, suspension/tyre behaviour and additional structural references should be developed as new explicit milestones rather than being implied by M8 completion.
+Further accuracy work should add additional independent public/licensed reference tests before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, suspension/tyre behaviour, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references should be developed as explicit future milestones rather than implied by M8 completion.
