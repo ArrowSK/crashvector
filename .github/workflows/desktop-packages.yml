@@ -1,0 +1,252 @@
+name: Desktop Packages
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.4.1"
+
+jobs:
+  macos-package:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        run: echo "APP_VERSION=$(cat VERSION | tr -d '[:space:]')" >> "$GITHUB_ENV"
+
+      - name: Download Godot and export templates
+        run: |
+          set -euo pipefail
+          mkdir -p .godot-ci
+          curl -L --fail --retry 3 \
+            -o .godot-ci/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          curl -L --fail --retry 3 \
+            -o .godot-ci/templates.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q .godot-ci/godot.zip -d .godot-ci
+          unzip -q .godot-ci/templates.tpz -d .godot-ci/export
+          TEMPLATE_DIR="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$TEMPLATE_DIR"
+          cp -R .godot-ci/export/templates/. "$TEMPLATE_DIR/"
+
+      - name: Import project
+        run: .godot-ci/Godot.app/Contents/MacOS/Godot --headless --path . --editor --quit
+
+      - name: Export macOS app
+        run: |
+          set -euo pipefail
+          mkdir -p dist/macos dist/package
+          .godot-ci/Godot.app/Contents/MacOS/Godot \
+            --headless --path . \
+            --export-release "macOS" "dist/macos/CrashVector.app"
+          test -x "dist/macos/CrashVector.app/Contents/MacOS/CrashVector"
+
+      - name: Ad-hoc sign app
+        run: |
+          codesign --force --deep --sign - --timestamp=none "dist/macos/CrashVector.app"
+          codesign --verify --deep --strict "dist/macos/CrashVector.app"
+
+      - name: Build DMG
+        run: |
+          set -euo pipefail
+          ROOT="dist/dmg-root"
+          DMG="dist/package/CrashVector-${APP_VERSION}-macOS-universal.dmg"
+          rm -rf "$ROOT"
+          mkdir -p "$ROOT"
+          ditto "dist/macos/CrashVector.app" "$ROOT/CrashVector.app"
+          ln -s /Applications "$ROOT/Applications"
+          hdiutil create \
+            -volname "CrashVector ${APP_VERSION}" \
+            -srcfolder "$ROOT" \
+            -ov -format UDZO "$DMG"
+          shasum -a 256 "$DMG" | sed "s#  .*#  $(basename "$DMG")#" > "${DMG}.sha256"
+
+      - name: Upload macOS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: crashvector-macos
+          path: dist/package/*
+          if-no-files-found: error
+          retention-days: 30
+
+  windows-package:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Download Godot and export templates
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path .godot-ci | Out-Null
+          Invoke-WebRequest `
+            -Uri "https://github.com/godotengine/godot/releases/download/$env:GODOT_VERSION-stable/Godot_v$env:GODOT_VERSION-stable_win64.exe.zip" `
+            -OutFile ".godot-ci\godot.zip"
+          Invoke-WebRequest `
+            -Uri "https://github.com/godotengine/godot/releases/download/$env:GODOT_VERSION-stable/Godot_v$env:GODOT_VERSION-stable_export_templates.tpz" `
+            -OutFile ".godot-ci\templates.zip"
+          Expand-Archive ".godot-ci\godot.zip" ".godot-ci\godot" -Force
+          Expand-Archive ".godot-ci\templates.zip" ".godot-ci\export" -Force
+          $templateDir = Join-Path $env:APPDATA "Godot\export_templates\$env:GODOT_VERSION.stable"
+          New-Item -ItemType Directory -Force -Path $templateDir | Out-Null
+          Copy-Item ".godot-ci\export\templates\*" $templateDir -Recurse -Force
+
+      - name: Build Windows icon from high-resolution source
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          @'
+from PIL import Image
+from pathlib import Path
+source = Path("assets/branding/crashvector-icon.webp")
+target = Path("assets/branding/crashvector-icon.ico")
+image = Image.open(source).convert("RGBA")
+image.save(target, format="ICO", sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
+print(f"Created {target} from {source} ({image.width}x{image.height})")
+'@ | python -
+          if (-not (Test-Path "assets\branding\crashvector-icon.ico")) { throw "ICO generation failed" }
+
+      - name: Import project
+        shell: pwsh
+        run: |
+          $godot = Get-ChildItem ".godot-ci\godot" -Filter "*_console.exe" | Select-Object -First 1
+          & $godot.FullName --headless --path . --editor --quit
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Export Windows app
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "dist\windows" | Out-Null
+          $godot = Get-ChildItem ".godot-ci\godot" -Filter "*_console.exe" | Select-Object -First 1
+          & $godot.FullName --headless --path . --export-release "Windows Desktop" "dist\windows\CrashVector.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path "dist\windows\CrashVector.exe")) { throw "Godot did not produce CrashVector.exe" }
+
+      - name: Apply Windows executable branding
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe" `
+            -OutFile ".godot-ci\rcedit.exe"
+          & ".godot-ci\rcedit.exe" "dist\windows\CrashVector.exe" `
+            --set-icon "assets\branding\crashvector-icon.ico" `
+            --set-file-version "0.1.0.1" `
+            --set-product-version "0.1.0.1" `
+            --set-version-string "ProductName" "CrashVector" `
+            --set-version-string "FileDescription" "Educational 3D vehicle collision simulator" `
+            --set-version-string "CompanyName" "ArrowSK"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "dist\package" | Out-Null
+          $outputBase = "CrashVector-$env:APP_VERSION-Windows-x64-Setup"
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc `
+            "/DAppVersion=$env:APP_VERSION" `
+            "/DSourceDir=$((Resolve-Path 'dist\windows').Path)" `
+            "/DOutputDir=$((Resolve-Path 'dist\package').Path)" `
+            "/DOutputBaseFilename=$outputBase" `
+            "packaging\windows\CrashVector.iss"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $installer = "dist\package\$outputBase.exe"
+          if (-not (Test-Path $installer)) { throw "Inno Setup did not produce the installer" }
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
+          "$hash  $outputBase.exe" | Set-Content -NoNewline "$installer.sha256"
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: crashvector-windows
+          path: dist/package/*
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-prerelease:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [macos-package, windows-package]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        run: echo "APP_VERSION=$(cat VERSION | tr -d '[:space:]')" >> "$GITHUB_ENV"
+
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/release
+          merge-multiple: true
+
+      - name: Verify package checksums
+        run: |
+          set -euo pipefail
+          cd dist/release
+          for checksum in *.sha256; do
+            sha256sum -c "$checksum"
+          done
+
+      - name: Build update manifest
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path("dist/release")
+          version = os.environ["APP_VERSION"]
+          assets = []
+          for path in sorted(root.iterdir()):
+              if path.suffix == ".sha256" or path.name == "update-manifest.json":
+                  continue
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              assets.append({"name": path.name, "sha256": digest, "bytes": path.stat().st_size})
+          manifest = {
+              "schema": 1,
+              "version": version,
+              "tag": f"v{version}",
+              "assets": assets,
+          }
+          (root / "update-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          PY
+
+      - name: Publish first desktop prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v${APP_VERSION}"
+          NOTES="docs/RELEASE_NOTES_${APP_VERSION}.md"
+          if [[ ! -f "$NOTES" ]]; then
+            echo "Missing release notes: $NOTES" >&2
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; published release assets are immutable."
+            exit 0
+          fi
+          gh release create "$TAG" \
+            dist/release/* \
+            --target "$GITHUB_SHA" \
+            --title "CrashVector ${APP_VERSION} — desktop beta" \
+            --notes-file "$NOTES" \
+            --prerelease

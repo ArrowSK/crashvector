@@ -2,8 +2,14 @@ config_version=5
 
 [application]
 config/name="CrashVector"
+config/version="0.1.0"
 run/main_scene="res://app/main.tscn"
 config/features=PackedStringArray("4.4")
+config/icon="res://assets/branding/crashvector-icon.webp"
+config/macos_native_icon="res://assets/branding/crashvector-icon.webp"
+config/windows_native_icon="res://assets/branding/crashvector-icon.webp"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="CrashVector"
 
 [display]
 window/size/viewport_width=1280
