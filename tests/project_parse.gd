@@ -26,6 +26,7 @@ const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/ui/crash_metric_graph.gd",
 	"res://src/comparison/comparison_runner.gd",
 	"res://src/comparison/comparison_lane_3d.gd",
+	"res://src/visual/car_paint_catalog.gd",
 ]
 
 func _initialize() -> void:
