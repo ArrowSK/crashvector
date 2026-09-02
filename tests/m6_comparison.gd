@@ -9,6 +9,7 @@ func _initialize() -> void:
 	_test_speed_sweep(failures)
 	_test_vehicle_class_sweep(failures)
 	_test_recordings_are_independent(failures)
+	_test_paint_palette(failures)
 
 	if failures.is_empty():
 		print("CrashVector M6 visual-comparison tests passed.")
@@ -87,6 +88,21 @@ func _test_recordings_are_independent(failures: Array[String]) -> void:
 	var second_time := float(second.last_frame().get("time_s", -1.0))
 	if absf(first_time - 0.60) > 0.01 or absf(second_time - 0.60) > 0.01:
 		failures.append("M6 offline sweep did not preserve the requested duration")
+
+func _test_paint_palette(failures: Array[String]) -> void:
+	var ids := CarPaintCatalog.ids()
+	if ids.size() < 6:
+		failures.append("M6 comparison should expose a useful car-paint palette")
+	var seen: Array[Color] = []
+	for id in ids:
+		if not CarPaintCatalog.is_valid(id):
+			failures.append("M6 paint catalog returned an invalid paint id")
+		var color := CarPaintCatalog.color(id)
+		if color.a < 0.85:
+			failures.append("M6 car paint is too transparent for visual comparison")
+		if seen.has(color):
+			failures.append("M6 car paint palette contains duplicate colors")
+		seen.append(color)
 
 func _short_wall_scenario() -> ScenarioConfig:
 	var scenario := ScenarioConfig.new()
