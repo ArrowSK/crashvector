@@ -14,10 +14,12 @@ var obstacle: StaticObstacle3D
 var lane_label: Label3D
 var live_label: Label3D
 var road_mesh: MeshInstance3D
+var primary_paint_id: StringName = CarPaintCatalog.ELECTRIC_BLUE
 
-func configure(comparison_result: Dictionary, offset_m: Vector3) -> void:
+func configure(comparison_result: Dictionary, offset_m: Vector3, paint_id: StringName = CarPaintCatalog.ELECTRIC_BLUE) -> void:
 	result = comparison_result
 	lane_offset_m = offset_m
+	primary_paint_id = paint_id if CarPaintCatalog.is_valid(paint_id) else CarPaintCatalog.ELECTRIC_BLUE
 	_build_lane()
 	apply_time(0.0)
 
@@ -38,6 +40,11 @@ func apply_time(time_s: float) -> void:
 			truck.model.translate_all_nodes(lane_offset_m)
 			truck.step_external(0.0)
 	_update_live_label(frame)
+
+func set_primary_paint_id(value: StringName) -> void:
+	primary_paint_id = value if CarPaintCatalog.is_valid(value) else CarPaintCatalog.ELECTRIC_BLUE
+	if primary != null:
+		primary.set_paint_id(primary_paint_id)
 
 func set_structure_debug(enabled: bool) -> void:
 	if primary != null:
@@ -65,6 +72,7 @@ func _build_lane() -> void:
 	primary = CompactHatchback.new()
 	primary.name = "ComparisonPrimary"
 	primary.vehicle_preset_id = config.car_preset_id
+	primary.paint_id = primary_paint_id
 	primary.total_mass_kg = config.car_mass_kg
 	primary.initial_speed_kmh = config.car_speed_kmh
 	primary.origin_offset_m = config.car_position_m + lane_offset_m
@@ -77,6 +85,7 @@ func _build_lane() -> void:
 		target_car = CompactHatchback.new()
 		target_car.name = "ComparisonTargetCar"
 		target_car.vehicle_preset_id = config.target_car_preset_id
+		target_car.paint_id = CarPaintCatalog.SILVER
 		target_car.total_mass_kg = config.target_mass_kg
 		target_car.initial_speed_kmh = config.target_speed_kmh
 		target_car.origin_offset_m = config.target_position_m + lane_offset_m
