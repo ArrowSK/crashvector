@@ -11,6 +11,11 @@ const SYNC_SCENARIO: StringName = &"scenario"
 
 var comparison_results: Array[Dictionary] = []
 var comparison_lanes: Array[ComparisonLane3D] = []
+var comparison_paint_ids: Array[StringName] = [
+	CarPaintCatalog.CRIMSON,
+	CarPaintCatalog.ELECTRIC_BLUE,
+	CarPaintCatalog.SUNSET_ORANGE,
+]
 var comparison_active: bool = false
 var comparison_playing: bool = false
 var comparison_time_s: float = 0.0
@@ -115,7 +120,7 @@ func _build_m6_ui() -> void:
 	comparison_results_panel.anchor_top = 1.0
 	comparison_results_panel.anchor_bottom = 1.0
 	comparison_results_panel.offset_left = -520.0
-	comparison_results_panel.offset_top = -185.0
+	comparison_results_panel.offset_top = -205.0
 	comparison_results_panel.offset_right = 520.0
 	comparison_results_panel.offset_bottom = -12.0
 	comparison_results_panel.visible = false
@@ -178,7 +183,7 @@ func _build_m6_ui() -> void:
 	comparison_cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	result_column.add_child(comparison_cards)
 	comparison_hint = Label.new()
-	comparison_hint.text = "The three scenes use the same scenario and replay clock. Impact synchronization aligns first contact so the visual difference is immediately obvious."
+	comparison_hint.text = "The three scenes use the same scenario and replay clock. Impact synchronization aligns first contact so the visual difference is immediately obvious. Car colors are presentation-only and never change the physics."
 	comparison_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	result_column.add_child(comparison_hint)
 
@@ -217,12 +222,13 @@ func _enter_comparison_mode() -> void:
 		analysis_overlay.set_enabled(false)
 	_set_base_ui_visible(false)
 	_clear_comparison_lanes()
+	_ensure_comparison_paint_defaults()
 	var offsets: Array[Vector3] = [Vector3(0.0, 0.0, -8.5), Vector3.ZERO, Vector3(0.0, 0.0, 8.5)]
 	for i in range(comparison_results.size()):
 		var lane := ComparisonLane3D.new()
 		lane.name = "ComparisonLane%d" % i
 		add_child(lane)
-		lane.configure(comparison_results[i], offsets[i])
+		lane.configure(comparison_results[i], offsets[i], comparison_paint_ids[i])
 		comparison_lanes.append(lane)
 	_build_comparison_cards()
 	comparison_results_panel.visible = true
@@ -297,6 +303,17 @@ func _on_comparison_timeline_changed(value: float) -> void:
 	comparison_play_button.text = "Play comparison"
 	_apply_comparison_time(value, false)
 
+func _on_lane_paint_selected(option_index: int, lane_index: int, swatch: ColorRect) -> void:
+	var ids := CarPaintCatalog.ids()
+	if option_index < 0 or option_index >= ids.size() or lane_index < 0 or lane_index >= comparison_paint_ids.size():
+		return
+	var paint_id := ids[option_index]
+	comparison_paint_ids[lane_index] = paint_id
+	if lane_index < comparison_lanes.size():
+		comparison_lanes[lane_index].set_primary_paint_id(paint_id)
+	if swatch != null:
+		swatch.color = CarPaintCatalog.color(paint_id)
+
 func _configure_comparison_timeline(reset_to_start: bool) -> void:
 	if comparison_results.is_empty():
 		return
@@ -364,10 +381,10 @@ func _build_comparison_cards() -> void:
 		var analysis: Dictionary = result.get("analysis", {})
 		max_energy = maxf(max_energy, float(analysis.get("initial_kinetic_energy_kj", 0.0)))
 		max_crush = maxf(max_crush, float(analysis.get("max_front_crush_mm", 0.0)))
-	for result in comparison_results:
-		comparison_cards.add_child(_make_result_card(result, max_energy, max_crush))
+	for i in range(comparison_results.size()):
+		comparison_cards.add_child(_make_result_card(comparison_results[i], max_energy, max_crush, i))
 
-func _make_result_card(result: Dictionary, max_energy: float, max_crush: float) -> Control:
+func _make_result_card(result: Dictionary, max_energy: float, max_crush: float, lane_index: int) -> Control:
 	var analysis: Dictionary = result.get("analysis", {})
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -384,6 +401,23 @@ func _make_result_card(result: Dictionary, max_energy: float, max_crush: float) 
 	heading.text = String(result.get("label", "Variant"))
 	heading.add_theme_font_size_override("font_size", 16)
 	column.add_child(heading)
+
+	var paint_row := HBoxContainer.new()
+	paint_row.add_theme_constant_override("separation", 5)
+	column.add_child(paint_row)
+	var swatch := ColorRect.new()
+	swatch.custom_minimum_size = Vector2(18.0, 18.0)
+	swatch.color = CarPaintCatalog.color(comparison_paint_ids[lane_index])
+	paint_row.add_child(swatch)
+	var paint_option := OptionButton.new()
+	paint_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var paint_ids := CarPaintCatalog.ids()
+	for id in paint_ids:
+		paint_option.add_item(CarPaintCatalog.display_name(id))
+	paint_option.select(maxi(paint_ids.find(comparison_paint_ids[lane_index]), 0))
+	paint_option.item_selected.connect(_on_lane_paint_selected.bind(lane_index, swatch))
+	paint_row.add_child(paint_option)
+
 	var metrics := Label.new()
 	metrics.text = "Δv %.1f km/h   peak %.1f g   crush %.0f mm   cell %.0f mm" % [
 		float(analysis.get("final_delta_v_kmh", 0.0)),
@@ -412,6 +446,11 @@ func _make_result_card(result: Dictionary, max_energy: float, max_crush: float) 
 	crush_bar.custom_minimum_size.y = 9.0
 	column.add_child(crush_bar)
 	return panel
+
+func _ensure_comparison_paint_defaults() -> void:
+	if comparison_paint_ids.size() == 3:
+		return
+	comparison_paint_ids = [CarPaintCatalog.CRIMSON, CarPaintCatalog.ELECTRIC_BLUE, CarPaintCatalog.SUNSET_ORANGE]
 
 func _frame_comparison() -> void:
 	if camera == null:
