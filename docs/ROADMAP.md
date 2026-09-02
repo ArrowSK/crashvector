@@ -5,49 +5,47 @@
 - Godot project bootstrap.
 - 240 Hz fixed physics tick.
 - Rigid test vehicle and barrier.
-- Telemetry, energy, and momentum diagnostics.
+- Telemetry, energy and momentum diagnostics.
 - Headless CI baseline.
 
 ## M1 — Structural proof — complete
 
 - Lumped structural nodes.
 - Axial beams with stiffness and damping.
-- Plastic yield, permanent deformation, and fracture.
+- Plastic yield, permanent deformation and fracture.
 - Structural debug renderer.
 - Energy-balance diagnostics.
 
 ## M2 — Generic compact hatchback — complete
 
 - 28-node passenger-car architecture.
-- Rear crush, safety cell, front transition, and front crush zones.
+- Rear crush, safety cell, front transition and front crush zones.
 - Whole-vehicle translation/rotation extraction.
 - Procedural deformable body shell.
 - Four wheel anchors and detachable bumper proof.
 
-## M3 — Passenger-car classes and heavy truck — complete
+## M3 — Generic vehicle classes and heavy vehicles — complete
 
-- Generic B-segment small hatchback preset.
-- Generic C-segment compact-car preset.
-- Generic D-segment midsize-car preset.
-- 32-node generic heavy truck with 18 / 32 / 40 t development presets.
-- Rear underride structure and simplified tractor/trailer regions.
+- Generic passenger-car presets now cover A, B, C, D, J and M classes.
+- All passenger-car presets remain class-scaled versions of the shared 28-node architecture, not manufacturer models.
+- 32-node generic heavy articulated truck with 18 / 32 / 40 t development presets.
+- 24-node generic rigid lorry / box-truck target.
+- 16-node generic riderless motorcycle target.
+- Rear underride / rear-guard structural approximations where applicable.
 - Coupled dynamic-pair node-contact solver.
-- Rear-impact reference scenario with 50 / 90 / 140 km/h car speeds.
 
 ## M4 — Scenario editor — complete
 
-- Desktop editor replaces keyboard-driven scenario configuration.
+- Desktop editor replaces keyboard-driven configuration.
 - Primary passenger car plus target palette.
-- Target palette includes passenger car, heavy truck, rigid wall, concrete barrier, pole, and tree.
-- **Car-vs-car rear-end and near head-on scenarios.**
-- Independent B / C / D passenger-car classes, masses, speeds, positions, and headings for both cars.
-- Heavy-truck mass, speed, position, and heading inspector.
+- Target palette includes passenger car, heavy articulated truck, rigid lorry, riderless motorcycle, rigid wall, concrete barrier, pole and tree.
+- Car-vs-car rear-end and near head-on scenarios.
+- Editable masses, speeds, positions and headings for dynamic vehicles.
 - Direct 3D move and rotate interaction.
-- Contact-friction, restitution, solver-substep, duration, and structural-debug controls.
-- Static-target structural contact layer.
-- Preflight validation, including rejection of unsupported broadside car-vs-car layouts.
+- Contact friction, restitution, duration, solver-substep and structure-debug controls.
+- Static-target structural contact layer, including selectable full-frontal rigid-wall crashes.
+- Preflight validation, including rejection of unsupported broadside vehicle layouts.
 - Human-readable `.crashvector.json` save/load.
-- Pause, reset, and camera framing controls.
 
 ## M5 — Analysis and replay — complete
 
@@ -56,49 +54,47 @@
 - Crash-pulse and front-crush deformation graphs.
 - Primary and target delta-v metrics.
 - Peak simulated longitudinal deceleration.
-- Safety-cell deformation proxy for intrusion-oriented education.
+- Safety-cell deformation proxy.
 - Kinetic-energy and broken-structural-member summaries.
-- 3D velocity and momentum vectors plus the existing structural-state overlay.
-- Event markers for first contact, peak loading, structural failure, separation, and rest when the event is actually observed in the recorded window.
-- Replay regression tests verify snapshot restoration is independent of final live-physics state.
+- 3D velocity and momentum vectors.
+- Event markers for observed contact/loading/failure/separation/rest events.
 
 ## M6 — Visual comparison — complete
 
-- Offline deterministic 50 / 90 / 140 km/h parameter sweep.
-- Offline B / C / D passenger-car class sweep.
-- Three simultaneous 3D comparison lanes.
-- Impact-synchronized playback by default, with scenario-time synchronization available.
+- Deterministic user-defined two- or three-speed sweeps from 0–300 km/h.
+- Convenience defaults remain 50 / 90 / 140 km/h.
+- Explicit support for close comparisons such as 130 vs 140 km/h.
+- B / C / D core class sweep retained as the default three-lane class comparison.
+- Impact-synchronized or scenario-time playback.
 - Shared comparison timeline and 0.05x / 0.10x / 0.25x / 0.50x / 1.00x playback.
 - Per-lane live speed and crush labels.
-- Side-by-side delta-v, peak deceleration, crush, safety-cell deformation, and kinetic-energy results.
-- Visual kinetic-energy and deformation bars so the lesson works without reading a technical table first.
-- Selectable presentation-only car paint for each comparison lane, with eight generic colors and visible swatches.
-- Neutral silver target car in car-vs-car comparisons to keep the compared primary vehicles visually distinct.
+- Side-by-side delta-v, peak deceleration, crush, safety-cell deformation and kinetic-energy results.
+- Visual kinetic-energy/deformation bars and presentation-only car paint.
 - Optional structural X-ray view.
-- Regression coverage for sweeps, replay independence, requested duration, kinetic-energy v² behaviour, paint palette, and runtime editor construction.
 
 ## M7 — Cinematic video export — complete
 
 - Offline fixed-frame rendering from recorded replay state rather than live physics.
-- 1080p, 1440p, and 4K output profiles at 30 or 60 fps.
-- Auto cinematic, wide, tracking, impact close-up, and aftermath-orbit camera presets.
-- Impact-centred 0.25x slow-motion retiming without changing the underlying simulation.
-- Opening title card, live educational speed/crush overlay, watermark, and closing result card.
-- Independent primary and target passenger-car paint selection for exported video.
-- High-quality JPEG frame sequence rendered through a dedicated offscreen viewport.
-- External FFmpeg H.264/MP4 encoding with fast-start output; no codec binary is bundled.
-- Optional preservation of source frames and a machine-readable video metadata sidecar.
-- Cancellation and progress reporting in the desktop editor.
-- Regression coverage for deterministic retiming, fixed frame counts, camera poses, encoder arguments, export profiles, and runtime editor construction.
+- 1080p, 1440p and 4K output profiles at 30 or 60 fps.
+- Auto cinematic, wide, tracking, impact close-up and aftermath-orbit cameras.
+- Impact-centred slow-motion retiming without changing the simulation.
+- Opening title card, educational overlays, watermark and result card.
+- External FFmpeg H.264/MP4 encoding; no codec binary bundled.
+- Optional retained source frames and machine-readable metadata sidecar.
+- Cancellation and progress reporting.
 
 ## M8 — Calibration and validation scope — complete
 
-- Machine-readable NHTSA full-frontal rigid-barrier reference dataset from DOT HS 812 237 / laboratory test 7078.
-- Published test conditions and observations kept separate from CrashVector-defined regression corridors.
-- Deterministic 1,661 kg / 56.5 km/h generic D-segment reference run.
-- Regression gates for crash-pulse duration, longitudinal delta-v, safety-cell structural proxy, and numerical energy balance.
-- Scenario evidence labels: Reference-correlated, Near reference, Class-scaled, and Extrapolated.
-- 90 / 140 km/h, car-vs-car, car-vs-truck, and other out-of-envelope scenarios remain explicitly extrapolated instead of inheriting a validation claim.
-- In-app calibration panel can run the stored reference check and display metric/corridor results.
-- Calibration documentation defines evidence boundaries and rules for adding future reference datasets.
-- CI fails if the directly correlated reference leaves its stored engineering corridors.
+- Machine-readable NHTSA DOT HS 812 237 / laboratory test 7078 reference.
+- Full-frontal rigid-wall reference condition at 1,661 kg and 56.5 km/h.
+- Published approximately 120 ms crash-pulse observation stored as source-correlation evidence.
+- Delta-v, safety-cell proxy and energy-balance thresholds explicitly separated as CrashVector numerical regression guardrails rather than NHTSA measurements.
+- Rebound-aware delta-v sanity range documented instead of forcing the solver into an unsupported external corridor.
+- Evidence labels: Reference-correlated, Near reference, Class-scaled and Extrapolated.
+- High-speed, lorry, motorcycle and non-reference collision modes remain explicitly extrapolated.
+- In-app calibration check and video-export evidence metadata.
+- CI regression for calibration metadata, source/project separation, expanded vehicle construction and a 130 vs 140 km/h rigid-wall comparison with the expected kinetic-energy `v²` relationship.
+
+## Beyond M8
+
+Further accuracy work should add additional independent public/licensed reference tests before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, suspension/tyre behaviour and additional structural references should be developed as new explicit milestones rather than being implied by M8 completion.

@@ -4,62 +4,79 @@ CrashVector is an educational structural-collision simulator. M8 introduces a de
 
 ## First external structural reference
 
-The first correlation reference is the NHTSA NCAP full-frontal rigid-barrier condition documented in **DOT HS 812 237**, *Update to Future Midsize Lightweight Vehicle Findings in Response to Manufacturer Review and IIHS Small-Overlap Testing* (February 2016).
+The first reference is the NHTSA NCAP full-frontal rigid-barrier condition documented in **DOT HS 812 237**, *Update to Future Midsize Lightweight Vehicle Findings in Response to Manufacturer Review and IIHS Small-Overlap Testing* (February 2016).
 
 Source: https://www.nhtsa.gov/sites/nhtsa.gov/files/812237_lightweightvehiclereport.pdf
 
-The report documents laboratory test **7078** for a midsize four-door passenger car and gives a laboratory test mass of **1,661 kg**. The NCAP condition is a full-frontal impact into a rigid barrier at a nominal **56 km/h (35 mph)**. Elsewhere in the report the physical test is stated as **56.5 km/h (35.1 mph)**. The report describes the test crash-pulse duration as approximately **120 ms**. It also publishes post-test driver-compartment x-direction measurements of **-3 mm at the brake pedal** and **8 mm at the foot rest**.
+The report documents laboratory test **7078** for a midsize four-door passenger car, with a laboratory test mass of **1,661 kg**. The physical test is stated as **56.5 km/h (35.1 mph)**. The report describes the test crash-pulse duration as approximately **120 ms** and publishes post-test driver-compartment x-direction measurements of **-3 mm at the brake pedal** and **8 mm at the foot rest**.
 
-CrashVector does **not** expose the production vehicle used in that NHTSA research as a selectable model. The reference is used only to constrain the generic **D-segment midsize** development class.
+CrashVector does not expose the production vehicle used in the NHTSA research as a selectable model. The external reference constrains only the generic D-segment development scenario.
 
-## What is actually compared
+## Source evidence versus project regression
 
-The M8 regression runs a 1,661 kg generic D-segment CrashVector vehicle at 56.5 km/h into the rigid-wall target. The comparison gates:
+M8 deliberately keeps two categories separate.
 
-- crash-pulse duration, measured from first contact until the vehicle's longitudinal speed falls below 10% of its initial value;
-- longitudinal delta-v;
-- CrashVector's maximum permanent safety-cell beam deformation proxy;
-- numerical energy-balance error.
+### Source-correlation evidence
 
-The pulse-duration and delta-v checks are physically comparable at a broad structural level. The safety-cell beam deformation value is **not** the same measurement as brake-pedal, foot-rest, toe-board, steering-column, or occupant-space intrusion. The published intrusion values are retained in the reference JSON as source observations but are not silently re-labelled as CrashVector output.
+The stored source-correlation corridor currently covers **crash-pulse duration only**: **80–160 ms**, centred broadly around the published approximately 120 ms pulse.
 
-## Project correlation corridors
+This is the only M8 corridor directly anchored to the published observation used by the current automated correlation check.
 
-The reference file separates published observations from CrashVector-defined engineering corridors. The current corridors are:
+### CrashVector project regression guardrails
 
-- pulse duration: **80–160 ms**, centred broadly around the report's approximately 120 ms test pulse;
-- longitudinal delta-v: **50–63 km/h** for the 56.5 km/h rigid-barrier condition;
-- safety-cell structural proxy: **0–45 mm**;
+The following thresholds are numerical development guardrails, not values published by NHTSA:
+
+- longitudinal delta-v: **50–75 km/h**;
+- safety-cell structural beam-deformation proxy: **0–45 mm**;
 - energy-balance relative error: **<= 0.35**.
 
-These corridors are project regression thresholds, not limits published by NHTSA. A change to a corridor must be reviewed together with its documented basis; CI should not be made green by widening a corridor without explanation.
+The delta-v guardrail explicitly allows post-impact rebound in CrashVector's simplified wall/contact model. The NHTSA source used by M8 does not provide the final rebound velocity needed to construct CrashVector's delta-v metric, so the project must not describe this range as an NHTSA correlation corridor.
+
+Likewise, the safety-cell beam value is not brake-pedal, foot-rest, toe-board, steering-column or occupant-space intrusion. The published intrusion observations remain in the reference JSON as source information but are not re-labelled as CrashVector output.
+
+CI checks both categories, but the UI and data model preserve which category each check belongs to.
 
 ## Scenario labels
 
-CrashVector assigns one of four validation-scope labels to the currently configured scenario:
+CrashVector assigns one of four evidence-scope labels to a configured scenario.
 
-**Reference-correlated** means the scenario is inside the narrow current NHTSA-based envelope: generic D-segment midsize car, rigid wall, 50–60 km/h, 1,500–1,800 kg, and approximately zero-degree frontal heading.
+**Reference-correlated** means the scenario lies inside the narrow current NHTSA-based envelope: generic D-segment midsize car, rigid wall, 50–60 km/h, 1,500–1,800 kg and approximately zero-degree frontal heading.
 
-**Near reference** means the same class and impact type are close to the reference but outside the directly correlated mass or speed corridor.
+**Near reference** means the same class and impact type are close to that condition but outside the directly correlated mass/speed envelope.
 
-**Class-scaled** means a B- or C-segment passenger car uses the same generic structural architecture and class scaling in a moderate-speed rigid-wall impact, but that class has no direct published correlation test in M8.
+**Class-scaled** means another generic passenger-car class uses the shared structural architecture and class scaling near the moderate-speed wall condition without a direct published reference for that class.
 
-**Extrapolated** covers the rest, including 90 and 140 km/h high-speed cases, car-vs-car, car-vs-truck, non-rigid-wall targets, and other configurations outside the present reference envelope.
+**Extrapolated** covers the rest. This includes high-speed comparisons such as 130 vs 140 km/h, vehicle-to-vehicle impacts, lorry and riderless-motorcycle cases, and other conditions outside the current reference envelope.
 
 The label is a statement about evidence coverage, not a safety rating.
 
+## Expanded generic classes and targets
+
+A/B/C/D/J/M passenger-car presets share the same class-scaled 28-node passenger-car architecture. Adding a selectable class does not create a direct validation claim for that class.
+
+The heavy articulated truck, rigid lorry / box truck and riderless motorcycle are separate generic structural approximations. The motorcycle model contains no rider and must not be used to infer rider trajectory, helmet performance or injury.
+
+The full-frontal rigid wall is a normal selectable simulation target and is also the geometry used for the current M8 reference condition.
+
+## High-speed and custom-speed comparison
+
+Visual Compare may run any two or three user-entered speeds in the supported editor range, for example **130 and 140 km/h**. Such a comparison is useful for showing the nonlinear `v²` kinetic-energy relationship, but it remains extrapolated until appropriate high-speed reference evidence is added.
+
+A successful 56.5 km/h rigid-wall reference check does not validate 90, 130, 140 km/h or any other high-speed result.
+
 ## What M8 does not validate
 
-M8 does not validate occupant injury risk, airbags, seat belts, dummies, vehicle star ratings, exact production-model deformation, side impacts, oblique/broadside impacts, truck underride injury outcomes, or crash reconstruction. It also does not make the 90/140 km/h visual comparisons "validated" merely because the lower-speed structural reference passes.
+M8 does not validate occupant/rider injury risk, airbags, seat belts, dummies, helmets, star ratings, exact production-model deformation, broadside impacts, complex oblique impacts, truck-underride injury outcomes, or forensic crash reconstruction.
 
-The NHTSA report itself uses detailed finite-element models with approximately two million elements and compares laboratory acceleration and intrusion measurements. CrashVector's node/beam model is intentionally far simpler, so its correlation claims must remain correspondingly narrower.
+The NHTSA research uses detailed finite-element models and laboratory measurements. CrashVector's node/beam representation is intentionally far simpler, so its claims must remain correspondingly narrower.
 
 ## Adding future references
 
-Future reference datasets should be placed in `calibration/references/` and must keep three kinds of data separate:
+Future reference datasets belong in `calibration/references/` and must keep these categories distinct:
 
 1. published test conditions and observations;
-2. CrashVector metric mappings and engineering corridors;
-3. the exact scenario scope to which a successful correlation may be applied.
+2. source-supported metric mappings/correlation corridors;
+3. CrashVector-only regression guardrails;
+4. the exact scenario scope to which successful correlation may be applied.
 
 A new reference should add a deterministic regression test before its scope can be shown as correlated in the UI.

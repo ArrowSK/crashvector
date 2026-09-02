@@ -23,7 +23,7 @@ func _test_speed_sweep(failures: Array[String]) -> void:
 	var scenario := _short_wall_scenario()
 	var results := ComparisonRunner.run_speed_sweep(scenario)
 	if results.size() != 3:
-		failures.append("M6 speed sweep must return three comparison variants")
+		failures.append("M6 default speed sweep must return three comparison variants")
 		return
 	var expected_speeds: Array[float] = [50.0, 90.0, 140.0]
 	var energies: Array[float] = []
@@ -57,9 +57,13 @@ func _test_vehicle_class_sweep(failures: Array[String]) -> void:
 	scenario.car_speed_kmh = 70.0
 	var results := ComparisonRunner.run_vehicle_class_sweep(scenario)
 	if results.size() != 3:
-		failures.append("M6 vehicle-class sweep must return B/C/D variants")
+		failures.append("M6 default vehicle-class sweep must return B/C/D variants")
 		return
-	var expected_ids := PassengerCarCatalog.preset_ids()
+	var expected_ids: Array[StringName] = [
+		PassengerCarCatalog.B_SEGMENT_HATCHBACK,
+		PassengerCarCatalog.C_SEGMENT_COMPACT,
+		PassengerCarCatalog.D_SEGMENT_MIDSIZE,
+	]
 	for i in range(results.size()):
 		var result := results[i]
 		if not String(result.get("error", "")).is_empty():
