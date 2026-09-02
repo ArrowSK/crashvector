@@ -77,12 +77,19 @@
 - Optional structural X-ray view.
 - Regression coverage for sweeps, replay independence, requested duration, kinetic-energy v² behaviour, paint palette, and runtime editor construction.
 
-## M7 — Video export
+## M7 — Cinematic video export — complete
 
-- Offline fixed-frame rendering.
-- Camera presets.
-- 1080p+ export pipeline.
-- Educational overlays and result cards.
+- Offline fixed-frame rendering from recorded replay state rather than live physics.
+- 1080p, 1440p, and 4K output profiles at 30 or 60 fps.
+- Auto cinematic, wide, tracking, impact close-up, and aftermath-orbit camera presets.
+- Impact-centred 0.25x slow-motion retiming without changing the underlying simulation.
+- Opening title card, live educational speed/crush overlay, watermark, and closing result card.
+- Independent primary and target passenger-car paint selection for exported video.
+- High-quality JPEG frame sequence rendered through a dedicated offscreen viewport.
+- External FFmpeg H.264/MP4 encoding with fast-start output; no codec binary is bundled.
+- Optional preservation of source frames and a machine-readable video metadata sidecar.
+- Cancellation and progress reporting in the desktop editor.
+- Regression coverage for deterministic retiming, fixed frame counts, camera poses, encoder arguments, export profiles, and runtime editor construction.
 
 ## M8 — Calibration
 
