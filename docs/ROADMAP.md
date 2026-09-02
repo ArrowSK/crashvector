@@ -43,7 +43,7 @@
 - Independent B / C / D passenger-car classes, masses, speeds, positions, and headings for both cars.
 - Heavy-truck mass, speed, position, and heading inspector.
 - Direct 3D move and rotate interaction.
-- Contact friction, restitution, duration, solver-substep, and structure-debug controls.
+- Contact-friction, restitution, solver-substep, duration, and structural-debug controls.
 - Static-target structural contact layer.
 - Preflight validation, including rejection of unsupported broadside car-vs-car layouts.
 - Human-readable `.crashvector.json` save/load.
@@ -91,8 +91,14 @@
 - Cancellation and progress reporting in the desktop editor.
 - Regression coverage for deterministic retiming, fixed frame counts, camera poses, encoder arguments, export profiles, and runtime editor construction.
 
-## M8 — Calibration
+## M8 — Calibration and validation scope — complete
 
-- Documented reference-test datasets.
-- Defined validated ranges and extrapolation labels.
-- Regression thresholds tied to published reference conditions.
+- Machine-readable NHTSA full-frontal rigid-barrier reference dataset from DOT HS 812 237 / laboratory test 7078.
+- Published test conditions and observations kept separate from CrashVector-defined regression corridors.
+- Deterministic 1,661 kg / 56.5 km/h generic D-segment reference run.
+- Regression gates for crash-pulse duration, longitudinal delta-v, safety-cell structural proxy, and numerical energy balance.
+- Scenario evidence labels: Reference-correlated, Near reference, Class-scaled, and Extrapolated.
+- 90 / 140 km/h, car-vs-car, car-vs-truck, and other out-of-envelope scenarios remain explicitly extrapolated instead of inheriting a validation claim.
+- In-app calibration panel can run the stored reference check and display metric/corridor results.
+- Calibration documentation defines evidence boundaries and rules for adding future reference datasets.
+- CI fails if the directly correlated reference leaves its stored engineering corridors.
