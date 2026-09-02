@@ -1,0 +1,44 @@
+{
+  "id": "nhtsa_ncap_full_frontal_midsize_56kph",
+  "title": "NHTSA NCAP full-frontal rigid-barrier midsize reference",
+  "source": {
+    "agency": "National Highway Traffic Safety Administration",
+    "report": "Update to Future Midsize Lightweight Vehicle Findings in Response to Manufacturer Review and IIHS Small-Overlap Testing",
+    "report_number": "DOT HS 812 237",
+    "publication_date": "2016-02",
+    "url": "https://www.nhtsa.gov/sites/nhtsa.gov/files/812237_lightweightvehiclereport.pdf",
+    "laboratory_test_id": "7078"
+  },
+  "reference_vehicle": {
+    "usage": "External correlation source only; CrashVector does not expose the production model as a selectable vehicle type.",
+    "body_class": "midsize 4-door passenger car",
+    "test_mass_kg": 1661.0,
+    "wheelbase_mm": 2794.0
+  },
+  "test_condition": {
+    "impact": "full-frontal rigid barrier",
+    "impact_speed_kmh": 56.5,
+    "nominal_protocol_speed_kmh": 56.0
+  },
+  "published_observations": {
+    "crash_pulse_duration_s_approx": 0.120,
+    "brake_pedal_intrusion_mm": -3.0,
+    "foot_rest_intrusion_mm": 8.0,
+    "notes": "The report describes the test pulse as about 120 ms and the driver-compartment intrusions as minuscule. Pedal and foot-rest measurements are not equivalent to CrashVector's structural safety-cell beam-deformation proxy."
+  },
+  "crashvector_correlation_corridors": {
+    "pulse_duration_s": {"min": 0.080, "max": 0.160, "basis": "Project engineering corridor around the published approximately 120 ms pulse duration."},
+    "delta_v_kmh": {"min": 50.0, "max": 63.0, "basis": "Rigid-barrier longitudinal velocity-change consistency corridor around the 56.5 km/h test condition."},
+    "safety_cell_proxy_mm": {"min": 0.0, "max": 45.0, "basis": "CrashVector-only structural proxy. This is deliberately not labelled as pedal, foot-rest, or occupant-space intrusion."},
+    "energy_balance_relative_error_max": 0.35
+  },
+  "scope": {
+    "directly_correlated_class_id": "d_segment_midsize",
+    "directly_correlated_speed_min_kmh": 50.0,
+    "directly_correlated_speed_max_kmh": 60.0,
+    "directly_correlated_mass_min_kg": 1500.0,
+    "directly_correlated_mass_max_kg": 1800.0,
+    "target_type": "rigid_wall",
+    "warning": "Passing this reference is a limited structural correlation check, not vehicle certification, occupant-injury validation, or manufacturer-specific crash prediction."
+  }
+}
