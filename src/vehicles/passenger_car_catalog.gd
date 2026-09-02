@@ -5,15 +5,38 @@
 class_name PassengerCarCatalog
 extends RefCounted
 
+const A_SEGMENT_CITY: StringName = &"a_segment_city"
 const B_SEGMENT_HATCHBACK: StringName = &"b_segment_hatchback"
 const C_SEGMENT_COMPACT: StringName = &"c_segment_compact"
 const D_SEGMENT_MIDSIZE: StringName = &"d_segment_midsize"
+const J_SEGMENT_SUV: StringName = &"j_segment_suv"
+const M_SEGMENT_MPV: StringName = &"m_segment_mpv"
 
 static func preset_ids() -> Array[StringName]:
-	return [B_SEGMENT_HATCHBACK, C_SEGMENT_COMPACT, D_SEGMENT_MIDSIZE]
+	return [
+		A_SEGMENT_CITY,
+		B_SEGMENT_HATCHBACK,
+		C_SEGMENT_COMPACT,
+		D_SEGMENT_MIDSIZE,
+		J_SEGMENT_SUV,
+		M_SEGMENT_MPV,
+	]
 
 static func data(preset_id: StringName) -> Dictionary:
 	match preset_id:
+		A_SEGMENT_CITY:
+			return {
+				"id": A_SEGMENT_CITY,
+				"display_name": "A-Segment City Car",
+				"segment": "A",
+				"default_mass_kg": 950.0,
+				"representative_length_m": 3.68,
+				"representative_width_m": 1.67,
+				"scale_x": 0.91,
+				"scale_y": 0.96,
+				"scale_z": 0.97,
+				"stiffness_scale": 0.90,
+			}
 		C_SEGMENT_COMPACT:
 			return {
 				"id": C_SEGMENT_COMPACT,
@@ -39,6 +62,32 @@ static func data(preset_id: StringName) -> Dictionary:
 				"scale_y": 1.01,
 				"scale_z": 1.08,
 				"stiffness_scale": 1.20,
+			}
+		J_SEGMENT_SUV:
+			return {
+				"id": J_SEGMENT_SUV,
+				"display_name": "J-Segment SUV / Crossover",
+				"segment": "J",
+				"default_mass_kg": 1850.0,
+				"representative_length_m": 4.86,
+				"representative_width_m": 1.92,
+				"scale_x": 1.20,
+				"scale_y": 1.10,
+				"scale_z": 1.12,
+				"stiffness_scale": 1.25,
+			}
+		M_SEGMENT_MPV:
+			return {
+				"id": M_SEGMENT_MPV,
+				"display_name": "M-Segment MPV / Minivan",
+				"segment": "M",
+				"default_mass_kg": 2050.0,
+				"representative_length_m": 5.00,
+				"representative_width_m": 1.95,
+				"scale_x": 1.23,
+				"scale_y": 1.16,
+				"scale_z": 1.14,
+				"stiffness_scale": 1.22,
 			}
 		_:
 			return {

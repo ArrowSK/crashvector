@@ -149,6 +149,7 @@ func _write_metadata_sidecar(
 		"format": "CrashVector cinematic export metadata",
 		"created_at": Time.get_datetime_string_from_system(),
 		"scenario": scenario.to_dictionary(),
+		"calibration_scope": CalibrationScope.classify(scenario),
 		"profile": profile.to_dictionary(),
 		"analysis_summary": summary,
 		"video": {

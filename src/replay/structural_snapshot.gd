@@ -10,9 +10,11 @@ static func capture(model: StructuralModel) -> Dictionary:
 		return {}
 	var positions := PackedVector3Array()
 	var velocities := PackedVector3Array()
+	var pinned := PackedByteArray()
 	for node in model.nodes:
 		positions.append(node.position_m)
 		velocities.append(node.velocity_ms)
+		pinned.append(1 if node.pinned else 0)
 
 	var rest_lengths := PackedFloat64Array()
 	var broken := PackedByteArray()
@@ -33,6 +35,7 @@ static func capture(model: StructuralModel) -> Dictionary:
 	return {
 		"positions_m": positions,
 		"velocities_ms": velocities,
+		"node_pinned": pinned,
 		"beam_rest_lengths_m": rest_lengths,
 		"beam_broken": broken,
 		"beam_last_force_n": last_force,
@@ -52,6 +55,7 @@ static func apply(model: StructuralModel, snapshot: Dictionary) -> bool:
 		return false
 	var positions: PackedVector3Array = snapshot.get("positions_m", PackedVector3Array())
 	var velocities: PackedVector3Array = snapshot.get("velocities_ms", PackedVector3Array())
+	var pinned: PackedByteArray = snapshot.get("node_pinned", PackedByteArray())
 	var rest_lengths: PackedFloat64Array = snapshot.get("beam_rest_lengths_m", PackedFloat64Array())
 	var broken: PackedByteArray = snapshot.get("beam_broken", PackedByteArray())
 	if positions.size() != model.nodes.size() or velocities.size() != model.nodes.size():
@@ -60,9 +64,13 @@ static func apply(model: StructuralModel, snapshot: Dictionary) -> bool:
 		return false
 
 	for i in range(model.nodes.size()):
-		model.nodes[i].position_m = positions[i]
-		model.nodes[i].velocity_ms = velocities[i]
-		model.nodes[i].force_n = Vector3.ZERO
+		var node := model.nodes[i]
+		node.position_m = positions[i]
+		node.velocity_ms = velocities[i]
+		node.force_n = Vector3.ZERO
+		if pinned.size() == model.nodes.size():
+			node.pinned = pinned[i] != 0
+			node.inverse_mass = 0.0 if node.pinned else 1.0 / maxf(node.mass_kg, 0.001)
 
 	var last_force: PackedFloat64Array = snapshot.get("beam_last_force_n", PackedFloat64Array())
 	var last_strain: PackedFloat64Array = snapshot.get("beam_last_strain", PackedFloat64Array())

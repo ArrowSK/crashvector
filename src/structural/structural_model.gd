@@ -11,6 +11,11 @@ var barrier_enabled: bool = true
 var barrier_x_m: float = 5.0
 var barrier_restitution: float = 0.0
 var barrier_tangent_retention: float = 0.92
+var gravity_ms2: Vector3 = Vector3.ZERO
+var ground_enabled: bool = false
+var ground_y_m: float = 0.0
+var ground_restitution: float = 0.08
+var ground_tangent_retention: float = 0.78
 var elapsed_s: float = 0.0
 var first_contact_time_s: float = -1.0
 var contact_events: int = 0
@@ -70,7 +75,7 @@ func rotate_y_about(pivot_m: Vector3, angle_rad: float, rotate_velocities: bool 
 	capture_initial_energy()
 
 func capture_initial_energy() -> void:
-	initial_energy_j = total_kinetic_energy_j() + total_elastic_energy_j()
+	initial_energy_j = total_kinetic_energy_j() + total_elastic_energy_j() + total_gravitational_potential_energy_j()
 
 func step(delta_s: float, substeps: int = 4) -> void:
 	if delta_s <= 0.0:
@@ -80,11 +85,14 @@ func step(delta_s: float, substeps: int = 4) -> void:
 	for _substep in range(step_count):
 		for node in nodes:
 			node.reset_force()
+			if not gravity_ms2.is_zero_approx():
+				node.add_force(gravity_ms2 * node.mass_kg)
 		for beam in beams:
 			beam.solve(nodes, h)
 		for node in nodes:
 			node.integrate(h)
 		_resolve_barrier_contacts()
+		_resolve_ground_contacts()
 		elapsed_s += h
 
 func _resolve_barrier_contacts() -> void:
@@ -104,6 +112,20 @@ func _resolve_barrier_contacts() -> void:
 			contact_events += 1
 			if first_contact_time_s < 0.0:
 				first_contact_time_s = elapsed_s
+
+func _resolve_ground_contacts() -> void:
+	if not ground_enabled:
+		return
+	for node in nodes:
+		if node.pinned or node.position_m.y >= ground_y_m:
+			continue
+		var before_j := node.kinetic_energy_j()
+		node.position_m.y = ground_y_m
+		if node.velocity_ms.y < 0.0:
+			node.velocity_ms.y = -node.velocity_ms.y * clampf(ground_restitution, 0.0, 1.0)
+			node.velocity_ms.x *= clampf(ground_tangent_retention, 0.0, 1.0)
+			node.velocity_ms.z *= clampf(ground_tangent_retention, 0.0, 1.0)
+			contact_dissipation_j += maxf(before_j - node.kinetic_energy_j(), 0.0)
 
 func total_mass_kg() -> float:
 	var result: float = 0.0
@@ -186,6 +208,15 @@ func total_kinetic_energy_j() -> float:
 		result += node.kinetic_energy_j()
 	return result
 
+func total_gravitational_potential_energy_j() -> float:
+	var gravity_strength := maxf(-gravity_ms2.y, 0.0)
+	if gravity_strength <= 0.0:
+		return 0.0
+	var result := 0.0
+	for node in nodes:
+		result += node.mass_kg * gravity_strength * maxf(node.position_m.y - ground_y_m, 0.0)
+	return result
+
 func total_elastic_energy_j() -> float:
 	var result := 0.0
 	for beam in beams:
@@ -213,6 +244,7 @@ func total_fracture_energy_j() -> float:
 func accounted_energy_j() -> float:
 	return (
 		total_kinetic_energy_j()
+		+ total_gravitational_potential_energy_j()
 		+ total_elastic_energy_j()
 		+ total_plastic_energy_j()
 		+ total_damping_energy_j()
@@ -284,6 +316,7 @@ func state_signature() -> PackedFloat64Array:
 		signature.append(node.velocity_ms.x)
 		signature.append(node.velocity_ms.y)
 		signature.append(node.velocity_ms.z)
+		signature.append(1.0 if node.pinned else 0.0)
 	for beam in beams:
 		signature.append(beam.rest_length_m)
 		signature.append(1.0 if beam.broken else 0.0)
