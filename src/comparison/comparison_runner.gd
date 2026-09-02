@@ -1,0 +1,215 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+class_name ComparisonRunner
+extends RefCounted
+
+const DT: float = 1.0 / 240.0
+const REPLAY_INTERVAL: float = 1.0 / 120.0
+
+static func run_speed_sweep(base_scenario: ScenarioConfig, speeds_kmh: Array[float] = [50.0, 90.0, 140.0]) -> Array[Dictionary]:
+	var results: Array[Dictionary] = []
+	for speed in speeds_kmh:
+		var config := _clone_scenario(base_scenario)
+		config.car_speed_kmh = speed
+		results.append(_run_variant(config, "%.0f km/h" % speed, &"speed"))
+	return results
+
+static func run_vehicle_class_sweep(base_scenario: ScenarioConfig) -> Array[Dictionary]:
+	var results: Array[Dictionary] = []
+	for preset_id in PassengerCarCatalog.preset_ids():
+		var config := _clone_scenario(base_scenario)
+		config.car_preset_id = preset_id
+		config.car_mass_kg = PassengerCarCatalog.default_mass_kg(preset_id)
+		results.append(_run_variant(config, PassengerCarCatalog.display_name(preset_id), &"vehicle_class"))
+	return results
+
+static func _run_variant(config: ScenarioConfig, label: String, sweep_type: StringName) -> Dictionary:
+	var errors := config.validation_errors()
+	if not errors.is_empty():
+		return {
+			"label": label,
+			"sweep_type": sweep_type,
+			"scenario": config,
+			"error": "; ".join(errors),
+		}
+
+	var primary := PassengerCarBuilder.build(
+		config.car_preset_id,
+		config.car_mass_kg,
+		config.car_speed_kmh,
+		1000.0,
+		config.car_position_m
+	)
+	primary.rotate_y_about(config.car_position_m, deg_to_rad(config.car_heading_deg), true)
+	primary.barrier_enabled = false
+
+	var target: StructuralModel = null
+	var pair_simulation: VehiclePairSimulation = null
+	var static_simulation: VehicleStaticSimulation = null
+
+	if config.target_type == ScenarioConfig.TARGET_PASSENGER_CAR:
+		target = PassengerCarBuilder.build(
+			config.target_car_preset_id,
+			config.target_mass_kg,
+			config.target_speed_kmh,
+			1000.0,
+			config.target_position_m
+		)
+		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
+		target.barrier_enabled = false
+		pair_simulation = VehiclePairSimulation.new()
+		pair_simulation.configure(
+			primary,
+			_front_contact_nodes(),
+			target,
+			_front_contact_nodes() if config.target_car_uses_front_contact() else _rear_contact_nodes(),
+			config.car_forward(),
+			config.contact_friction,
+			config.restitution
+		)
+	elif config.target_type == ScenarioConfig.TARGET_TRUCK:
+		target = HeavyTruckBuilder.build(config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
+		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
+		target.barrier_enabled = false
+		pair_simulation = VehiclePairSimulation.new()
+		pair_simulation.configure(
+			primary,
+			_front_contact_nodes(),
+			target,
+			HeavyTruckBuilder.rear_contact_nodes(),
+			config.car_forward(),
+			config.contact_friction,
+			config.restitution
+		)
+	else:
+		static_simulation = VehicleStaticSimulation.new()
+		static_simulation.configure(
+			primary,
+			config.target_type,
+			config.target_position_m,
+			config.target_heading_deg,
+			config.contact_friction,
+			config.restitution
+		)
+
+	var recorder := ReplayRecorder.new()
+	recorder.begin(REPLAY_INTERVAL)
+	_capture(recorder, 0.0, primary, target, config, pair_simulation, static_simulation, true)
+
+	var elapsed_s := 0.0
+	while elapsed_s < config.duration_s - 0.0000001:
+		var step_s := minf(DT, config.duration_s - elapsed_s)
+		if pair_simulation != null:
+			pair_simulation.step(step_s, config.solver_substeps)
+		else:
+			static_simulation.step(step_s, config.solver_substeps)
+		elapsed_s += step_s
+		_capture(recorder, elapsed_s, primary, target, config, pair_simulation, static_simulation, false)
+
+	recorder.force_final(
+		elapsed_s,
+		primary,
+		target,
+		_primary_metrics(primary),
+		_target_metrics(target, config.target_type),
+		_context(pair_simulation, static_simulation)
+	)
+	var analysis := CrashAnalysis.analyze(recorder.recording)
+	return {
+		"label": label,
+		"sweep_type": sweep_type,
+		"scenario": config,
+		"recording": recorder.recording,
+		"analysis": analysis,
+		"error": "",
+	}
+
+static func _capture(
+	recorder: ReplayRecorder,
+	time_s: float,
+	primary: StructuralModel,
+	target: StructuralModel,
+	config: ScenarioConfig,
+	pair_simulation: VehiclePairSimulation,
+	static_simulation: VehicleStaticSimulation,
+	force: bool
+) -> void:
+	recorder.capture(
+		time_s,
+		primary,
+		target,
+		_primary_metrics(primary),
+		_target_metrics(target, config.target_type),
+		_context(pair_simulation, static_simulation),
+		{},
+		{},
+		force
+	)
+
+static func _primary_metrics(model: StructuralModel) -> Dictionary:
+	var velocity := model.average_velocity_ms()
+	return {
+		"mass_kg": model.total_mass_kg(),
+		"linear_velocity_ms": velocity,
+		"speed_kmh": PhysicsMetrics.ms_to_kmh(velocity.length()),
+		"momentum_kg_ms": model.total_momentum_kg_ms(),
+		"kinetic_energy_j": model.total_kinetic_energy_j(),
+		"front_crush_m": model.max_permanent_deformation_for_role(&"front_crush"),
+		"safety_cell_m": model.max_permanent_deformation_for_role(&"safety_cell"),
+		"broken_beams": model.broken_beam_count(),
+		"plastic_energy_j": model.total_plastic_energy_j(),
+		"elastic_energy_j": model.total_elastic_energy_j(),
+	}
+
+static func _target_metrics(model: StructuralModel, target_type: StringName) -> Dictionary:
+	if model == null:
+		return {}
+	var velocity := model.average_velocity_ms()
+	var result := {
+		"mass_kg": model.total_mass_kg(),
+		"linear_velocity_ms": velocity,
+		"speed_kmh": PhysicsMetrics.ms_to_kmh(velocity.length()),
+		"momentum_kg_ms": model.total_momentum_kg_ms(),
+		"kinetic_energy_j": model.total_kinetic_energy_j(),
+		"broken_beams": model.broken_beam_count(),
+		"plastic_energy_j": model.total_plastic_energy_j(),
+		"elastic_energy_j": model.total_elastic_energy_j(),
+	}
+	if target_type == ScenarioConfig.TARGET_PASSENGER_CAR:
+		result["front_crush_m"] = model.max_permanent_deformation_for_role(&"front_crush")
+		result["safety_cell_m"] = model.max_permanent_deformation_for_role(&"safety_cell")
+	elif target_type == ScenarioConfig.TARGET_TRUCK:
+		result["rear_guard_m"] = model.max_permanent_deformation_for_role(&"underride_guard")
+	return result
+
+static func _context(pair_simulation: VehiclePairSimulation, static_simulation: VehicleStaticSimulation) -> Dictionary:
+	if pair_simulation != null:
+		return {
+			"contact_count": pair_simulation.contact.contact_events,
+			"energy_balance_relative_error": pair_simulation.energy_balance_relative_error(),
+			"contact_dissipation_j": pair_simulation.contact.accumulated_dissipation_j,
+		}
+	if static_simulation != null:
+		return {
+			"contact_count": static_simulation.contact.contact_events,
+			"energy_balance_relative_error": static_simulation.energy_balance_relative_error(),
+			"contact_dissipation_j": static_simulation.contact.accumulated_dissipation_j,
+		}
+	return {}
+
+static func _clone_scenario(source: ScenarioConfig) -> ScenarioConfig:
+	return ScenarioConfig.from_dictionary(source.to_dictionary())
+
+static func _front_contact_nodes() -> PackedInt32Array:
+	return PackedInt32Array([
+		CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.FRONT_STATION, 0),
+		CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.FRONT_STATION, 1),
+	])
+
+static func _rear_contact_nodes() -> PackedInt32Array:
+	return PackedInt32Array([
+		CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.REAR_STATION, 0),
+		CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.REAR_STATION, 1),
+	])
