@@ -94,7 +94,7 @@ Install Godot 4.4.1 or newer, clone the repository, open `project.godot`, and ru
 - **M5** — analysis, replay, crash pulse, and overlays — complete
 - **M6** — synchronized visual comparison — complete
 - **M7** — cinematic offline video export — complete
-- **M8** — documented reference correlation, broader generic scenario library, road-user proxies, arbitrary comparison matrix, and explicit validation scope — complete when the full M0–M8 + road-user CI gate passes
+- **M8** — documented reference correlation, broader generic scenario library, road-user proxies, arbitrary comparison matrix, and explicit validation scope — complete
 
 ## Verification
 
