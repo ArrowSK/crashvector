@@ -6,6 +6,7 @@ class_name CompactHatchback
 extends Node3D
 
 @export var vehicle_preset_id: StringName = PassengerCarCatalog.B_SEGMENT_HATCHBACK
+@export var paint_id: StringName = CarPaintCatalog.ELECTRIC_BLUE
 @export_range(1.0, 100000.0, 1.0, "or_greater") var total_mass_kg: float = 1150.0
 @export_range(0.0, 300.0, 1.0, "or_greater") var initial_speed_kmh: float = 50.0
 @export var barrier_x_m: float = 5.0
@@ -51,6 +52,11 @@ func set_structure_debug(value: bool) -> void:
 	if debug_renderer != null:
 		debug_renderer.visible = value
 
+func set_paint_id(value: StringName) -> void:
+	paint_id = value if CarPaintCatalog.is_valid(value) else CarPaintCatalog.ELECTRIC_BLUE
+	if body_shell != null:
+		body_shell.set_paint_color(CarPaintCatalog.color(paint_id))
+
 func vehicle_class_name() -> String:
 	return PassengerCarCatalog.display_name(vehicle_preset_id)
 
@@ -93,7 +99,7 @@ func _build_body_shell() -> void:
 	body_shell = DeformableBodyShell.new()
 	body_shell.name = "DeformableBodyShell"
 	add_child(body_shell)
-	body_shell.configure(model, CompactHatchbackBuilder.STATION_X.size())
+	body_shell.configure(model, CompactHatchbackBuilder.STATION_X.size(), CarPaintCatalog.color(paint_id))
 
 func _build_wheels() -> void:
 	wheel_rig = SimpleWheelRig.new()

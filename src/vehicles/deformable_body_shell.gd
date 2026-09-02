@@ -10,19 +10,25 @@ var station_count: int = 0
 var body_mesh := ImmediateMesh.new()
 var body_instance := MeshInstance3D.new()
 var body_material := StandardMaterial3D.new()
+var paint_color: Color = CarPaintCatalog.color(CarPaintCatalog.ELECTRIC_BLUE)
 
-func configure(structural_model: StructuralModel, stations: int) -> void:
+func configure(structural_model: StructuralModel, stations: int, color: Color = Color(0.035, 0.28, 0.82, 0.94)) -> void:
 	model = structural_model
 	station_count = maxi(stations, 0)
+	paint_color = color
 	_build_material()
 	body_instance.mesh = body_mesh
 	add_child(body_instance)
 	update_from_model()
 
+func set_paint_color(color: Color) -> void:
+	paint_color = color
+	body_material.albedo_color = paint_color
+
 func _build_material() -> void:
-	body_material.albedo_color = Color(0.08, 0.30, 0.62, 0.84)
-	body_material.metallic = 0.28
-	body_material.roughness = 0.34
+	body_material.albedo_color = paint_color
+	body_material.metallic = 0.34
+	body_material.roughness = 0.28
 	body_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	body_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 

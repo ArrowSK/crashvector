@@ -62,12 +62,20 @@
 - Event markers for first contact, peak loading, structural failure, separation, and rest when the event is actually observed in the recorded window.
 - Replay regression tests verify snapshot restoration is independent of final live-physics state.
 
-## M6 — Comparison
+## M6 — Visual comparison — complete
 
-- Parameter sweeps such as 50 / 90 / 140 km/h.
-- Synchronized comparison playback.
-- Side-by-side metrics.
-- Same-scene vehicle-class comparisons.
+- Offline deterministic 50 / 90 / 140 km/h parameter sweep.
+- Offline B / C / D passenger-car class sweep.
+- Three simultaneous 3D comparison lanes.
+- Impact-synchronized playback by default, with scenario-time synchronization available.
+- Shared comparison timeline and 0.05x / 0.10x / 0.25x / 0.50x / 1.00x playback.
+- Per-lane live speed and crush labels.
+- Side-by-side delta-v, peak deceleration, crush, safety-cell deformation, and kinetic-energy results.
+- Visual kinetic-energy and deformation bars so the lesson works without reading a technical table first.
+- Selectable presentation-only car paint for each comparison lane, with eight generic colors and visible swatches.
+- Neutral silver target car in car-vs-car comparisons to keep the compared primary vehicles visually distinct.
+- Optional structural X-ray view.
+- Regression coverage for sweeps, replay independence, requested duration, kinetic-energy v² behaviour, paint palette, and runtime editor construction.
 
 ## M7 — Video export
 
