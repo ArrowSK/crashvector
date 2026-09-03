@@ -30,7 +30,9 @@ func _initialize() -> void:
 	var version_file := FileAccess.get_file_as_string("res://VERSION").strip_edges()
 	_expect(version_file == AppMetadata.VERSION, "VERSION file and AppMetadata.VERSION differ", failures)
 	var presets := FileAccess.get_file_as_string("res://export_presets.cfg")
-	_expect(presets.contains(AppMetadata.VERSION), "export_presets.cfg does not carry the app version", failures)
+	var native_version := AppMetadata.VERSION.split("-", false, 1)[0]
+	_expect(presets.contains("application/short_version=\"%s\"" % native_version), "macOS export preset does not carry the native app version", failures)
+	_expect(presets.contains("application/product_version=\"0.1.0.1\""), "Windows export preset does not carry the numeric product version", failures)
 
 	if failures.is_empty():
 		print("CrashVector M9 update/distribution tests passed.")
