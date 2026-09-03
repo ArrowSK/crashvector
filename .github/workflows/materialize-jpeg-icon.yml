@@ -1,0 +1,38 @@
+name: Materialize M9 JPEG icon
+
+on:
+  push:
+    branches:
+      - feat/m9-desktop-distribution
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/m9-desktop-distribution
+          fetch-depth: 0
+
+      - name: Decode and validate JPEG icon
+        run: |
+          set -euo pipefail
+          base64 --decode assets/branding/crashvector-icon-source.jpg.b64 > assets/branding/crashvector-icon.jpg
+          file assets/branding/crashvector-icon.jpg | tee /tmp/icon-file.txt
+          grep -q 'JPEG image data' /tmp/icon-file.txt
+          grep -q '512x512\|512 x 512' /tmp/icon-file.txt
+          test "$(stat -c%s assets/branding/crashvector-icon.jpg)" -gt 30000
+
+      - name: Commit binary icon and remove bootstrap data
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f assets/branding/crashvector-icon.jpg
+          git rm -f assets/branding/crashvector-icon-source.jpg.b64 assets/branding/crashvector-icon.webp .github/workflows/materialize-jpeg-icon.yml
+          git commit -m "Replace CrashVector icon with high-resolution JPEG source"
+          git push origin HEAD:feat/m9-desktop-distribution
