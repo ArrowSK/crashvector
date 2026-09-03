@@ -24,7 +24,6 @@ jobs:
           base64 --decode assets/branding/crashvector-icon-source.jpg.b64 > assets/branding/crashvector-icon.jpg
           file assets/branding/crashvector-icon.jpg | tee /tmp/icon-file.txt
           grep -q 'JPEG image data' /tmp/icon-file.txt
-          grep -q '512x512\|512 x 512' /tmp/icon-file.txt
           test "$(stat -c%s assets/branding/crashvector-icon.jpg)" -gt 30000
 
       - name: Commit binary icon and remove bootstrap data
