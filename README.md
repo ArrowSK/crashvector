@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/branding/crashvector-icon.webp" alt="CrashVector — educational 3D crash simulation" width="180">
+  <img src="assets/branding/crashvector-icon.jpg" alt="CrashVector — educational 3D crash simulation" width="180">
 </p>
 
 <h1 align="center">CrashVector</h1>
