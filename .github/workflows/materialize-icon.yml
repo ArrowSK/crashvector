@@ -1,0 +1,36 @@
+name: Materialize M9 icon
+
+on:
+  push:
+    branches:
+      - feat/m9-desktop-distribution
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/m9-desktop-distribution
+          fetch-depth: 0
+
+      - name: Decode and validate icon
+        run: |
+          set -euo pipefail
+          python3 tools/materialize_branding.py
+          file assets/branding/crashvector-icon.webp | grep -q 'Web/P image'
+          test "$(stat -c%s assets/branding/crashvector-icon.webp)" -gt 15000
+
+      - name: Commit binary icon and remove bootstrap files
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f assets/branding/crashvector-icon.webp
+          git rm -f assets/branding/crashvector-icon-source.b64 tools/materialize_branding.py assets/branding/.icon-source-note .github/workflows/materialize-icon.yml
+          git commit -m "Fix CrashVector high-resolution icon asset"
+          git push origin HEAD:feat/m9-desktop-distribution
