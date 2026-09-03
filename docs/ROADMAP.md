@@ -100,6 +100,27 @@
 - Full MPL-2.0 license text is included in the repository.
 - CI regression covers the complete M0–M8 suite, road-user construction/trajectory behaviour, scenario serialization, editor runtime, comparison matrices, calibration scope and the 130/140 km/h `v²` energy relationship.
 
-## Beyond M8
+## M9 — Desktop productization and update lifecycle — complete
 
-Further accuracy work should add additional independent public/licensed reference tests before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, suspension/tyre behaviour, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references should be developed as explicit future milestones rather than implied by M8 completion.
+- First packaged application version: `0.1.0-beta.1`.
+- High-resolution application branding from the supplied CrashVector artwork; native Windows multi-size ICO generated from the high-resolution project/macOS source icon.
+- macOS Universal 2 DMG package produced on a native macOS GitHub runner.
+- macOS app is ad-hoc signed and verified before DMG creation; future Developer-ID signing/notarization can replace this without changing the package contract.
+- Windows x64 Godot export packaged with Inno Setup.
+- Windows package registers with the normal Apps & Features uninstall system and creates Start-menu shortcuts.
+- Built-in updater checks official GitHub Releases with semantic-version ordering.
+- Prerelease builds may follow newer prereleases; stable builds do not silently opt into beta releases.
+- Update download is user-controlled and verified against a matching SHA-256 sidecar before installer handoff.
+- macOS update handoff opens the verified DMG; Windows handoff launches the verified Setup executable; CrashVector then exits.
+- CrashVector does not rewrite its installed executable in place.
+- User update preferences persist in the normal `user://` application-data directory.
+- Runtime monkey patching is explicitly prohibited: production code uses inheritance, composition, services and signals; CI rejects runtime `set_script(...)` or Resource path takeover.
+- M9 update/version tests and editor runtime smoke test are part of the main CI gate.
+- Separate desktop-package CI builds both platforms on pull requests before release publication.
+- A `main` build publishes the versioned GitHub prerelease only after both platform packages succeed and checksums verify.
+
+## Beyond M9
+
+Further accuracy work should add additional independent public/licensed crash references before narrowing or extending validation claims. Side-impact geometry, richer contact manifolds, suspension/tyre behaviour, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references remain future simulation milestones.
+
+Distribution hardening can proceed independently: Apple Developer-ID signing/notarization and Windows Authenticode signing can be added when credentials are available without changing the updater or user-facing install flow.

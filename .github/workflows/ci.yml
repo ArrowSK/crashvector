@@ -14,6 +14,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Reject runtime monkey patching
+        run: tools/verify_no_runtime_patching.sh
+
       - name: Import and parse project
         run: tools/ci_godot_checked.sh godot --headless --path . --editor --quit
 
@@ -64,3 +67,9 @@ jobs:
 
       - name: Run road-user editor runtime smoke test
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/road_users_editor_smoke.gd
+
+      - name: Run M9 updater/distribution tests
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m9_updates.gd
+
+      - name: Run M9 editor runtime smoke test
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m9_editor_smoke.gd

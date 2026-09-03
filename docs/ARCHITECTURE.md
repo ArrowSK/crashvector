@@ -2,7 +2,7 @@
 
 ## Layering
 
-CrashVector separates structural mechanics, object construction, contact resolution, scenario data, editor UI, replay/analysis, comparison/export, and calibration evidence. The physical state lives in structural graphs; presentation layers read those graphs rather than maintaining a competing hidden trajectory.
+CrashVector separates structural mechanics, object construction, contact resolution, scenario data, editor UI, replay/analysis, comparison/export, calibration evidence, and desktop lifecycle/distribution. The physical state lives in structural graphs; presentation layers read those graphs rather than maintaining a competing hidden trajectory.
 
 ### Structural layer
 
@@ -97,6 +97,33 @@ M8 deliberately keeps evidence data outside the vehicle builder so a reference t
 
 The first directly correlated envelope is intentionally narrow: generic D-segment midsize passenger car, full-frontal rigid wall, approximately 56 km/h, and a limited mass range around the NHTSA reference condition. Passing that reference does not propagate a validation claim to high-speed demonstrations, vehicle-pair collisions, road users, or other target types.
 
+### Desktop lifecycle and update layer
+
+M9 keeps application lifecycle concerns out of the physics/editor layers.
+
+- `AppMetadata` owns the packaged application version, GitHub release endpoint and platform package naming contract.
+- `VersionUtil` performs semantic-version ordering including prerelease identifiers.
+- `UpdateAssetSelector` selects a compatible release asset and matching SHA-256 sidecar without performing network I/O.
+- `UpdateSettings` stores the automatic-check preference and last-check timestamp in `user://settings.cfg`.
+- `UpdateService` owns HTTP requests, package download, SHA-256 verification and system-installer handoff.
+- `crash_demo_m9.gd` adds the Updates panel and connects it to `UpdateService`.
+
+An update is not a live code patch. CrashVector downloads a complete platform installer, verifies it, opens the normal system installer, and exits. The installed application is never rewritten while it is running.
+
+Prerelease builds may follow later prerelease/stable releases. Stable builds do not silently opt into prereleases.
+
+### Distribution layer
+
+`export_presets.cfg` defines reproducible Godot 4.4.1 macOS Universal and Windows x64 exports.
+
+- `.github/workflows/desktop-packages.yml` builds both package families on pull requests.
+- macOS is exported on a native macOS runner, ad-hoc signed, verified, and packed into a DMG with an Applications shortcut.
+- Windows is exported on a Windows runner, executable resources are branded with the native icon/metadata, and Inno Setup creates a standard installer/uninstaller.
+- Both packages get SHA-256 sidecars.
+- A `main` publication job verifies sidecars before creating the immutable versioned GitHub prerelease.
+
+Platform code signing/notarization is an identity layer that can be strengthened later without changing the package/update contract.
+
 ### Editor layer
 
 `src/demo/crash_demo.gd` remains the M4 scenario-editor base. Later milestone scripts extend it rather than replacing working layers:
@@ -105,13 +132,20 @@ The first directly correlated envelope is intentionally narrow: generic D-segmen
 - `crash_demo_m6.gd` adds visual comparison;
 - `crash_demo_m7.gd` adds cinematic export;
 - `crash_demo_m8.gd` adds expanded vehicle targets, custom-speed comparison, calibration-scope visibility, and the reference check;
-- `crash_demo_extended.gd` adds bicycle/pedestrian target handling and Comparison Lab while preserving the M8 lorry/motorcycle members.
+- `crash_demo_extended.gd` adds bicycle/pedestrian target handling and Comparison Lab while preserving the M8 lorry/motorcycle members;
+- `crash_demo_m9.gd` adds desktop lifecycle/update UI without changing collision physics.
 
-`app/main.tscn` runs the extended editor layer. The editor rebuilds a clean physical preview before every run, avoiding continuation from partially deformed state after parameter edits.
+`app/main.tscn` runs the M9 editor layer. The editor rebuilds a clean physical preview before every run, avoiding continuation from partially deformed state after parameter edits.
+
+## No runtime monkey patching
+
+CrashVector uses normal GDScript inheritance, composition, explicit services and signals. Production code must not replace the script attached to a live object or take over a Resource path to alter behavior after load.
+
+CI scans `src/` and fails on runtime `set_script(...)` or `take_over_path(...)` patterns. This protects the packaged application from hidden mutation paths and keeps the updater completely separate from application code loading.
 
 ## Determinism
 
-Identical scenario inputs, engine version, and solver configuration are expected to produce identical state within regression tolerance. CI covers structural determinism, paired-contact momentum conservation, static contact, scenario serialisation invariants, replay independence, comparison timing, export planning, M8 reference correlation, road-user construction/trajectory behaviour, and type × speed comparison matrices.
+Identical scenario inputs, engine version, and solver configuration are expected to produce identical state within regression tolerance. CI covers structural determinism, paired-contact momentum conservation, static contact, scenario serialisation invariants, replay independence, comparison timing, export planning, M8 reference correlation, road-user construction/trajectory behaviour, type × speed comparison matrices, M9 version/update selection, and main-scene runtime construction.
 
 ## Units
 
@@ -121,4 +155,4 @@ Internal calculations use SI units: metres, seconds, kilograms, newtons, joules,
 
 CrashVector is an educational scenario-building and visualisation application. Most scenarios are not experimentally validated. A/B/C/D/J/M cars are generic representative classes; heavy vehicles and motorcycles are simplified structural graphs; bicycle and pedestrian modes are contact/trajectory proxies; broadside/complex oblique contact awaits a richer geometry system; and occupant/rider biomechanics and injury prediction remain outside the model.
 
-M8 makes that boundary explicit in the UI and exported metadata rather than weakening it.
+M8 makes the evidence boundary explicit. M9 changes distribution and lifecycle only; it does not broaden the simulation validation claim.
