@@ -41,14 +41,19 @@ jobs:
       - name: Import project
         run: .godot-ci/Godot.app/Contents/MacOS/Godot --headless --path . --editor --quit
 
-      - name: Export macOS app
+      - name: Export and verify Universal 2 macOS app
         run: |
           set -euo pipefail
           mkdir -p dist/macos dist/package
           .godot-ci/Godot.app/Contents/MacOS/Godot \
             --headless --path . \
             --export-release "macOS" "dist/macos/CrashVector.app"
-          test -x "dist/macos/CrashVector.app/Contents/MacOS/CrashVector"
+          BINARY="dist/macos/CrashVector.app/Contents/MacOS/CrashVector"
+          test -x "$BINARY"
+          ARCHS="$(lipo -archs "$BINARY")"
+          echo "CrashVector macOS architectures: $ARCHS"
+          [[ "$ARCHS" == *"arm64"* ]]
+          [[ "$ARCHS" == *"x86_64"* ]]
 
       - name: Ad-hoc sign app
         run: |
@@ -116,10 +121,13 @@ jobs:
           source = Path("assets/branding/crashvector-icon.webp")
           target = Path("assets/branding/crashvector-icon.ico")
           image = Image.open(source).convert("RGBA")
+          if image.width < 512 or image.height < 512:
+              raise SystemExit(f"Branding source is too small: {image.width}x{image.height}")
           image.save(target, format="ICO", sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
           print(f"Created {target} from {source} ({image.width}x{image.height})")
           '@
           $script | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path "assets\branding\crashvector-icon.ico")) { throw "ICO generation failed" }
 
       - name: Import project
