@@ -5,9 +5,9 @@ config/name="CrashVector"
 config/version="0.1.0"
 run/main_scene="res://app/main.tscn"
 config/features=PackedStringArray("4.4")
-config/icon="res://assets/branding/crashvector-icon.webp"
-config/macos_native_icon="res://assets/branding/crashvector-icon.webp"
-config/windows_native_icon="res://assets/branding/crashvector-icon.webp"
+config/icon="res://assets/branding/crashvector-icon.jpg"
+config/macos_native_icon="res://assets/branding/crashvector-icon.jpg"
+config/windows_native_icon="res://assets/branding/crashvector-icon.jpg"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="CrashVector"
 
@@ -25,3 +25,4 @@ common/physics_ticks_per_second=240
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
