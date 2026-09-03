@@ -118,7 +118,7 @@ jobs:
           $script = @'
           from PIL import Image
           from pathlib import Path
-          source = Path("assets/branding/crashvector-icon.webp")
+          source = Path("assets/branding/crashvector-icon.jpg")
           target = Path("assets/branding/crashvector-icon.ico")
           image = Image.open(source).convert("RGBA")
           if image.width < 512 or image.height < 512:
