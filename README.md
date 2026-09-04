@@ -13,17 +13,17 @@
 </p>
 
 <p align="center">
-  <img alt="M9 complete" src="https://img.shields.io/badge/milestone-M9%20complete-ff4d1f?style=for-the-badge">
+  <img alt="M10 complete" src="https://img.shields.io/badge/milestone-M10%20complete-ff4d1f?style=for-the-badge">
   <a href="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml/badge.svg?branch=main"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.1.0-beta.1/CrashVector-0.1.0-beta.1-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.1.0-beta.1/CrashVector-0.1.0-beta.1-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.2.0-beta.1/CrashVector-0.2.0-beta.1-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.2.0-beta.1/CrashVector-0.2.0-beta.1-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.1.0-beta.1">Release notes & checksums</a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.2.0-beta.1">Release notes & checksums</a>
   ·
   <a href="docs/DISTRIBUTION.md">Installation & updates</a>
 </p>
@@ -39,7 +39,7 @@ CrashVector is an open-source desktop crash-simulation sandbox for people who wa
 
 Set up a vehicle and target, press **Simulate**, scrub the recorded crash, compare alternatives side by side, and export a cinematic video. The physics is intentionally visible and measurable, but the claims stay conservative.
 
-> **Current state:** **M9 is complete on `main`**. The first packaged desktop beta, **0.1.0-beta.1**, is published for macOS Universal 2 and Windows x64 with native installers, SHA-256 sidecars, a machine-readable update manifest and the built-in updater layer. M0–M8 simulation, replay, comparison, calibration and cinematic-export behaviour is retained.
+> **Current state:** **M10 is complete on `main`**. The packaged desktop beta, **0.2.0-beta.1**, is published for macOS Universal 2 and Windows x64 with the responsive Scenario/Compare shell, rebuilt presentation layer, native installers, SHA-256 sidecars, machine-readable update manifest and built-in updater. M0–M9 simulation, replay, analysis, comparison, calibration, cinematic-export and distribution behaviour is retained.
 
 > **Scope:** CrashVector is an educational physics visualisation tool. It is **not** certified accident reconstruction, homologation, manufacturer crash-performance prediction, biomechanics, medical/injury prediction or a safety-rating system.
 
@@ -49,12 +49,12 @@ No Git, Godot, Python, Terminal or PowerShell is required for the packaged deskt
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.1.0-beta.1/CrashVector-0.1.0-beta.1-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
-| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.1.0-beta.1/CrashVector-0.1.0-beta.1-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
+| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.2.0-beta.1/CrashVector-0.2.0-beta.1-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
+| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.2.0-beta.1/CrashVector-0.2.0-beta.1-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
 
-The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.1.0-beta.1 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.1.0-beta.1)**.
+The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.2.0-beta.1 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.2.0-beta.1)**.
 
-The first beta is ad-hoc signed on macOS and unsigned on Windows when paid signing credentials are not configured, so Gatekeeper or SmartScreen may warn about an unknown developer/publisher. Use only the files attached to the official `ArrowSK/crashvector` release.
+This beta is ad-hoc signed on macOS and unsigned on Windows when paid signing credentials are not configured, so Gatekeeper or SmartScreen may warn about an unknown developer/publisher. Use only the files attached to the official `ArrowSK/crashvector` release.
 
 **GitHub Packages is not used for the desktop installers.** The repository's Packages sidebar can therefore correctly show no packages. CrashVector's distributable DMG and Setup EXE are **GitHub Release assets**, which is the appropriate distribution location for these desktop binaries.
 
@@ -87,7 +87,7 @@ A typical scenario is simply:
 2. choose the impact target — CrashVector fills in a sensible default preset and mass;
 3. change the speed, colour or advanced values only if you want to;
 4. press **Simulate**;
-5. inspect the replay, open **Visual Compare / Comparison Lab**, or export a video.
+5. inspect the replay, open **Compare / Comparison Lab**, or export a video.
 
 Mass is editable, but it is never mandatory setup work.
 
@@ -95,15 +95,15 @@ Mass is editable, but it is never mandatory setup work.
 
 | Area | What you get |
 | --- | --- |
-| Scenario editor | Visual setup for vehicle class, target, mass, speed, position, heading, contact parameters and presentation |
+| Scenario editor | Responsive desktop setup for vehicle class, target, mass, speed, position, heading, contact parameters and presentation |
 | Passenger cars | Generic A / B / C / D / J / M classes with representative default masses |
 | Heavy vehicles | Articulated heavy truck and rigid lorry / box-truck development models |
 | Road users | Riderless motorcycle, riderless bicycle presets and an articulated pedestrian contact/trajectory proxy |
 | Static targets | Full-frontal rigid wall, concrete barrier, pole and tree |
 | Car vs car | Rear-end and near head-on layouts with independent class, mass and speed |
-| Replay & analysis | 120 Hz recorded replay, timeline scrubbing, Δv, crash pulse, peak simulated deceleration, crush and structural diagnostics |
-| Comparison | Exact user-entered speeds plus multi-type / multi-speed Comparison Lab |
-| Presentation | Car colours, structure/X-ray view, visual lanes, analysis overlays and cinematic cameras |
+| Replay & analysis | 120 Hz recorded replay, timeline scrubbing, Δv, crash pulse, peak simulated deceleration, crush and structural diagnostics in a collapsible analysis drawer |
+| Comparison | Dedicated Compare workspace for exact user-entered speeds plus multi-type / multi-speed Comparison Lab |
+| Presentation | Rebuilt generic vehicle/target silhouettes, car colours, structure/X-ray view, technical road/lighting environment, analysis overlays and cinematic cameras |
 | Video export | 1080p / 1440p / 4K offline replay rendering at 30/60 fps with external FFmpeg H.264 encoding |
 | Calibration | Evidence labels plus a narrow NHTSA full-frontal rigid-wall structural-correlation reference |
 | Desktop distribution | macOS Universal 2 DMG and Windows x64 Setup installer with native identity, checksums and update support |
@@ -146,7 +146,7 @@ Useful defaults include a **12,000 kg rigid lorry**, **220 kg riderless motorcyc
 
 CrashVector does not force you into a few demonstration speeds.
 
-**Visual Compare** accepts any two or three distinct primary-car speeds from **0–300 km/h**. The familiar 50 / 90 / 140 km/h values are just defaults.
+**Compare** accepts any two or three distinct primary-car speeds from **0–300 km/h**. The familiar 50 / 90 / 140 km/h values are just defaults.
 
 So if the question is:
 
@@ -215,6 +215,7 @@ You can:
 - scrub backward and forward through the crash;
 - replay at 0.05× / 0.10× / 0.25× / 0.50× / 1×;
 - inspect Δv, crash pulse, simulated deceleration, crush and structural failure;
+- expand the Analysis drawer without covering the 3D viewport;
 - toggle velocity / momentum / structure overlays;
 - choose different passenger-car paint colours;
 - compare several recorded crashes in synchronized 3D lanes.
@@ -286,8 +287,8 @@ Or open `project.godot` directly in Godot and run the project.
 
 | Guide | What it is for |
 | --- | --- |
-| [Roadmap](docs/ROADMAP.md) | M0–M9 implementation history and the next accuracy work |
-| [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, comparison, export, calibration and distribution layers |
+| [Roadmap](docs/ROADMAP.md) | M0–M10 implementation history and the next accuracy work |
+| [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, comparison, export, calibration, distribution and M10 presentation layers |
 | [Physics notes](docs/PHYSICS.md) | Contact, energy accounting, structural assumptions and modelling boundaries |
 | [Calibration](docs/CALIBRATION.md) | Reference source, evidence labels and regression corridors |
 | [Scenario format](docs/SCENARIO_FORMAT.md) | Human-readable `.crashvector.json` save/load format |
@@ -296,7 +297,7 @@ Or open `project.godot` directly in Godot and run the project.
 
 ## Development status
 
-**M0 through M9 are complete.** Core CI imports/parses the Godot project, audits against runtime monkey patching, and runs the complete M0–M9 regression/runtime suite. Independent packaging gates build and validate the macOS Universal 2 DMG and Windows x64 installer. The `v0.1.0-beta.1` prerelease was published only after those gates passed and both package checksums were re-verified by the release job.
+**M0 through M10 are complete.** The legacy Core CI imports/parses the Godot project, audits against runtime monkey patching, and runs the complete M0–M9 regression/runtime suite. M10 adds a dedicated editor/runtime and responsive-layout gate covering 1280×720 through 2560×1440, including sidebar, toolbar, replay-bar and expanded-analysis overlap checks. Independent packaging gates build and validate the macOS Universal 2 DMG and Windows x64 installer, including a real Windows Program Files install/uninstall lifecycle. The `v0.2.0-beta.1` prerelease was published from the successful M10 merge run only after both package checksums were re-verified and `update-manifest.json` was generated.
 
 The next accuracy work should add additional independent public/licensed crash references, richer side-impact contact geometry, tyre/suspension behaviour and other explicit validation milestones rather than silently extending the M8 evidence claim.
 
