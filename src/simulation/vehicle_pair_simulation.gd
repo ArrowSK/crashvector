@@ -52,16 +52,19 @@ func step(delta_s: float, substeps: int = 8) -> void:
 	var count := maxi(substeps, 1)
 	var h := delta_s / float(count)
 	for _substep in range(count):
-		vehicle_model.step(h, 1)
-		truck_model.step(h, 1)
-		contact.resolve_pairs(
+		vehicle_model.prepare_substep(h)
+		truck_model.prepare_substep(h)
+		contact.apply_forces(
 			vehicle_model,
 			vehicle_contact_nodes,
 			truck_model,
 			truck_contact_nodes,
 			contact_normal,
+			h,
 			elapsed_s
 		)
+		vehicle_model.integrate_substep(h)
+		truck_model.integrate_substep(h)
 		elapsed_s += h
 
 func closing_speed_kmh() -> float:
@@ -77,7 +80,12 @@ func momentum_error_kg_ms() -> float:
 	return (current_total_momentum_kg_ms() - initial_momentum_kg_ms).length()
 
 func accounted_energy_j() -> float:
-	return vehicle_model.accounted_energy_j() + truck_model.accounted_energy_j() + contact.accumulated_dissipation_j
+	return (
+		vehicle_model.accounted_energy_j()
+		+ truck_model.accounted_energy_j()
+		+ contact.accumulated_dissipation_j
+		+ contact.current_contact_energy_j
+	)
 
 func energy_balance_relative_error() -> float:
 	if initial_energy_j <= 0.0:
