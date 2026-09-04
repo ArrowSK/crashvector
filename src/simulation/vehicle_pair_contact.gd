@@ -75,8 +75,6 @@ func resolve_pairs(
 	normal: Vector3,
 	elapsed_s: float
 ) -> void:
-	# Compatibility entry point. Production M11 simulation calls apply_forces
-	# before either model is integrated for the current substep.
 	apply_forces(model_a, indices_a, model_b, indices_b, normal, 1.0 / 240.0, elapsed_s)
 
 func _apply_pair_force(a: StructuralNode, b: StructuralNode, normal: Vector3, delta_s: float, elapsed_s: float) -> void:
@@ -96,12 +94,16 @@ func _apply_pair_force(a: StructuralNode, b: StructuralNode, normal: Vector3, de
 	var critical_damping := 2.0 * sqrt(maxf(normal_stiffness_n_m * effective_mass, 0.0))
 	var damping_coefficient := critical_damping * clampf(damping_ratio, 0.0, 1.0)
 	var damping_force := damping_coefficient * closing_speed
-	var normal_force := minf(spring_force + damping_force, maximum_force_per_pair_n)
+	var requested_force := spring_force + damping_force
+	var normal_force := minf(requested_force, maximum_force_per_pair_n)
+	var force_scale := normal_force / maxf(requested_force, 0.000001)
+	var applied_spring_force := spring_force * force_scale
+	var applied_damping_force := damping_force * force_scale
 
 	a.add_force(-normal * normal_force)
 	b.add_force(normal * normal_force)
-	current_contact_energy_j += 0.5 * normal_stiffness_n_m * penetration * penetration
-	accumulated_dissipation_j += damping_force * closing_speed * delta_s
+	current_contact_energy_j += 0.5 * applied_spring_force * penetration
+	accumulated_dissipation_j += applied_damping_force * closing_speed * delta_s
 	active_contacts += 1
 	contact_events += 1
 	if first_contact_time_s < 0.0:
