@@ -71,13 +71,10 @@ func make_scenario() -> ScenarioConfig:
 	config.target_position_m = Vector3(0.0, 0.0, 0.0)
 	config.target_heading_deg = 0.0
 	config.duration_s = 0.8
-	# M11 refines the production passenger-car graph from the historical
-	# coarse structure to 44 nodes with substantially stiffer protected-cell
-	# members. Keep the same stored physical scenario and evidence corridors,
-	# but integrate this deliberately narrow reference at a converged timestep.
-	# The 16->32 step comparison reduced the remaining explicit-integration
-	# energy residual by more than fourfold; 64 substeps completes that public
-	# convergence step without changing any physical or acceptance parameter.
+	# The refined 44-node M11 structure uses the same public solver path as
+	# normal scenarios. The stored reference selects the public 64-substep
+	# ceiling; mass, speed, contact settings and every evidence/regression
+	# corridor remain unchanged from the M8 reference definition.
 	config.solver_substeps = 64
 	config.contact_friction = 0.55
 	config.restitution = 0.03
