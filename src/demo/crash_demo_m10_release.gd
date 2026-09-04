@@ -12,6 +12,42 @@ func _ready() -> void:
 	_harden_m10_scenario_rail()
 	_layout_m10()
 
+func _layout_m10() -> void:
+	super._layout_m10()
+	_fit_collapsed_replay_drawer()
+
+func _layout_non_recursive() -> void:
+	super._layout_non_recursive()
+	_fit_collapsed_replay_drawer()
+
+func _fit_collapsed_replay_drawer() -> void:
+	# The proven M5 replay controls have a real minimum height greater than the
+	# initial M10 58 px estimate. Reserve their actual height rather than clipping
+	# them or allowing the collapsed bar to extend beyond the window.
+	if m10_root == null or m10_replay_drawer == null or m10_replay_expanded:
+		return
+	if m10_mode == MODE_COMPARE or comparison_active:
+		return
+	var size := get_viewport().get_visible_rect().size
+	var bottom_margin := 12.0
+	var gap := 10.0
+	var top_y := 72.0
+	var collapsed_height := maxf(58.0, m10_replay_drawer.get_combined_minimum_size().y)
+	var content_bottom := size.y - collapsed_height - bottom_margin - gap
+	if size.x < 1120.0:
+		_set_rect(m10_viewport_frame, 12.0, top_y, size.x - 12.0, content_bottom)
+		_set_rect(m10_replay_drawer, 12.0, size.y - collapsed_height - bottom_margin, size.x - 12.0, size.y - bottom_margin)
+		return
+	var compact := size.x < 1380.0
+	var left_width := 214.0 if compact else 238.0
+	var right_width := 292.0 if compact else 328.0
+	var content_left := 12.0 + left_width + gap
+	var content_right := size.x - 12.0 - right_width - gap
+	_set_rect(m10_left_panel, 12.0, top_y, 12.0 + left_width, content_bottom)
+	_set_rect(m10_right_panel, size.x - 12.0 - right_width, top_y, size.x - 12.0, content_bottom)
+	_set_rect(m10_viewport_frame, content_left, top_y, content_right, content_bottom)
+	_set_rect(m10_replay_drawer, content_left, size.y - collapsed_height - bottom_margin, content_right, size.y - bottom_margin)
+
 func _harden_m10_scenario_rail() -> void:
 	# At the supported 1280x720 desktop floor, long option labels and the full
 	# scenario-help stack must not dictate the outer rail's minimum dimensions.
