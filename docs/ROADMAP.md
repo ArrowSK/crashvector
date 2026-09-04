@@ -27,7 +27,7 @@
 ## M3 — Generic vehicle classes and heavy vehicles — complete
 
 - Generic passenger-car presets cover A, B, C, D, J and M classes.
-- All passenger-car presets remain class-scaled versions of the shared 28-node architecture, not manufacturer models.
+- All passenger-car presets remain class-scaled versions of the shared historical architecture, not manufacturer models.
 - 32-node generic heavy articulated truck with 18 / 32 / 40 t development presets.
 - 24-node generic rigid lorry / box-truck target.
 - 16-node generic riderless motorcycle target.
@@ -152,27 +152,49 @@ M11 replaced the production collision-response path that produced the post-M10 p
 - M10 editor smoke additionally verifies that the desktop Physics control exposes the same 64-substep ceiling as `ScenarioConfig`.
 - Canonical packaged prerelease `0.3.0-beta.1` was published after the M11 gates passed.
 
-## M12 — Hybrid rigid-body physics correction — release candidate
+## M12 — Hybrid rigid-body physics correction — complete
 
-M12 corrects a more fundamental problem exposed by real use of M11: the deformable point-mass graph was still responsible for whole-vehicle world motion. That allowed visually implausible rebound and vertical motion even when scalar crush/yaw regression checks passed.
+M12 corrected the more fundamental problem exposed by real use of M11: the deformable point-mass graph was still responsible for whole-vehicle world motion. That allowed visibly implausible rebound and vertical motion even when scalar crush/yaw regression checks passed.
 
 - Godot `RigidBody3D` is authoritative for supported production vehicle mass, inertia, translation, rotation, gravity and collision response.
 - Continuous collision detection is enabled for the production vehicle bodies.
 - Passenger cars use four force-producing raycast suspension contacts; the heavy articulated truck uses six. Visual wheel meshes no longer masquerade as the road-support model.
 - Rigid wall, concrete barrier, pole and tree targets have real `StaticBody3D` collision shapes.
-- The M11 44-node passenger-car structure is retained as a local deformable nose anchored to the protected rigid chassis instead of moving the entire vehicle through custom node integration.
-- The passenger-car rigid collision volume ends at the protected cell/subframe. A forward distance probe measures available nose-crush travel and drives both a progressive resistance force on the rigid body and the visible/local crush geometry.
+- The M11 44-node passenger-car structure is retained as a local deformable structure anchored to the rigid chassis instead of moving the entire vehicle through custom node integration.
+- The passenger-car rigid collision volume ends at the protected cell/subframe. A forward distance probe measures available nose-crush travel and drives both a progressive resistance force on the rigid body and visible/local crush geometry.
 - The heavy articulated truck includes a physical rear underride collision face and raycast suspension so the passenger car cannot numerically climb an exposed low chassis rail.
-- Dedicated M12 engine-physics regression directly checks 50 km/h rigid-wall rebound/retreat, vertical rise/speed, pitch and material nose crush; stationary road support; and 90 km/h passenger-car versus 18-tonne-truck jump/rebound/crush behavior.
-- The accepted release-branch wall regression records approximately 0.541 m front crush, 0.731 m/s maximum reverse speed, 0.136 m retreat, 2 mm vertical rise and 0.32 degrees pitch.
-- The accepted release-branch 90 km/h car-versus-truck regression records approximately 0.948 m passenger-car crush, 0.981 m/s maximum reverse speed, 2 mm vertical rise and 0.33 degrees pitch.
+- Dedicated M12 engine-physics regression directly checks 50 km/h rigid-wall rebound/retreat, vertical rise/speed, pitch and material nose crush; stationary road support; and 90 km/h passenger-car versus 18-tonne-truck jump/rebound/crush behaviour.
+- The accepted wall regression records approximately 0.541 m front crush, 0.731 m/s maximum reverse speed, 0.136 m retreat, 2 mm vertical rise and 0.32 degrees pitch.
+- The accepted 90 km/h car-versus-truck regression records approximately 0.948 m passenger-car crush, 0.981 m/s maximum reverse speed, 2 mm vertical rise and 0.33 degrees pitch.
 - M12 does not silently fall back to the old production world-motion solver. Rigid lorry, motorcycle, bicycle and pedestrian simulation are temporarily blocked until ported to the rigid-body path.
-- Visual Compare and Comparison Lab are temporarily unavailable for the same reason: their historical synchronous runner remains in the repository for legacy regression but is not presented as M12 production physics.
+- Visual Compare and Comparison Lab are temporarily unavailable for the same reason: their historical synchronous runner remains in the repository for legacy regression but is not presented as production physics.
 - The M8 calibration runner remains a separate historical reduced-order correlation/regression path and does not validate the M12 rigid-body/crush coupling.
-- Target corrective prerelease is `0.4.0-beta.1` using the existing native macOS/Windows installer and update architecture.
+- Corrective prerelease `0.4.0-beta.1` was published after the M12 real-engine physics and package gates passed.
 
 See `docs/M12_HYBRID_PHYSICS.md` for the detailed architecture and coverage boundaries.
 
-## Beyond M12
+## M13 — Progressive whole-body structural failure — release candidate
 
-The next physics work should port rigid lorry, motorcycle, bicycle/pedestrian contact and the comparison recorder to the rigid-body world architecture before those paths are re-enabled. Additional independent public/licensed crash references should then be added before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references remain explicit future work rather than implied by M8–M12 completion.
+M13 removes the remaining high-energy discontinuity in M12. M12 deliberately protected the passenger cell from the old unstable structural solver, but that also meant an extreme frontal impact could exhaust roughly the first metre of front crush while the firewall, roof and cabin remained effectively indestructible.
+
+- M12 `RigidBody3D` world translation/rotation, gravity, CCD and suspension remain unchanged and authoritative.
+- Structural failure now progresses through front crush, firewall/cowl intrusion, floor/rocker and A-pillar/roof deformation, passenger-cell shortening and rear-body buckling as collision demand rises.
+- Stage activation uses normal collision energy and measured front-zone exhaustion rather than a simple speed threshold.
+- Dynamic rigid targets use relative normal speed and reduced mass for the collision-demand estimate.
+- The front crush zone retains a finite physical travel. Residual demand beyond that stage is transferred into later structural zones instead of silently disappearing at a fixed clamp.
+- Base cabin stations remain solver-pinned so the historical structural graph still cannot move the whole vehicle. M13 moves those stations locally relative to the rigid chassis only after the appropriate failure stage activates.
+- The protected-cell rigid collision face retreats as catastrophic firewall/cabin collapse develops, so the additional shortening produces real obstacle travel rather than being only a painted-mesh animation.
+- The production metrics panel exposes peak collision demand, firewall intrusion, cabin collapse, rear buckle and combined longitudinal collapse in addition to front crush.
+- A 50 km/h B-class rigid-wall preservation regression records about 105.0 kJ demand, 0.536 m front crush and zero firewall/cabin/rear collapse.
+- A 200 km/h B-class rigid-wall severe regression records about 1,739.2 kJ demand, 0.945 m front-zone crush, 0.300 m firewall intrusion, 0.820 m passenger-cell collapse, 0.231 m rear buckle and 1.948 m combined longitudinal collapse.
+- The same 200 km/h run remains stable at about 0.015 m/s maximum reverse speed, 0.005 m chassis vertical rise and 0.89 degrees pitch, so whole-body failure does not reintroduce the old launch/jump behaviour.
+- The severe M13 condition is enforced both by the dedicated M13 workflow and by the canonical hybrid regression executed inside Core CI.
+- Target corrective prerelease is `0.5.0-beta.1`.
+
+The M13 capacity and collapse values are phenomenological generic CrashVector parameters. They are not manufacturer body-in-white data, finite-element predictions, injury estimates or regulatory crash corridors.
+
+See `docs/M13_PROGRESSIVE_FAILURE.md` for the detailed staged-failure architecture and limitations.
+
+## Beyond M13
+
+The next physics work should port rigid lorry, motorcycle, bicycle/pedestrian contact and the comparison recorder to the rigid-body world architecture before those paths are re-enabled. Additional independent public/licensed crash references should then be added before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references remain explicit future work rather than implied by M8–M13 completion.
