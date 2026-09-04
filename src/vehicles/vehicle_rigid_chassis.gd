@@ -7,6 +7,14 @@ extends RigidBody3D
 
 var contact_samples: Array[Dictionary] = []
 var suspension_points: Array[Dictionary] = []
+var front_crush_sensor: Area3D
+var front_sensor_collider: Object
+var front_sensor_contact_active: bool = false
+var front_sensor_contact_ever: bool = false
+var front_sensor_start_self_position := Vector3.ZERO
+var front_sensor_start_collider_position := Vector3.ZERO
+var front_sensor_forward_world := Vector3.RIGHT
+var maximum_front_sensor_travel_m: float = 0.0
 var non_ground_contact_events: int = 0
 var cumulative_non_ground_impulse_ns: float = 0.0
 var maximum_vertical_speed_ms: float = 0.0
@@ -63,6 +71,23 @@ func add_sphere_shape(node_name: String, radius_m: float, local_position_m: Vect
 	add_child(collision)
 	return collision
 
+func add_front_crush_sensor(size_m: Vector3, local_position_m: Vector3) -> Area3D:
+	front_crush_sensor = Area3D.new()
+	front_crush_sensor.name = "FrontCrushSensor"
+	front_crush_sensor.collision_layer = 0
+	front_crush_sensor.collision_mask = collision_mask
+	front_crush_sensor.monitoring = true
+	front_crush_sensor.monitorable = false
+	front_crush_sensor.position = local_position_m
+	var shape := BoxShape3D.new()
+	shape.size = size_m
+	var collision := CollisionShape3D.new()
+	collision.name = "FrontCrushSensorShape"
+	collision.shape = shape
+	front_crush_sensor.add_child(collision)
+	add_child(front_crush_sensor)
+	return front_crush_sensor
+
 func add_suspension_point(
 	node_name: String,
 	local_mount_m: Vector3,
@@ -100,6 +125,10 @@ func begin_motion(speed_kmh: float, heading_deg: float) -> void:
 	maximum_reverse_speed_ms = 0.0
 	maximum_suspension_compression_m = 0.0
 	active_suspension_contacts = 0
+	front_sensor_collider = null
+	front_sensor_contact_active = false
+	front_sensor_contact_ever = false
+	maximum_front_sensor_travel_m = 0.0
 	freeze = false
 	sleeping = false
 
@@ -124,9 +153,22 @@ func drain_contact_samples() -> Array[Dictionary]:
 	contact_samples.clear()
 	return result
 
+func front_crush_travel_m() -> float:
+	return maximum_front_sensor_travel_m
+
+func front_crush_overlap_active() -> bool:
+	return front_sensor_contact_active
+
+func front_crush_collider() -> Object:
+	return front_sensor_collider
+
 func _physics_process(delta: float) -> void:
-	if freeze or delta <= 0.0 or suspension_points.is_empty():
+	if freeze or delta <= 0.0:
 		return
+	_update_suspension()
+	_update_front_crush_sensor()
+
+func _update_suspension() -> void:
 	active_suspension_contacts = 0
 	for point in suspension_points:
 		var ray := point.get("ray") as RayCast3D
@@ -155,6 +197,39 @@ func _physics_process(delta: float) -> void:
 			float(point.get("maximum_force_n", 12000.0))
 		)
 		apply_force(Vector3.UP * normal_force, offset_world)
+
+func _update_front_crush_sensor() -> void:
+	if front_crush_sensor == null:
+		return
+	var selected: Object = null
+	for body in front_crush_sensor.get_overlapping_bodies():
+		if body == self:
+			continue
+		var body_name := StringName("")
+		if body is Node:
+			body_name = (body as Node).name
+		if _is_ground_contact(body_name):
+			continue
+		selected = body
+		break
+	if selected == null:
+		front_sensor_contact_active = false
+		return
+	if not front_sensor_contact_active or selected != front_sensor_collider:
+		front_sensor_collider = selected
+		front_sensor_contact_active = true
+		front_sensor_contact_ever = true
+		front_sensor_start_self_position = global_position
+		front_sensor_forward_world = global_transform.basis.x.normalized()
+		front_sensor_start_collider_position = _object_global_position(selected)
+	var self_travel := (global_position - front_sensor_start_self_position).dot(front_sensor_forward_world)
+	var collider_travel := (_object_global_position(selected) - front_sensor_start_collider_position).dot(front_sensor_forward_world)
+	maximum_front_sensor_travel_m = maxf(maximum_front_sensor_travel_m, maxf(self_travel - collider_travel, 0.0))
+
+func _object_global_position(value: Object) -> Vector3:
+	if value is Node3D:
+		return (value as Node3D).global_position
+	return Vector3.ZERO
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	contact_samples.clear()
