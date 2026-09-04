@@ -91,9 +91,6 @@ func solve(nodes: Array[StructuralNode], delta_s: float) -> void:
 
 	# For a straight A-B-C rail, u and v point in opposite directions and
 	# u+v is zero. As B leaves the A-C line, u+v points back toward the chord.
-	# This curvature surrogate is well-conditioned at the straight position,
-	# unlike an acos/sin angle-gradient formulation, and does not resist pure
-	# axial shortening when all three nodes stay collinear.
 	var chord := c.position_m - a.position_m
 	var chord_length := chord.length()
 	var tangent := chord / chord_length if chord_length > 0.00001 else (v - u).normalized()
@@ -107,6 +104,15 @@ func solve(nodes: Array[StructuralNode], delta_s: float) -> void:
 	var elastic_force := curvature * (effective_stiffness / characteristic_length)
 	var damping_coefficient := 2.0 * damping_nm_s_rad / maxf(characteristic_length * characteristic_length, 0.0025)
 	var damping_force := -lateral_velocity * damping_coefficient
+	var effective_inverse_mass := b.inverse_mass + 0.25 * (a.inverse_mass + c.inverse_mass)
+	var lateral_speed := lateral_velocity.length()
+	if effective_inverse_mass > 0.0 and lateral_speed > 0.000001:
+		# The damper acts on B relative to the average A/C endpoint motion. Bound
+		# it so this explicit degree of freedom cannot reverse solely because of
+		# viscous damping during one integration substep.
+		var max_damping_force := lateral_speed / (effective_inverse_mass * delta_s)
+		if damping_force.length() > max_damping_force:
+			damping_force = damping_force.normalized() * max_damping_force
 	var middle_force := elastic_force + damping_force
 	var force_scale := 1.0
 	var force_length := middle_force.length()
@@ -118,19 +124,30 @@ func solve(nodes: Array[StructuralNode], delta_s: float) -> void:
 	a.add_force(-middle_force * 0.5)
 	c.add_force(-middle_force * 0.5)
 	var applied_damping_force := damping_force * force_scale
-	damping_energy_j += maxf(-applied_damping_force.dot(lateral_velocity), 0.0) * delta_s
+	if effective_inverse_mass > 0.0 and lateral_speed > 0.000001:
+		var effective_mass := 1.0 / effective_inverse_mass
+		var damping_only_after_velocity := lateral_velocity + applied_damping_force * effective_inverse_mass * delta_s
+		damping_energy_j += maxf(
+			0.5 * effective_mass * (lateral_velocity.length_squared() - damping_only_after_velocity.length_squared()),
+			0.0
+		)
 
 func _apply_plastic_hinge(bend_angle_rad: float, delta_s: float) -> void:
 	if bend_angle_rad <= yield_angle_rad or plastic_flow_rate <= 0.0:
 		return
+	var old_damage := clampf(plastic_bend_angle_rad / maxf(max_plastic_angle_rad, 0.0001), 0.0, 1.0)
+	var old_stiffness := stiffness_nm_rad * lerpf(1.0, 0.12, old_damage)
+	var old_elastic_energy := 0.5 * old_stiffness * bend_angle_rad * bend_angle_rad
 	var target_plastic := minf(bend_angle_rad, max_plastic_angle_rad)
 	var flow_span := maxf(max_plastic_angle_rad - yield_angle_rad, deg_to_rad(0.1))
 	var flow_factor := clampf((bend_angle_rad - yield_angle_rad) / flow_span, 0.0, 1.0)
 	var alpha := clampf(plastic_flow_rate * maxf(flow_factor, 0.15) * delta_s, 0.0, 1.0)
-	var old_plastic := plastic_bend_angle_rad
 	plastic_bend_angle_rad = lerpf(plastic_bend_angle_rad, target_plastic, alpha)
 	rest_angle_rad = original_rest_angle_rad - plastic_bend_angle_rad
-	plastic_energy_j += absf(last_generalized_torque_nm) * absf(plastic_bend_angle_rad - old_plastic)
+	var new_damage := clampf(plastic_bend_angle_rad / maxf(max_plastic_angle_rad, 0.0001), 0.0, 1.0)
+	var new_stiffness := stiffness_nm_rad * lerpf(1.0, 0.12, new_damage)
+	var new_elastic_energy := 0.5 * new_stiffness * bend_angle_rad * bend_angle_rad
+	plastic_energy_j += maxf(old_elastic_energy - new_elastic_energy, 0.0)
 
 func elastic_energy_j(nodes: Array[StructuralNode]) -> float:
 	if broken:
