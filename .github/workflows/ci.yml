@@ -282,15 +282,15 @@ jobs:
           } else {
             Write-Host "Authenticode credentials not configured; beta installer remains unsigned."
           }
-          $resolvedSetup = Resolve-Path $setup
-          $installDir = Join-Path $env:RUNNER_TEMP "CrashVectorInstallTest"
-          & $resolvedSetup /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="$installDir"
-          if ($LASTEXITCODE -ne 0) { throw "Installer validation run failed" }
-          if (-not (Test-Path (Join-Path $installDir "CrashVector.exe"))) { throw "Installed executable missing" }
+          $resolvedSetup = (Resolve-Path $setup).Path
+          $installProcess = Start-Process -FilePath $resolvedSetup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-') -Wait -PassThru
+          if ($installProcess.ExitCode -ne 0) { throw "Installer validation run failed with exit code $($installProcess.ExitCode)" }
+          $installDir = Join-Path $env:ProgramFiles "CrashVector"
+          if (-not (Test-Path (Join-Path $installDir "CrashVector.exe"))) { throw "Installed executable missing from Program Files" }
           $uninstaller = Join-Path $installDir "unins000.exe"
           if (-not (Test-Path $uninstaller)) { throw "Standard uninstaller missing" }
-          & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-          if ($LASTEXITCODE -ne 0) { throw "Uninstaller validation run failed" }
+          $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
+          if ($uninstallProcess.ExitCode -ne 0) { throw "Uninstaller validation run failed with exit code $($uninstallProcess.ExitCode)" }
           Start-Sleep -Seconds 2
           if (Test-Path (Join-Path $installDir "CrashVector.exe")) { throw "Uninstall left CrashVector executable behind" }
           $hash = (Get-FileHash -Algorithm SHA256 $setup).Hash.ToLowerInvariant()
