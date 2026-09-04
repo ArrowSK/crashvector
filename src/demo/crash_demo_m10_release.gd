@@ -7,6 +7,39 @@
 # updater/export/calibration code and external node references keep working.
 extends "res://src/demo/crash_demo_m10.gd"
 
+func _ready() -> void:
+	super._ready()
+	_harden_m10_scenario_rail()
+	_layout_m10()
+
+func _harden_m10_scenario_rail() -> void:
+	# At the supported 1280x720 desktop floor, long option labels and the full
+	# scenario-help stack must not dictate the outer rail's minimum dimensions.
+	# Keep every control available by scrolling the M10-owned rail instead of
+	# hiding functionality or allowing it to overlap the 3D viewport.
+	if m10_primary_option != null:
+		m10_primary_option.fit_to_longest_item = false
+	if m10_target_option != null:
+		m10_target_option.fit_to_longest_item = false
+	if m10_left_panel == null or m10_left_panel.get_child_count() == 0:
+		return
+	var existing := m10_left_panel.get_child(0)
+	if existing is ScrollContainer:
+		return
+	if not existing is Control:
+		return
+	m10_left_panel.remove_child(existing)
+	var scroll := ScrollContainer.new()
+	scroll.name = "M10ScenarioScroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.follow_focus = true
+	m10_left_panel.add_child(scroll)
+	(existing as Control).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(existing)
+
 func _adopt_legacy_panels() -> void:
 	# M10 must never move proven M0-M9 controls out of their existing ownership
 	# hierarchy. It only provides new launch surfaces for those services.
