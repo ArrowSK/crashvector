@@ -2,7 +2,7 @@
 
 ## Layering
 
-CrashVector separates structural mechanics, object construction, contact resolution, scenario data, editor UI, replay/analysis, comparison/export, and calibration evidence. The physical state lives in structural graphs; presentation layers read those graphs rather than maintaining a competing hidden trajectory.
+CrashVector separates structural mechanics, object construction, contact resolution, scenario data, editor UI, replay/analysis, comparison/export, calibration evidence, and desktop distribution. The physical state lives in structural graphs; presentation and distribution layers read or package those layers rather than maintaining a competing hidden trajectory or implementation.
 
 ### Structural layer
 
@@ -105,13 +105,42 @@ The first directly correlated envelope is intentionally narrow: generic D-segmen
 - `crash_demo_m6.gd` adds visual comparison;
 - `crash_demo_m7.gd` adds cinematic export;
 - `crash_demo_m8.gd` adds expanded vehicle targets, custom-speed comparison, calibration-scope visibility, and the reference check;
-- `crash_demo_extended.gd` adds bicycle/pedestrian target handling and Comparison Lab while preserving the M8 lorry/motorcycle members.
+- `crash_demo_extended.gd` adds bicycle/pedestrian target handling and Comparison Lab while preserving the M8 lorry/motorcycle members;
+- `crash_demo_m9.gd` adds only the desktop Updates UI and delegates discovery/download/verification to a dedicated update service.
 
-`app/main.tscn` runs the extended editor layer. The editor rebuilds a clean physical preview before every run, avoiding continuation from partially deformed state after parameter edits.
+`app/main.tscn` runs the M9 editor layer. M9 calls the existing base implementations and does not replace an already-attached script at runtime. The editor still rebuilds a clean physical preview before every run, avoiding continuation from partially deformed state after parameter edits.
+
+### Update service layer
+
+`src/update/` is independent of simulation state.
+
+- `SemanticVersion` parses and compares the canonical application version, including prerelease identifiers.
+- `CrashVectorUpdateService` discovers official GitHub Releases, validates `update-manifest.json`, selects the package for the current OS, downloads it, verifies SHA-256, and hands only a verified installer to the operating system.
+- Update preferences are stored under `user://`; no update state is embedded into scenario or physics data.
+- The service never mutates or overwrites the executable that is currently running. macOS opens the verified DMG; Windows starts the verified Setup executable; CrashVector exits only after a successful handoff.
+
+Network or verification failure therefore cannot modify the installed application. Stable users are not silently moved to prereleases; a prerelease install may move to a later prerelease or the eventual stable release.
+
+### Desktop distribution layer
+
+M9 packaging is generated from repository sources rather than manually maintained native projects.
+
+- `project.godot` contains the one canonical CrashVector Semantic Version.
+- `tools/prepare_packaging.py` derives Godot export presets and native numeric version resources from that version.
+- `tools/render_icon.gd` and `tools/generate_icon_containers.py` derive platform-native multi-resolution icon containers from the existing SVG branding master without changing the artwork.
+- macOS CI produces and verifies a Universal 2 `CrashVector.app`, signs it, builds a DMG containing the application plus an Applications shortcut, and supports Developer ID/notarization when credentials exist.
+- Windows CI produces the x64 application, applies/validates product metadata and icon resources, builds an Inno Setup installer, and performs a real install/uninstall validation; Authenticode hooks are present for later certificate use.
+- `tools/build_update_manifest.py` creates the release manifest from the two already-validated packages.
+
+Core CI, macOS packaging and Windows packaging are independent acceptance gates. Release automation depends on all three, verifies the checksum sidecars again, and will not replace assets for an already-published version. `docs/DISTRIBUTION.md` describes the operational flow.
+
+### Architecture hardening
+
+Production code must use normal inheritance, composition, services and signals. Runtime implementation replacement through `set_script(...)`, `take_over_path(...)`, direct script-property reassignment or equivalent mechanisms is prohibited. Core CI scans `src/` and `app/` for those patterns so a future change cannot quietly reintroduce them.
 
 ## Determinism
 
-Identical scenario inputs, engine version, and solver configuration are expected to produce identical state within regression tolerance. CI covers structural determinism, paired-contact momentum conservation, static contact, scenario serialisation invariants, replay independence, comparison timing, export planning, M8 reference correlation, road-user construction/trajectory behaviour, and type × speed comparison matrices.
+Identical scenario inputs, engine version, and solver configuration are expected to produce identical state within regression tolerance. CI covers structural determinism, paired-contact momentum conservation, static contact, scenario serialisation invariants, replay independence, comparison timing, export planning, M8 reference correlation, road-user construction/trajectory behaviour, type × speed comparison matrices, M9 version/update logic and complete-editor startup.
 
 ## Units
 
@@ -121,4 +150,4 @@ Internal calculations use SI units: metres, seconds, kilograms, newtons, joules,
 
 CrashVector is an educational scenario-building and visualisation application. Most scenarios are not experimentally validated. A/B/C/D/J/M cars are generic representative classes; heavy vehicles and motorcycles are simplified structural graphs; bicycle and pedestrian modes are contact/trajectory proxies; broadside/complex oblique contact awaits a richer geometry system; and occupant/rider biomechanics and injury prediction remain outside the model.
 
-M8 makes that boundary explicit in the UI and exported metadata rather than weakening it.
+M8 makes that modelling boundary explicit in the UI and exported metadata. M9 changes distribution and update mechanics only; it does not broaden the validation claim or alter the physical model.

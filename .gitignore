@@ -8,6 +8,7 @@ export_presets.cfg
 build/
 dist/
 *.pck
+packaging/windows/generated_version.iss
 
 # OS / editors
 .DS_Store
