@@ -99,7 +99,7 @@ func _build_body_shell() -> void:
 	body_shell = DeformableBodyShell.new()
 	body_shell.name = "DeformableBodyShell"
 	add_child(body_shell)
-	body_shell.configure(model, CompactHatchbackBuilder.STATION_X.size(), CarPaintCatalog.color(paint_id))
+	body_shell.configure(model, CompactHatchbackBuilder.STATION_X.size(), CarPaintCatalog.color(paint_id), vehicle_preset_id)
 
 func _build_wheels() -> void:
 	wheel_rig = SimpleWheelRig.new()
@@ -116,11 +116,11 @@ func _build_structure_debugger() -> void:
 
 func _build_front_bumper() -> void:
 	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.16, 0.24, 1.45)
+	mesh.size = Vector3(0.16, 0.22, 1.46)
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.06, 0.08, 0.11)
-	material.metallic = 0.15
-	material.roughness = 0.48
+	material.albedo_color = Color(0.025, 0.034, 0.045)
+	material.metallic = 0.28
+	material.roughness = 0.36
 	mesh.material = material
 	front_bumper.mesh = mesh
 	front_bumper.name = "FrontBumper"
@@ -140,8 +140,11 @@ func _update_front_bumper(delta: float) -> void:
 		return
 	if not front_bumper_detached:
 		var front_nodes := CompactHatchbackBuilder.station_nodes(CompactHatchbackBuilder.FRONT_STATION)
-		var forward := Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
-		front_bumper.position = model.average_position_for_nodes(front_nodes) + forward * 0.10 + Vector3(0.0, -0.12, 0.0)
+		var reference := global_reference_transform()
+		var forward := reference.basis.x.normalized()
+		var up := reference.basis.y.normalized()
+		front_bumper.position = model.average_position_for_nodes(front_nodes) + forward * 0.10 - up * 0.12
+		front_bumper.basis = reference.basis
 		var should_detach := (
 			model.broken_beam_count_for_role(&"front_crush") > 0
 			or model.max_permanent_deformation_for_role(&"front_crush") > 0.18
