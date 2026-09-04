@@ -5,8 +5,13 @@
 extends SceneTree
 
 var failures: Array[String] = []
+var finished: bool = false
 
 func _initialize() -> void:
+	# A runtime error in a SceneTree test can abort the coroutine without
+	# terminating Godot, which would leave CI hanging indefinitely. Keep this
+	# gate bounded so any such regression becomes an actionable failure.
+	create_timer(20.0).timeout.connect(_on_watchdog_timeout)
 	call_deferred("_run")
 
 func _run() -> void:
@@ -49,7 +54,16 @@ func _run() -> void:
 	await process_frame
 	_finish()
 
+func _on_watchdog_timeout() -> void:
+	if finished:
+		return
+	push_error("M12 production-path test exceeded 20 seconds; a runtime error or non-terminating production route prevented clean completion.")
+	quit(1)
+
 func _finish() -> void:
+	if finished:
+		return
+	finished = true
 	if failures.is_empty():
 		print("CrashVector M12 production-path tests passed.")
 		quit(0)
