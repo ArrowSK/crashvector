@@ -28,12 +28,16 @@ var front_bumper_velocity_ms := Vector3.ZERO
 var last_chassis_transform := Transform3D.IDENTITY
 var chassis_sync_ready: bool = false
 var hybrid_crush_impulse_ns: float = 0.0
+var hybrid_target_front_crush_m: float = 0.0
+var hybrid_geometric_front_crush_m: float = 0.0
+var hybrid_reference_local_positions: Array[Vector3] = []
 
 func _ready() -> void:
 	model = PassengerCarBuilder.build(vehicle_preset_id, total_mass_kg, 0.0, barrier_x_m, origin_offset_m)
 	model.rotate_y_about(origin_offset_m, deg_to_rad(heading_deg), true)
 	_prepare_local_crush_model()
 	_build_rigid_chassis()
+	_capture_hybrid_reference_geometry()
 	_build_body_shell()
 	_build_wheels()
 	_build_structure_debugger()
@@ -53,7 +57,10 @@ func step_external(delta: float) -> void:
 	if hybrid_physics_enabled and rigid_chassis != null and delta > 0.0:
 		_sync_model_to_chassis()
 		_consume_real_contact_impulses()
+		_update_hybrid_crush_target()
+		_apply_hybrid_crush_resistance()
 		model.step(delta, mini(maxi(solver_substeps, 4), ScenarioConfig.MAX_SOLVER_SUBSTEPS))
+		_enforce_hybrid_crush_shape(delta)
 	_update_visuals(delta)
 
 func begin_simulation() -> void:
@@ -64,6 +71,8 @@ func begin_simulation() -> void:
 	last_chassis_transform = rigid_chassis.global_transform
 	chassis_sync_ready = true
 	hybrid_crush_impulse_ns = 0.0
+	hybrid_target_front_crush_m = 0.0
+	hybrid_geometric_front_crush_m = 0.0
 	rigid_chassis.begin_motion(initial_speed_kmh, heading_deg)
 
 func set_simulation_paused(value: bool) -> void:
@@ -139,13 +148,15 @@ func global_reference_transform() -> Transform3D:
 	)
 
 func front_crush_deformation_m() -> float:
-	return model.max_permanent_deformation_for_role(&"front_crush")
+	return maxf(model.max_permanent_deformation_for_role(&"front_crush"), hybrid_geometric_front_crush_m)
 
 func safety_cell_deformation_m() -> float:
 	return model.max_permanent_deformation_for_role(&"safety_cell")
 
 func hybrid_contact_count() -> int:
-	return 0 if rigid_chassis == null else rigid_chassis.non_ground_contact_events
+	if rigid_chassis == null:
+		return 0
+	return rigid_chassis.non_ground_contact_events + (1 if rigid_chassis.front_sensor_contact_ever else 0)
 
 func hybrid_maximum_vertical_speed_ms() -> float:
 	return 0.0 if rigid_chassis == null else rigid_chassis.maximum_vertical_speed_ms
@@ -160,18 +171,21 @@ func replay_visual_state() -> Dictionary:
 		"front_bumper_velocity_ms": front_bumper_velocity_ms,
 		"rigid_transform": global_reference_transform(),
 		"rigid_linear_velocity_ms": global_linear_velocity_ms(),
+		"hybrid_front_crush_m": hybrid_geometric_front_crush_m,
 	}
 
 func apply_replay_visual_state(state: Dictionary) -> void:
 	front_bumper_detached = bool(state.get("front_bumper_detached", false))
 	front_bumper_velocity_ms = state.get("front_bumper_velocity_ms", Vector3.ZERO)
+	hybrid_geometric_front_crush_m = float(state.get("hybrid_front_crush_m", hybrid_geometric_front_crush_m))
 	if front_bumper_detached:
 		front_bumper.position = state.get("front_bumper_position_m", front_bumper.position)
 	_update_visuals(0.0)
 
 func _prepare_local_crush_model() -> void:
-	# The Godot rigid chassis owns global translation, rotation, gravity and road
-	# contact. The structural graph is retained only as a local deformable nose.
+	# The engine rigid body owns global translation, rotation, gravity and road
+	# support. Stations through the firewall are anchored to that chassis; only
+	# the engine-bay/nose structure remains deformable.
 	for node in model.nodes:
 		node.velocity_ms = Vector3.ZERO
 	for station in range(CompactHatchbackBuilder.CABIN_FRONT_STATION + 1):
@@ -192,27 +206,37 @@ func _build_rigid_chassis() -> void:
 	var scale_y := float(preset.get("scale_y", 1.0))
 	var scale_z := float(preset.get("scale_z", 1.0))
 	rigid_chassis.configure(total_mass_kg, origin_offset_m, heading_deg, initial_speed_kmh, 0.88, 0.0)
-	# Compound collision geometry: a protected cell, a low-bounce front contact
-	# volume and four real wheel/ground contacts. These shapes move as one rigid
-	# chassis; only the visual/local crush graph deforms.
+	# The rigid collision volume stops at the protected cell/subframe. The nose
+	# is a non-colliding overlap sensor so it can consume distance while the
+	# progressive crush force decelerates the real rigid chassis.
 	rigid_chassis.add_box_shape(
 		"SafetyCellCollision",
 		Vector3(2.55 * scale_x, 0.86 * scale_y, 1.62 * scale_z),
 		Vector3(-0.28 * scale_x, 0.88 * scale_y, 0.0)
 	)
-	rigid_chassis.add_box_shape(
-		"FrontContactCollision",
-		Vector3(1.48 * scale_x, 0.62 * scale_y, 1.34 * scale_z),
-		Vector3(1.30 * scale_x, 0.70 * scale_y, 0.0)
+	rigid_chassis.add_front_crush_sensor(
+		Vector3(1.05 * scale_x, 0.72 * scale_y, 1.40 * scale_z),
+		Vector3(1.53 * scale_x, 0.72 * scale_y, 0.0)
 	)
-	var wheel_radius := 0.30 * minf(scale_x, scale_z)
+	var mass_scale := maxf(total_mass_kg / 1150.0, 0.45)
+	var suspension_k := 65000.0 * mass_scale
+	var suspension_c := 6000.0 * sqrt(mass_scale)
+	var suspension_max := 18000.0 * mass_scale
 	for station in [CompactHatchbackBuilder.REAR_AXLE_STATION, CompactHatchbackBuilder.FRONT_AXLE_STATION]:
 		var x := CompactHatchbackBuilder.STATION_X[station] * scale_x
 		var z := CompactHatchbackBuilder.HALF_WIDTH_Z[station] * scale_z
-		rigid_chassis.add_sphere_shape("WheelCollision", wheel_radius, Vector3(x, wheel_radius, -z))
-		rigid_chassis.add_sphere_shape("WheelCollision", wheel_radius, Vector3(x, wheel_radius, z))
+		var mount_y := 0.62 * scale_y
+		var rest_distance := 0.665 * scale_y
+		rigid_chassis.add_suspension_point("Suspension", Vector3(x, mount_y, -z), rest_distance, suspension_k, suspension_c, suspension_max)
+		rigid_chassis.add_suspension_point("Suspension", Vector3(x, mount_y, z), rest_distance, suspension_k, suspension_c, suspension_max)
 	last_chassis_transform = rigid_chassis.global_transform
 	chassis_sync_ready = true
+
+func _capture_hybrid_reference_geometry() -> void:
+	hybrid_reference_local_positions.clear()
+	hybrid_reference_local_positions.resize(model.nodes.size())
+	for index in range(model.nodes.size()):
+		hybrid_reference_local_positions[index] = rigid_chassis.to_local(model.nodes[index].position_m)
 
 func _sync_model_to_chassis() -> void:
 	if rigid_chassis == null:
@@ -234,56 +258,102 @@ func _apply_rigid_delta_to_model(delta_transform: Transform3D) -> void:
 func _consume_real_contact_impulses() -> void:
 	if rigid_chassis == null:
 		return
-	var front_impulse := 0.0
-	var rear_impulse := 0.0
 	for sample in rigid_chassis.drain_contact_samples():
 		var collider_name: StringName = sample.get("collider_name", StringName(""))
 		if collider_name == &"Road" or collider_name == &"Ground" or collider_name == &"ProvingGround":
 			continue
 		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
-		if impulse.length() <= 0.01:
-			continue
-		var world_position: Vector3 = sample.get("position_world", rigid_chassis.global_position)
-		var local_contact := rigid_chassis.to_local(world_position)
-		if local_contact.x >= 0.25:
-			front_impulse += impulse.length()
-		elif local_contact.x <= -0.50:
-			rear_impulse += impulse.length()
-	if front_impulse > 0.0:
-		hybrid_crush_impulse_ns += front_impulse
-		_drive_front_crush(front_impulse)
-	if rear_impulse > 0.0:
-		_drive_rear_crush(rear_impulse)
+		hybrid_crush_impulse_ns += impulse.length()
 
-func _drive_front_crush(contact_impulse_ns: float) -> void:
-	var delta_v := minf(contact_impulse_ns / maxf(total_mass_kg, 1.0), 16.0)
-	if delta_v <= 0.0001:
+func _update_hybrid_crush_target() -> void:
+	if rigid_chassis == null:
 		return
+	hybrid_target_front_crush_m = maxf(hybrid_target_front_crush_m, rigid_chassis.front_crush_travel_m())
+	var preset := PassengerCarCatalog.data(vehicle_preset_id)
+	var scale_x := float(preset.get("scale_x", 1.0))
+	hybrid_target_front_crush_m = clampf(hybrid_target_front_crush_m, 0.0, 0.98 * scale_x)
+
+func _apply_hybrid_crush_resistance() -> void:
+	if rigid_chassis == null or not rigid_chassis.front_crush_overlap_active():
+		return
+	var collider := rigid_chassis.front_crush_collider()
 	var forward := rigid_chassis.global_transform.basis.x.normalized()
-	_apply_axial_kick(PassengerCarBuilder.front_contact_nodes(), -forward, delta_v * 0.72)
-	_apply_axial_kick(PassengerCarBuilder.extra_section_nodes(3), -forward, delta_v * 0.50)
-	_apply_axial_kick(PassengerCarBuilder.extra_section_nodes(2), -forward, delta_v * 0.30)
-
-func _drive_rear_crush(contact_impulse_ns: float) -> void:
-	var delta_v := minf(contact_impulse_ns / maxf(total_mass_kg, 1.0), 10.0)
-	if delta_v <= 0.0001:
+	var collider_velocity := Vector3.ZERO
+	if collider is RigidBody3D:
+		collider_velocity = (collider as RigidBody3D).linear_velocity
+	var closing_speed := (rigid_chassis.linear_velocity - collider_velocity).dot(forward)
+	if closing_speed <= 0.01:
 		return
-	var forward := rigid_chassis.global_transform.basis.x.normalized()
-	_apply_axial_kick(CompactHatchbackBuilder.station_nodes(CompactHatchbackBuilder.REAR_STATION), forward, delta_v * 0.45)
+	var preset := PassengerCarCatalog.data(vehicle_preset_id)
+	var stiffness_scale := maxf(float(preset.get("stiffness_scale", 1.0)), 0.45)
+	var mass_scale := sqrt(maxf(total_mass_kg / 1150.0, 0.45))
+	var crush := hybrid_target_front_crush_m
+	# Reduced-order crush-force curve: an initial crash-box/rail plateau followed
+	# by progressive rail hardening as the firewall is approached. It acts on
+	# the real rigid body, so world deceleration/rotation remains Godot physics.
+	var force_n := (105000.0 + 155000.0 * clampf(crush / 0.62, 0.0, 1.0)) * stiffness_scale * mass_scale
+	if crush > 0.62:
+		force_n += 420000.0 * stiffness_scale * mass_scale * clampf((crush - 0.62) / 0.30, 0.0, 1.0)
+	force_n = minf(force_n, 760000.0 * stiffness_scale * mass_scale)
+	if collider is VehicleRigidChassis:
+		var other := collider as VehicleRigidChassis
+		# Only one side applies the equal/opposite pair to avoid double counting
+		# when two passenger-car crush sensors overlap each other.
+		if rigid_chassis.get_instance_id() > other.get_instance_id():
+			return
+		rigid_chassis.apply_central_force(-forward * force_n)
+		other.apply_central_force(forward * force_n)
+	else:
+		rigid_chassis.apply_central_force(-forward * force_n)
 
-func _apply_axial_kick(indices: PackedInt32Array, direction: Vector3, speed_delta_ms: float) -> void:
-	var axis := direction.normalized()
-	if axis.is_zero_approx():
+func _enforce_hybrid_crush_shape(delta: float) -> void:
+	if hybrid_target_front_crush_m <= 0.0001 or hybrid_reference_local_positions.size() != model.nodes.size():
 		return
-	for index in indices:
+	var alpha := clampf(1.0 - exp(-28.0 * maxf(delta, 0.0)), 0.0, 1.0)
+	var sections: Array[Dictionary] = [
+		{"nodes": PassengerCarBuilder.extra_section_nodes(0), "weight": 0.18},
+		{"nodes": PassengerCarBuilder.extra_section_nodes(1), "weight": 0.32},
+		{"nodes": CompactHatchbackBuilder.station_nodes(CompactHatchbackBuilder.FRONT_AXLE_STATION), "weight": 0.50},
+		{"nodes": PassengerCarBuilder.extra_section_nodes(2), "weight": 0.68},
+		{"nodes": PassengerCarBuilder.extra_section_nodes(3), "weight": 0.86},
+		{"nodes": PassengerCarBuilder.front_contact_nodes(), "weight": 1.00},
+	]
+	var normalized_crush := clampf(hybrid_target_front_crush_m / 0.90, 0.0, 1.0)
+	for section in sections:
+		var indices: PackedInt32Array = section["nodes"]
+		var weight := float(section["weight"])
+		for index in indices:
+			if index < 0 or index >= model.nodes.size() or model.nodes[index].pinned:
+				continue
+			var reference_local := hybrid_reference_local_positions[index]
+			var target_local := reference_local
+			target_local.x -= hybrid_target_front_crush_m * weight
+			var corner := index % 4
+			if corner >= 2:
+				target_local.y -= 0.10 * hybrid_target_front_crush_m * weight
+			else:
+				target_local.y += 0.025 * hybrid_target_front_crush_m * weight
+			target_local.z *= 1.0 - 0.07 * normalized_crush * weight
+			var target_world := rigid_chassis.to_global(target_local)
+			model.nodes[index].position_m = model.nodes[index].position_m.lerp(target_world, alpha)
+			model.nodes[index].velocity_ms *= 0.80
+	_update_geometric_crush_measurement()
+
+func _update_geometric_crush_measurement() -> void:
+	var front := PassengerCarBuilder.front_contact_nodes()
+	if front.is_empty():
+		return
+	var original_x := 0.0
+	var current_x := 0.0
+	var count := 0
+	for index in front:
 		if index < 0 or index >= model.nodes.size():
 			continue
-		var node := model.nodes[index]
-		if node.pinned:
-			continue
-		var current_axis_speed := node.velocity_ms.dot(axis)
-		var desired_axis_speed := minf(current_axis_speed + speed_delta_ms, 14.0)
-		node.velocity_ms += axis * (desired_axis_speed - current_axis_speed)
+		original_x += hybrid_reference_local_positions[index].x
+		current_x += rigid_chassis.to_local(model.nodes[index].position_m).x
+		count += 1
+	if count > 0:
+		hybrid_geometric_front_crush_m = maxf(hybrid_geometric_front_crush_m, (original_x - current_x) / float(count))
 
 func _build_body_shell() -> void:
 	body_shell = DeformableBodyShell.new()
@@ -338,6 +408,7 @@ func _update_front_bumper(delta: float) -> void:
 		var should_detach := (
 			model.broken_beam_count_for_role(&"front_crush") > 0
 			or model.max_permanent_deformation_for_role(&"front_crush") > 0.18
+			or hybrid_geometric_front_crush_m > 0.38
 		)
 		if should_detach:
 			front_bumper_detached = true
