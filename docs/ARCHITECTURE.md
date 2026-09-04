@@ -2,7 +2,7 @@
 
 ## Layering
 
-CrashVector separates structural mechanics, object construction, contact resolution, scenario data, editor UI, replay/analysis, comparison/export, calibration evidence, and desktop distribution. The physical state lives in structural graphs; presentation and distribution layers read or package those layers rather than maintaining a competing hidden trajectory or implementation.
+CrashVector separates structural mechanics, object construction, contact resolution, scenario data, editor UI, replay/analysis, comparison/export, calibration evidence, desktop distribution, and the M10 presentation shell. The physical state lives in structural graphs; presentation and distribution layers read or package those layers rather than maintaining a competing hidden trajectory or implementation.
 
 ### Structural layer
 
@@ -106,9 +106,24 @@ The first directly correlated envelope is intentionally narrow: generic D-segmen
 - `crash_demo_m7.gd` adds cinematic export;
 - `crash_demo_m8.gd` adds expanded vehicle targets, custom-speed comparison, calibration-scope visibility, and the reference check;
 - `crash_demo_extended.gd` adds bicycle/pedestrian target handling and Comparison Lab while preserving the M8 lorry/motorcycle members;
-- `crash_demo_m9.gd` adds only the desktop Updates UI and delegates discovery/download/verification to a dedicated update service.
+- `crash_demo_m9.gd` adds only the desktop Updates UI and delegates discovery/download/verification to a dedicated update service;
+- `crash_demo_m10.gd` adds the responsive Scenario/Compare shell, inspector, replay drawer, technical environment and presentation controls while continuing to call the inherited M0–M9 services;
+- `crash_demo_m10_release.gd` is the final compatibility shell that keeps the M7–M9 modal CanvasLayers in their original ownership hierarchy and suppresses only their obsolete fixed-position launch controls.
 
-`app/main.tscn` runs the M9 editor layer. M9 calls the existing base implementations and does not replace an already-attached script at runtime. The editor still rebuilds a clean physical preview before every run, avoiding continuation from partially deformed state after parameter edits.
+`app/main.tscn` runs the M10 release shell. M10 does not replace an already-attached script at runtime and does not reparent the proven updater/export/calibration/Comparison Lab service trees. The editor still rebuilds a clean physical preview before every run, avoiding continuation from partially deformed state after parameter edits.
+
+### M10 presentation layer
+
+M10 deliberately changes what the user sees without introducing a second simulation representation.
+
+- The Scenario workspace owns the compact scenario selector, camera shortcuts and tabbed inspector.
+- The Compare workspace gives synchronized comparison output the available desktop width rather than stacking it under scenario controls.
+- Replay and analysis occupy a collapsible bottom drawer whose expanded geometry reduces the viewport instead of covering it.
+- Vehicle and target visuals remain children of the existing structural runtime wrappers. Passenger-car paint, glazing, lamps and trim, plus rebuilt heavy-vehicle/motorcycle/bicycle/static-target meshes, are presentation-only surfaces driven by the same model transforms and deformation anchors used before M10.
+- The technical road, markings, sky and lighting are visual context only. They do not define collision planes or modify contact parameters.
+- The first-run B-class versus rigid-wall 50 km/h scenario is a UI default, not a new calibration claim.
+
+Responsive-layout regression covers 1280×720, 1440×900, 1920×1080 and 2560×1440 and explicitly rejects sidebar, toolbar, viewport and replay-drawer overlap. A separate editor smoke gate checks the new workspace hierarchy and preservation of the existing M8/M9 service nodes.
 
 ### Update service layer
 
@@ -123,7 +138,7 @@ Network or verification failure therefore cannot modify the installed applicatio
 
 ### Desktop distribution layer
 
-M9 packaging is generated from repository sources rather than manually maintained native projects.
+M9 packaging is generated from repository sources rather than manually maintained native projects, and M10 reuses the same distribution architecture with the canonical version advanced to `0.2.0-beta.1`.
 
 - `project.godot` contains the one canonical CrashVector Semantic Version.
 - `tools/prepare_packaging.py` derives Godot export presets and native numeric version resources from that version.
@@ -132,15 +147,15 @@ M9 packaging is generated from repository sources rather than manually maintaine
 - Windows CI produces the x64 application, applies/validates product metadata and icon resources, builds an Inno Setup installer, and performs a real install/uninstall validation; Authenticode hooks are present for later certificate use.
 - `tools/build_update_manifest.py` creates the release manifest from the two already-validated packages.
 
-Core CI, macOS packaging and Windows packaging are independent acceptance gates. Release automation depends on all three, verifies the checksum sidecars again, and will not replace assets for an already-published version. `docs/DISTRIBUTION.md` describes the operational flow.
+Core CI, M10 visual/UX validation, macOS packaging and Windows packaging are independent acceptance checks. Release automation verifies the package checksum sidecars again and will not replace assets for an already-published version. `docs/DISTRIBUTION.md` describes the operational flow.
 
 ### Architecture hardening
 
-Production code must use normal inheritance, composition, services and signals. Runtime implementation replacement through `set_script(...)`, `take_over_path(...)`, direct script-property reassignment or equivalent mechanisms is prohibited. Core CI scans `src/` and `app/` for those patterns so a future change cannot quietly reintroduce them.
+Production code must use normal inheritance, composition, services and signals. Runtime implementation replacement through `set_script(...)`, `take_over_path(...)`, direct script-property reassignment or equivalent mechanisms is prohibited. Core CI and the M10 validation workflow scan `src/` and `app/` for those patterns so a future change cannot quietly reintroduce them.
 
 ## Determinism
 
-Identical scenario inputs, engine version, and solver configuration are expected to produce identical state within regression tolerance. CI covers structural determinism, paired-contact momentum conservation, static contact, scenario serialisation invariants, replay independence, comparison timing, export planning, M8 reference correlation, road-user construction/trajectory behaviour, type × speed comparison matrices, M9 version/update logic and complete-editor startup.
+Identical scenario inputs, engine version, and solver configuration are expected to produce identical state within regression tolerance. CI covers structural determinism, paired-contact momentum conservation, static contact, scenario serialisation invariants, replay independence, comparison timing, export planning, M8 reference correlation, road-user construction/trajectory behaviour, type × speed comparison matrices, M9 version/update logic, complete-editor startup, and M10 responsive presentation invariants.
 
 ## Units
 
@@ -150,4 +165,4 @@ Internal calculations use SI units: metres, seconds, kilograms, newtons, joules,
 
 CrashVector is an educational scenario-building and visualisation application. Most scenarios are not experimentally validated. A/B/C/D/J/M cars are generic representative classes; heavy vehicles and motorcycles are simplified structural graphs; bicycle and pedestrian modes are contact/trajectory proxies; broadside/complex oblique contact awaits a richer geometry system; and occupant/rider biomechanics and injury prediction remain outside the model.
 
-M8 makes that modelling boundary explicit in the UI and exported metadata. M9 changes distribution and update mechanics only; it does not broaden the validation claim or alter the physical model.
+M8 makes that modelling boundary explicit in the UI and exported metadata. M9 changes distribution and update mechanics only. M10 changes layout, interaction and visible scene presentation only; it does not broaden the validation claim or alter the physical model.

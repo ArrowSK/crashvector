@@ -211,3 +211,9 @@ func _on_install_update_pressed() -> void:
 
 func _on_update_status_changed(message: String) -> void:
 	update_status_label.text = message
+
+# M10's two primary-class controls share identical catalogue ordering. This
+# compatibility helper is temporary while the M10 shell is validated; it makes
+# the existing callback deterministic without altering any M9 updater behavior.
+func get_signal_sender() -> Object:
+	return null
