@@ -43,10 +43,11 @@ func _run() -> void:
 
 	# M6/M8 batch comparison still uses ComparisonRunner's historical reduced-
 	# order solver. M12 must refuse that production path until it is ported.
-	editor.comparison_results = [{"sentinel": true}]
+	editor.comparison_results.clear()
+	editor.comparison_results.append({"sentinel": true})
 	editor._on_run_comparison_pressed()
 	_expect(editor.comparison_results.is_empty(), "M12 Compare must not execute/retain legacy comparison results")
-	editor.comparison_results = [{"sentinel": true}]
+	editor.comparison_results.append({"sentinel": true})
 	editor._on_run_matrix_comparison()
 	_expect(editor.comparison_results.is_empty(), "M12 Comparison Lab must not execute/retain legacy matrix results")
 
