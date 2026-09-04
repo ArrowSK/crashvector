@@ -284,6 +284,10 @@ static func _add_profile_beam(
 			beam = model.add_beam(a, b, profile, 1250000.0 * s * m, 4200.0 * sqrt(s) * sqrt(m), 0.040, 0.42, 0.64, 15.0)
 			beam.configure_progressive_curve(0.42, 0.32, 0.70, component)
 		_:
-			beam = model.add_beam(a, b, &"safety_cell", 7200000.0 * s * m, 9000.0 * sqrt(s) * sqrt(m), 0.080, 0.20, 0.48, 5.0)
-			beam.component = component
+			# The protected cell is allowed to yield, but unlike the front rails it
+			# hardens strongly before its longitudinal members can collapse through
+			# zero length and re-open in an inverted topology. Break strain above
+			# 100% compression is deliberate for this generic cell representation.
+			beam = model.add_beam(a, b, &"safety_cell", 7200000.0 * s * m, 9000.0 * sqrt(s) * sqrt(m), 0.080, 0.28, 1.05, 4.0)
+			beam.configure_progressive_curve(0.58, 0.28, 2.80, component)
 	return beam
