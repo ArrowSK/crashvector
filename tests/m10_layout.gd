@@ -80,7 +80,7 @@ func _validate_scenario_layout(instance: Node, size: Vector2i) -> bool:
 			_fail("M10 produced an empty layout region at %s" % size)
 			return false
 		if control.position.x < -0.5 or control.position.y < -0.5 or control.position.x + control.size.x > float(size.x) + 0.5 or control.position.y + control.size.y > float(size.y) + 0.5:
-			_fail("M10 control escaped the window bounds at %s" % size)
+			_fail("M10 %s escaped %s: pos=%s size=%s viewport=%s" % [String(control.name), size, control.position, control.size, get_viewport().get_visible_rect().size])
 			return false
 	if not left.visible or not right.visible:
 		_fail("M10 unexpectedly collapsed desktop sidebars at %s" % size)
