@@ -7,6 +7,7 @@ extends RefCounted
 
 var nodes: Array[StructuralNode] = []
 var beams: Array[StructuralBeam] = []
+var bending_constraints: Array[StructuralBendingConstraint] = []
 var barrier_enabled: bool = true
 var barrier_x_m: float = 5.0
 var barrier_restitution: float = 0.0
@@ -52,6 +53,36 @@ func add_beam(
 	beams.append(beam)
 	return beam
 
+func add_bending_constraint(
+	index_a: int,
+	index_b: int,
+	index_c: int,
+	role: StringName,
+	stiffness_nm_rad: float,
+	damping_nm_s_rad: float,
+	yield_angle_rad: float,
+	max_plastic_angle_rad: float,
+	break_angle_rad: float,
+	plastic_flow_rate: float,
+	component: StringName = &""
+) -> StructuralBendingConstraint:
+	var constraint := StructuralBendingConstraint.new(
+		index_a,
+		index_b,
+		index_c,
+		nodes,
+		role,
+		stiffness_nm_rad,
+		damping_nm_s_rad,
+		yield_angle_rad,
+		max_plastic_angle_rad,
+		break_angle_rad,
+		plastic_flow_rate,
+		component
+	)
+	bending_constraints.append(constraint)
+	return constraint
+
 func set_uniform_velocity(velocity_ms: Vector3) -> void:
 	for node in nodes:
 		if not node.pinned:
@@ -83,19 +114,34 @@ func step(delta_s: float, substeps: int = 4) -> void:
 	var step_count := maxi(substeps, 1)
 	var h := delta_s / float(step_count)
 	for _substep in range(step_count):
-		for node in nodes:
-			node.reset_force()
-			if not gravity_ms2.is_zero_approx():
-				node.add_force(gravity_ms2 * node.mass_kg)
-		for beam in beams:
-			beam.solve(nodes, h)
-		for node in nodes:
-			node.integrate(h)
-		_resolve_barrier_contacts()
-		_resolve_ground_contacts()
-		elapsed_s += h
+		prepare_substep(h)
+		integrate_substep(h)
+
+func prepare_substep(delta_s: float) -> void:
+	if delta_s <= 0.0:
+		return
+	for node in nodes:
+		node.reset_force()
+		if not gravity_ms2.is_zero_approx():
+			node.add_force(gravity_ms2 * node.mass_kg)
+	for beam in beams:
+		beam.solve(nodes, delta_s)
+	for constraint in bending_constraints:
+		constraint.solve(nodes, delta_s)
+
+func integrate_substep(delta_s: float) -> void:
+	if delta_s <= 0.0:
+		return
+	for node in nodes:
+		node.integrate(delta_s)
+	_resolve_barrier_contacts()
+	_resolve_ground_contacts()
+	elapsed_s += delta_s
 
 func _resolve_barrier_contacts() -> void:
+	# Historical M0-M2 rigid barrier path. Production M11 scenarios disable
+	# this path and use VehicleStaticContact so contact forces participate in
+	# the same substep as structural and bending forces.
 	if not barrier_enabled:
 		return
 	for node in nodes:
@@ -221,24 +267,32 @@ func total_elastic_energy_j() -> float:
 	var result := 0.0
 	for beam in beams:
 		result += beam.elastic_energy_j(nodes)
+	for constraint in bending_constraints:
+		result += constraint.elastic_energy_j(nodes)
 	return result
 
 func total_plastic_energy_j() -> float:
 	var result := 0.0
 	for beam in beams:
 		result += beam.plastic_energy_j
+	for constraint in bending_constraints:
+		result += constraint.plastic_energy_j
 	return result
 
 func total_damping_energy_j() -> float:
 	var result := 0.0
 	for beam in beams:
 		result += beam.damping_energy_j
+	for constraint in bending_constraints:
+		result += constraint.damping_energy_j
 	return result
 
 func total_fracture_energy_j() -> float:
 	var result := 0.0
 	for beam in beams:
 		result += beam.fracture_energy_j
+	for constraint in bending_constraints:
+		result += constraint.fracture_energy_j
 	return result
 
 func accounted_energy_j() -> float:
@@ -264,6 +318,22 @@ func role_beam_count(role: StringName) -> int:
 	var result := 0
 	for beam in beams:
 		if beam.role == role:
+			result += 1
+	return result
+
+func component_beam_count(component: StringName) -> int:
+	var result := 0
+	for beam in beams:
+		if beam.component == component:
+			result += 1
+	return result
+
+func bending_constraint_count(component: StringName = &"") -> int:
+	if component == &"":
+		return bending_constraints.size()
+	var result := 0
+	for constraint in bending_constraints:
+		if constraint.component == component:
 			result += 1
 	return result
 
@@ -307,6 +377,12 @@ func max_permanent_deformation_for_role(role: StringName) -> float:
 			result = maxf(result, absf(beam.permanent_deformation_m()))
 	return result
 
+func max_permanent_bending_angle_rad() -> float:
+	var result := 0.0
+	for constraint in bending_constraints:
+		result = maxf(result, absf(constraint.permanent_angle_rad()))
+	return result
+
 func state_signature() -> PackedFloat64Array:
 	var signature := PackedFloat64Array()
 	for node in nodes:
@@ -320,4 +396,7 @@ func state_signature() -> PackedFloat64Array:
 	for beam in beams:
 		signature.append(beam.rest_length_m)
 		signature.append(1.0 if beam.broken else 0.0)
+	for constraint in bending_constraints:
+		signature.append(constraint.rest_angle_rad)
+		signature.append(1.0 if constraint.broken else 0.0)
 	return signature
