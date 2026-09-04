@@ -1,0 +1,35 @@
+name: M14 validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crashvector-m14-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  m14-road-users-obstacles:
+    name: M14 road-user and obstacle physics
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Architecture audit
+        run: sh tools/check_no_monkey_patching.sh
+      - name: Import and parse project
+        run: |
+          tools/ci_godot_checked.sh godot --headless --path . --editor --quit
+          tools/ci_godot_checked.sh godot --headless --path . --script res://tests/project_parse.gd
+      - name: M14 vulnerable-target and yielding-obstacle regression
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m14_road_users_obstacles.gd
+      - name: M14 production routing regression
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m14_production_path.gd

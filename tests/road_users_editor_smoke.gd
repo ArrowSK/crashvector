@@ -41,8 +41,9 @@ func _run_smoke() -> void:
 		push_error("Pedestrian target did not apply the default adult automatically")
 		quit(1)
 		return
-	if instance.get_node_or_null("Pedestrian") == null:
-		push_error("Pedestrian preview was not created")
+	var pedestrian_proxy := instance.get("road_user_proxy") as RoadUserRigidProxy3D
+	if pedestrian_proxy == null or pedestrian_proxy.pedestrian_visual == null:
+		push_error("Pedestrian rigid-body preview/presentation was not created")
 		quit(1)
 		return
 
@@ -55,8 +56,9 @@ func _run_smoke() -> void:
 		push_error("Bicycle target did not apply the default city bicycle automatically")
 		quit(1)
 		return
-	if instance.get_node_or_null("Bicycle") == null:
-		push_error("Bicycle preview was not created")
+	var bicycle_proxy := instance.get("road_user_proxy") as RoadUserRigidProxy3D
+	if bicycle_proxy == null or bicycle_proxy.bicycle_visual == null:
+		push_error("Bicycle rigid-body preview/presentation was not created")
 		quit(1)
 		return
 
