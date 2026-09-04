@@ -94,20 +94,29 @@ func _apply_pair_force(a: StructuralNode, b: StructuralNode, normal: Vector3, de
 	var critical_damping := 2.0 * sqrt(maxf(normal_stiffness_n_m * effective_mass, 0.0))
 	var damping_coefficient := critical_damping * clampf(damping_ratio, 0.0, 1.0)
 	# Positive relative normal speed is closing and adds damping. Negative speed
-	# is separation and reduces the spring release. The clamp prevents tensile
-	# contact after the surfaces are ready to separate.
-	var damping_force_signed := damping_coefficient * relative_normal_speed
+	# is separation and reduces the spring release.
+	var raw_damping_force_signed := damping_coefficient * relative_normal_speed
+	var damping_force_signed := raw_damping_force_signed
+	if absf(relative_normal_speed) > 0.000001:
+		var maximum_damping_force := effective_mass * absf(relative_normal_speed) / delta_s
+		damping_force_signed = clampf(raw_damping_force_signed, -maximum_damping_force, maximum_damping_force)
 	var requested_force := spring_force + damping_force_signed
 	var normal_force := clampf(requested_force, 0.0, maximum_force_per_pair_n)
 	var force_scale := 0.0
 	if requested_force > 0.000001:
 		force_scale = normal_force / requested_force
 	var applied_spring_force := spring_force * force_scale
+	var applied_damping_force_signed := damping_force_signed * force_scale
 
 	a.add_force(-normal * normal_force)
 	b.add_force(normal * normal_force)
 	current_contact_energy_j += 0.5 * applied_spring_force * penetration
-	accumulated_dissipation_j += damping_coefficient * relative_normal_speed * relative_normal_speed * force_scale * delta_s
+	if absf(relative_normal_speed) > 0.000001:
+		var damping_only_after_speed := relative_normal_speed - applied_damping_force_signed * inverse_mass_sum * delta_s
+		accumulated_dissipation_j += maxf(
+			0.5 * effective_mass * (relative_normal_speed * relative_normal_speed - damping_only_after_speed * damping_only_after_speed),
+			0.0
+		)
 	active_contacts += 1
 	contact_events += 1
 	if first_contact_time_s < 0.0:
@@ -121,7 +130,11 @@ func _apply_pair_force(a: StructuralNode, b: StructuralNode, normal: Vector3, de
 		var friction_force := minf(desired_friction_force, friction_coefficient * normal_force)
 		a.add_force(-tangent_direction * friction_force)
 		b.add_force(tangent_direction * friction_force)
-		accumulated_dissipation_j += friction_force * tangent_speed * delta_s
+		var tangent_after_speed := maxf(tangent_speed - friction_force * inverse_mass_sum * delta_s, 0.0)
+		accumulated_dissipation_j += maxf(
+			0.5 * effective_mass * (tangent_speed * tangent_speed - tangent_after_speed * tangent_after_speed),
+			0.0
+		)
 
 	if penetration > emergency_penetration_m:
 		var correction_depth := (penetration - emergency_penetration_m) * clampf(emergency_position_fraction, 0.0, 0.05)
