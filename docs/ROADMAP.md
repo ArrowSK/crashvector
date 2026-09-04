@@ -100,24 +100,23 @@
 - Full MPL-2.0 license text is included in the repository.
 - CI regression covers the complete M0–M8 suite, road-user construction/trajectory behaviour, scenario serialization, editor runtime, comparison matrices, calibration scope and the 130/140 km/h `v²` energy relationship.
 
-## M9 — Desktop distribution, updater and release hardening — release candidate
+## M9 — Desktop distribution, updater and release hardening — complete
 
-M9 is implemented as a distribution layer around the existing simulator, but it is deliberately not marked complete until the real macOS and Windows packages pass CI and `0.1.0-beta.1` is published with the validated artifacts.
+M9 is complete. The distribution layer was merged only after the real macOS and Windows package gates passed on the pull request, and the `v0.1.0-beta.1` prerelease was then published from a successful `main` run after package checksums were verified again.
 
-- Canonical Semantic Version in `project.godot`; first target `0.1.0-beta.1`.
+- Canonical Semantic Version in `project.godot`; first public packaged version `0.1.0-beta.1`.
 - Normal M9 inheritance over the existing M8/extended editor; no runtime script replacement.
 - Built-in Updates UI with manual and optional once-daily checks against official CrashVector GitHub Releases.
 - Prerelease-aware version comparison, release-note preview, deterministic platform package selection and SHA-256 verification before install handoff.
 - macOS installer handoff opens the verified DMG; Windows handoff launches the verified Setup executable; the running application is never overwritten in place.
 - Deterministic native icon containers generated from the existing high-resolution SVG branding master.
-- macOS Universal 2 export and drag-to-Applications DMG pipeline, with architecture/signature checks and Developer ID/notarization hooks.
-- Windows x64 export and Inno Setup pipeline, with executable metadata/icon checks, normal install/uninstall validation and Authenticode hooks.
+- macOS Universal 2 export and drag-to-Applications DMG pipeline, with `arm64`/`x86_64` architecture checks, signature verification and Developer ID/notarization hooks.
+- Windows x64 export and Inno Setup pipeline, with executable metadata/icon checks, normal Program Files installation/uninstallation validation and Authenticode hooks.
 - Core CI retains the complete M0–M8 regression/runtime suite and adds M9 updater/version tests, complete-editor smoke coverage and a prohibited-monkey-patching audit.
-- Platform packaging is independently gated from Core CI; M9 is not merge-complete on source tests alone.
-- Release automation verifies both package checksum sidecars, generates `update-manifest.json`, and creates an immutable GitHub prerelease only after all three validation areas pass.
+- Platform packaging is independently gated from Core CI.
+- Release automation verifies both package checksum sidecars, generates `update-manifest.json`, and refuses to replace an already-published release under the same version.
+- `v0.1.0-beta.1` was published with the Universal 2 DMG, Windows x64 Setup EXE, both SHA-256 sidecars and `update-manifest.json`.
 - Installation, removal, update, signing limitations, packaging architecture, release process and version policy are documented in `docs/DISTRIBUTION.md`.
-
-M9 becomes **complete** only after the real Universal 2 DMG and Windows Setup EXE have both passed package validation, their SHA-256 files are verified, the packaged updater layer is validated, and the `v0.1.0-beta.1` GitHub prerelease exists with both installers, both checksum sidecars and `update-manifest.json`.
 
 ## Beyond M9
 
