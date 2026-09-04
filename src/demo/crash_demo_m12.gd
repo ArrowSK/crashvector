@@ -23,16 +23,35 @@ func _rebuild_preview() -> void:
 	super._rebuild_preview()
 	_activate_hybrid_preview()
 
+func _target_supports_hybrid_world() -> bool:
+	if scenario == null:
+		return false
+	return scenario.target_type in [
+		ScenarioConfig.TARGET_WALL,
+		ScenarioConfig.TARGET_BARRIER,
+		ScenarioConfig.TARGET_POLE,
+		ScenarioConfig.TARGET_TREE,
+		ScenarioConfig.TARGET_PASSENGER_CAR,
+		ScenarioConfig.TARGET_TRUCK,
+	]
+
 func _activate_hybrid_preview() -> void:
+	hybrid_production_active = _target_supports_hybrid_world()
+	hybrid_elapsed_s = 0.0
 	if not hybrid_production_active:
+		# M12 deliberately refuses to run an unported target through the legacy
+		# spring-cloud world-motion solver. Keeping the editable preview preserves
+		# scenario files/UI while making the limitation explicit instead of
+		# silently returning physically misleading output.
+		if status_label != null:
+			status_label.text = "M12 hybrid physics: this target is not yet ported to rigid-body world physics; simulation is unavailable in this beta."
 		return
 	# The legacy reduced-order contact simulators stay available for historical
-	# tests/calibration, but the desktop production scene no longer steps them.
-	# Godot owns world motion/contact; the passenger-car structural graph is
-	# local crush only.
+	# tests/calibration only. The desktop production scene never steps them for
+	# hybrid-supported targets. Godot owns world motion/contact; the passenger-
+	# car structural graph is local crush only.
 	pair_simulation = null
 	static_simulation = null
-	hybrid_elapsed_s = 0.0
 	if car != null:
 		car.hybrid_physics_enabled = true
 		car.solver_substeps = scenario.solver_substeps
@@ -53,11 +72,17 @@ func _configure_chassis_material(chassis: VehicleRigidChassis) -> void:
 		chassis.physics_material_override = PhysicsMaterial.new()
 	chassis.physics_material_override.friction = clampf(scenario.contact_friction, 0.0, 1.0)
 	# A road vehicle against a rigid wall must not inherit the old elastic-node
-	# rebound. Keep the engine contact almost inelastic; structural crush is
+	# rebound. Keep engine contact almost inelastic; structural crush is
 	# represented separately by the local deformation graph.
 	chassis.physics_material_override.bounce = clampf(scenario.restitution, 0.0, 0.04)
 
 func _on_simulate_pressed() -> void:
+	if not _target_supports_hybrid_world():
+		simulation_running = false
+		simulation_paused = false
+		if status_label != null:
+			status_label.text = "Simulation blocked: this target has not yet been ported to M12 rigid-body physics. CrashVector will not fall back to the old world-motion solver."
+		return
 	super._on_simulate_pressed()
 	if not simulation_running or not hybrid_production_active:
 		return
@@ -73,6 +98,24 @@ func _on_simulate_pressed() -> void:
 	if truck != null:
 		truck.solver_substeps = scenario.solver_substeps
 		truck.begin_simulation()
+
+func _on_run_comparison_pressed() -> void:
+	# M6/M8 ComparisonRunner is a synchronous reduced-order structural runner.
+	# Do not expose it as if it were the new M12 world solver. The comparison UI
+	# stays present for compatibility and will be re-enabled when its recorder is
+	# ported to a SceneTree/RigidBody3D execution path.
+	comparison_results.clear()
+	comparison_playing = false
+	if status_label != null:
+		status_label.text = "Compare is temporarily unavailable in the M12 corrective beta while its recorder is ported to the rigid-body physics path."
+
+func _on_run_matrix_comparison() -> void:
+	comparison_results.clear()
+	comparison_playing = false
+	if comparison_lab_panel != null:
+		comparison_lab_panel.visible = false
+	if status_label != null:
+		status_label.text = "Comparison Lab is temporarily unavailable in the M12 corrective beta; the legacy batch solver is not used for production results."
 
 func _on_pause_pressed() -> void:
 	super._on_pause_pressed()
@@ -185,7 +228,7 @@ func _update_metrics() -> void:
 		return
 	var car_speed := PhysicsMetrics.ms_to_kmh(car.global_linear_velocity_ms().length())
 	var initial_energy_kj := PhysicsMetrics.kinetic_energy_from_speed_kmh(scenario.car_mass_kg, scenario.car_speed_kmh) / 1000.0
-	var extra := "Godot rigid-body world motion • CCD • real gravity/road contact"
+	var extra := "Godot RigidBody3D world motion • CCD • gravity • raycast suspension"
 	if target_car != null:
 		extra += " • target %.1f km/h" % PhysicsMetrics.ms_to_kmh(target_car.global_linear_velocity_ms().length())
 	elif truck != null:
