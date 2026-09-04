@@ -71,7 +71,12 @@ func make_scenario() -> ScenarioConfig:
 	config.target_position_m = Vector3(0.0, 0.0, 0.0)
 	config.target_heading_deg = 0.0
 	config.duration_s = 0.8
-	config.solver_substeps = 8
+	# M11 refines the production passenger-car graph from the historical
+	# coarse structure to 44 nodes with substantially stiffer protected-cell
+	# members. Keep the same stored physical scenario and evidence corridors,
+	# but integrate the reference at the converged 16-substep timestep already
+	# used by M11 high-speed stability coverage.
+	config.solver_substeps = 16
 	config.contact_friction = 0.55
 	config.restitution = 0.03
 	return config
