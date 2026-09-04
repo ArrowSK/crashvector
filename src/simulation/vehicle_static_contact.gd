@@ -16,7 +16,7 @@ var friction_coefficient: float = 0.55
 # penetration. Contact force participates in the same substep as the vehicle
 # structure so the front members have time to shorten, fold and dissipate work.
 var normal_stiffness_n_m: float = 14000000.0
-var damping_ratio: float = 0.10
+var damping_ratio: float = 0.75
 var maximum_force_per_node_n: float = 3500000.0
 var emergency_penetration_m: float = 0.20
 var emergency_position_fraction: float = 0.02
@@ -39,6 +39,16 @@ func configure(
 	obstacle_heading_deg = heading_deg
 	friction_coefficient = clampf(friction, 0.0, 1.5)
 	restitution = clampf(bounce, 0.0, 0.5)
+	damping_ratio = damping_ratio_for_restitution(restitution)
+
+static func damping_ratio_for_restitution(coefficient: float) -> float:
+	# Kelvin-Voigt contact uses the standard under-damped oscillator mapping
+	# between coefficient of restitution and damping ratio. Near-zero requested
+	# restitution intentionally approaches critical damping instead of leaving
+	# the provisional M11 contact highly elastic.
+	var e := clampf(coefficient, 0.0001, 0.9999)
+	var log_e := log(e)
+	return clampf(-log_e / sqrt(PI * PI + log_e * log_e), 0.0, 1.0)
 
 func apply_forces(model: StructuralModel, delta_s: float, elapsed_s: float) -> void:
 	current_contact_energy_j = 0.0
