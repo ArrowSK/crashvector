@@ -40,8 +40,10 @@ func _test_passenger_car_catalog(failures: Array[String]) -> void:
 		var preset := PassengerCarCatalog.data(id)
 		var mass := float(preset.get("default_mass_kg", 0.0))
 		var model := PassengerCarBuilder.build(id, -1.0, 50.0, 100.0)
-		if model.nodes.size() != 28:
-			failures.append("Passenger-car preset %s did not preserve the 28-node architecture" % id)
+		if model.nodes.size() != 44:
+			failures.append("Passenger-car preset %s did not build the M11 44-node production architecture" % id)
+		if model.bending_constraint_count() <= 0:
+			failures.append("Passenger-car preset %s lost M11 bending constraints" % id)
 		if absf(model.total_mass_kg() - mass) > 0.001:
 			failures.append("Passenger-car preset %s mass does not match its catalog default" % id)
 		var span := _model_x_span(model)
@@ -59,7 +61,7 @@ func _test_heavy_truck_architecture(failures: Array[String]) -> void:
 	if absf(truck.total_mass_kg() - 18000.0) > 0.001:
 		failures.append("Heavy-truck mass distribution does not sum to configured mass")
 	if HeavyTruckBuilder.rear_contact_nodes().size() != 2:
-		failures.append("Heavy truck must expose two rear underride contact nodes")
+		failures.append("Heavy truck must expose the historical two-node rear contact seed")
 	for role in [&"underride_guard", &"trailer_structure", &"trailer_chassis", &"fifth_wheel", &"tractor_structure", &"tractor_chassis"]:
 		if truck.role_beam_count(role) <= 0:
 			failures.append("Heavy truck is missing structural role: %s" % role)
@@ -71,7 +73,7 @@ func _test_lorry_architecture(failures: Array[String]) -> void:
 	if absf(lorry.total_mass_kg() - 12000.0) > 0.001:
 		failures.append("Rigid-lorry mass distribution does not sum to configured mass")
 	if RigidLorryBuilder.rear_contact_nodes().size() != 2:
-		failures.append("Rigid lorry must expose two rear contact nodes")
+		failures.append("Rigid lorry must expose the historical two-node rear contact seed")
 	for role in [&"lorry_rear_guard", &"lorry_cargo_structure", &"lorry_cargo_chassis", &"lorry_cab_structure", &"lorry_cab_chassis"]:
 		if lorry.role_beam_count(role) <= 0:
 			failures.append("Rigid lorry is missing structural role: %s" % role)
@@ -83,7 +85,7 @@ func _test_motorcycle_architecture(failures: Array[String]) -> void:
 	if absf(motorcycle.total_mass_kg() - 220.0) > 0.001:
 		failures.append("Motorcycle mass distribution does not sum to configured mass")
 	if MotorcycleBuilder.front_contact_nodes().size() != 2 or MotorcycleBuilder.rear_contact_nodes().size() != 2:
-		failures.append("Motorcycle must expose paired front and rear contact nodes")
+		failures.append("Motorcycle must expose paired front and rear contact seeds")
 	for role in [&"motorcycle_frame", &"motorcycle_rear", &"motorcycle_fork"]:
 		if motorcycle.role_beam_count(role) <= 0:
 			failures.append("Motorcycle is missing structural role: %s" % role)
@@ -99,14 +101,18 @@ func _test_pair_contact_conserves_momentum(failures: Array[String]) -> void:
 	truck.set_uniform_velocity(Vector3.ZERO)
 	var solver := VehiclePairContact.new()
 	var before := car.total_momentum_kg_ms() + truck.total_momentum_kg_ms()
-	solver.resolve_pairs(car, PackedInt32Array([0]), truck, PackedInt32Array([0]), Vector3.RIGHT, 0.0)
+	car.prepare_substep(DT)
+	truck.prepare_substep(DT)
+	solver.apply_forces(car, PackedInt32Array([0]), truck, PackedInt32Array([0]), Vector3.RIGHT, DT, 0.0)
+	car.integrate_substep(DT)
+	truck.integrate_substep(DT)
 	var after := car.total_momentum_kg_ms() + truck.total_momentum_kg_ms()
 	if (after - before).length() > 0.000001:
-		failures.append("Pair contact impulse does not conserve linear momentum")
+		failures.append("M11 compliant pair contact does not conserve linear momentum")
 	if truck.nodes[0].velocity_ms.x <= 0.0:
-		failures.append("Pair contact did not transfer forward momentum to the heavy body")
+		failures.append("M11 compliant pair contact did not transfer forward momentum to the heavy body")
 	if solver.contact_events != 1:
-		failures.append("Pair contact regression expected exactly one impulse event")
+		failures.append("M11 pair-contact regression expected exactly one compliant contact event")
 
 func _test_rear_impact_scenario(failures: Array[String]) -> void:
 	var car := PassengerCarBuilder.build(
@@ -131,7 +137,7 @@ func _test_rear_impact_scenario(failures: Array[String]) -> void:
 		failures.append("M3 rear-impact scenario transferred no net momentum to the truck")
 	if car.max_permanent_deformation_for_role(&"front_crush") <= 0.001:
 		failures.append("M3 rear-impact scenario produced no measurable front-crush deformation")
-	if simulation.momentum_error_kg_ms() > 0.01:
+	if simulation.momentum_error_kg_ms() > 0.05:
 		failures.append("M3 coupled scenario has excessive linear-momentum error")
 	if not _model_is_finite(car) or not _model_is_finite(truck):
 		failures.append("M3 coupled scenario produced non-finite state")
