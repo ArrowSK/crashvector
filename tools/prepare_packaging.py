@@ -49,6 +49,9 @@ def derived_versions(version: str) -> dict[str, str | int]:
 
 
 def write_export_presets(meta: dict[str, str | int]) -> None:
+    # The platform-native ICO/ICNS files are generated and verified in CI. Godot
+    # starts from the same canonical SVG, then packaging injects the generated
+    # native container before the final signature/installer is produced.
     content = f'''[preset.0]
 name="macOS Universal"
 platform="macOS"
@@ -69,7 +72,7 @@ script_export_mode=2
 [preset.0.options]
 binary_format/architecture="universal"
 application/bundle_identifier="com.arrowsk.crashvector"
-application/icon="res://build/icons/CrashVector.icns"
+application/icon="res://assets/branding/crashvector-icon.svg"
 application/short_version="{meta['mac_short_version']}"
 application/version="{meta['mac_build_version']}"
 application/copyright="Copyright (c) ArrowSK / CrashVector contributors"
@@ -99,7 +102,7 @@ binary_format/embed_pck=false
 binary_format/architecture="x86_64"
 codesign/enable=false
 application/modify_resources=false
-application/icon="res://build/icons/CrashVector.ico"
+application/icon="res://assets/branding/crashvector-icon.svg"
 application/company_name="ArrowSK"
 application/product_name="CrashVector"
 application/file_description="CrashVector educational 3D crash simulation"
