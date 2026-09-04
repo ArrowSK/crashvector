@@ -64,7 +64,27 @@ func solve(nodes: Array[StructuralNode], delta_s: float) -> void:
 	var span_rate := (front_velocity - rear_velocity).dot(forward_axis)
 	var closing_speed := maxf(-span_rate, 0.0)
 	var spring_force := stiffness_n_m * current_compression_m
-	var damping_force := damping_n_s_m * closing_speed
+	var raw_damping_force := damping_n_s_m * closing_speed
+	var damping_force := raw_damping_force
+
+	# The guard acts between two complete protected-cell cross-sections. Bound
+	# its viscous term using the effective mass of those two groups, exactly as
+	# the M11 beam/contact dampers are bounded for their local relative DOF. The
+	# previous unbounded group damper could remove the same shared motion again
+	# after several member dampers had already acted during an explicit substep,
+	# producing an impossible cumulative energy ledger even when geometry stayed
+	# stable and symmetric.
+	var rear_mass := _group_mass(nodes, rear_indices)
+	var front_mass := _group_mass(nodes, front_indices)
+	var inverse_mass_sum := 0.0
+	if rear_mass > 0.0:
+		inverse_mass_sum += 1.0 / rear_mass
+	if front_mass > 0.0:
+		inverse_mass_sum += 1.0 / front_mass
+	if inverse_mass_sum > 0.0 and closing_speed > 0.000001:
+		var maximum_damping_force := closing_speed / (inverse_mass_sum * delta_s)
+		damping_force = minf(raw_damping_force, maximum_damping_force)
+
 	var requested_force := spring_force + damping_force
 	var total_force := minf(requested_force, maximum_force_n)
 	if total_force <= 0.0:
@@ -74,7 +94,13 @@ func solve(nodes: Array[StructuralNode], delta_s: float) -> void:
 
 	_distribute_force(nodes, front_indices, forward_axis * total_force)
 	_distribute_force(nodes, rear_indices, -forward_axis * total_force)
-	damping_energy_j += applied_damping_force * closing_speed * delta_s
+	if inverse_mass_sum > 0.0 and closing_speed > 0.000001:
+		var effective_mass := 1.0 / inverse_mass_sum
+		var damping_only_after_speed := maxf(closing_speed - applied_damping_force * inverse_mass_sum * delta_s, 0.0)
+		damping_energy_j += maxf(
+			0.5 * effective_mass * (closing_speed * closing_speed - damping_only_after_speed * damping_only_after_speed),
+			0.0
+		)
 
 func rotate_y(angle_rad: float) -> void:
 	if is_zero_approx(angle_rad):
@@ -106,6 +132,14 @@ func _distribute_force(nodes: Array[StructuralNode], indices: PackedInt32Array, 
 	for index in indices:
 		if index >= 0 and index < nodes.size():
 			nodes[index].add_force(share)
+
+func _group_mass(nodes: Array[StructuralNode], indices: PackedInt32Array) -> float:
+	var mass := 0.0
+	for index in indices:
+		if index < 0 or index >= nodes.size() or nodes[index].pinned:
+			continue
+		mass += nodes[index].mass_kg
+	return mass
 
 func _average_position(nodes: Array[StructuralNode], indices: PackedInt32Array) -> Vector3:
 	var result := Vector3.ZERO
