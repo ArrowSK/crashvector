@@ -150,7 +150,7 @@ Current important ranges are:
 - motorcycle: 80–600 kg and 0–250 km/h;
 - bicycle: 5–60 kg and 0–80 km/h;
 - pedestrian: 15–200 kg and currently 0 km/h initial speed;
-- structural solver substeps: 1–32. Normal scenarios retain their existing defaults; the M11 M8-reference correlation run uses 32 for reference-quality integration of the refined 44-node passenger-car structure.
+- structural solver substeps: 1–64. Normal scenarios retain their existing defaults; the M11 M8-reference correlation run uses 64 on the same public solver path for the refined 44-node passenger-car structure.
 
 Passenger-car, motorcycle, and bicycle paired-node contact supports rear-end or near head-on layouts. Broadside/strongly oblique configurations are rejected rather than silently using the front/rear contact model outside its intended range. Heavy-truck and lorry rear-contact scenarios currently support heading differences up to 25 degrees.
 
