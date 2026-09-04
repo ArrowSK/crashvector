@@ -8,6 +8,7 @@ extends RefCounted
 var node_a: int
 var node_b: int
 var role: StringName
+var component: StringName = &""
 var original_rest_length_m: float
 var rest_length_m: float
 var stiffness_n_m: float
@@ -16,8 +17,12 @@ var yield_strain: float
 var max_plastic_strain: float
 var break_strain: float
 var plastic_flow_rate: float
+var post_yield_stiffness_ratio: float = 1.0
+var hardening_start_strain: float = 1.0
+var hardening_stiffness_ratio: float = 0.0
 var broken: bool = false
 var last_force_n: float = 0.0
+var last_spring_force_n: float = 0.0
 var last_total_strain: float = 0.0
 var plastic_energy_j: float = 0.0
 var damping_energy_j: float = 0.0
@@ -50,6 +55,18 @@ func _init(
 	)
 	rest_length_m = original_rest_length_m
 
+func configure_progressive_curve(
+	post_yield_ratio: float,
+	hardening_start: float,
+	hardening_ratio: float,
+	beam_component: StringName = &""
+) -> StructuralBeam:
+	post_yield_stiffness_ratio = clampf(post_yield_ratio, 0.0, 2.0)
+	hardening_start_strain = maxf(hardening_start, yield_strain)
+	hardening_stiffness_ratio = clampf(hardening_ratio, 0.0, 4.0)
+	component = beam_component
+	return self
+
 func solve(nodes: Array[StructuralNode], delta_s: float) -> void:
 	if broken or delta_s <= 0.0:
 		return
@@ -67,12 +84,14 @@ func solve(nodes: Array[StructuralNode], delta_s: float) -> void:
 		fracture_energy_j += elastic_energy_j(nodes)
 		broken = true
 		last_force_n = 0.0
+		last_spring_force_n = 0.0
 		return
 
 	var relative_speed_ms := (b.velocity_ms - a.velocity_ms).dot(direction)
 	var elastic_extension_m := length_m - rest_length_m
-	var spring_force_n := stiffness_n_m * elastic_extension_m
+	var spring_force_n := _progressive_spring_force_n(elastic_extension_m)
 	var damping_force_n := damping_n_s_m * relative_speed_ms
+	last_spring_force_n = spring_force_n
 	last_force_n = spring_force_n + damping_force_n
 
 	var force_vector := direction * last_force_n
@@ -81,6 +100,29 @@ func solve(nodes: Array[StructuralNode], delta_s: float) -> void:
 	damping_energy_j += damping_n_s_m * relative_speed_ms * relative_speed_ms * delta_s
 
 	_apply_plastic_flow(length_m, spring_force_n, delta_s)
+
+func _progressive_spring_force_n(elastic_extension_m: float) -> float:
+	if absf(elastic_extension_m) <= 0.000000001:
+		return 0.0
+	if post_yield_stiffness_ratio >= 0.9999 and hardening_stiffness_ratio <= 0.0001:
+		return stiffness_n_m * elastic_extension_m
+
+	var sign_value := 1.0 if elastic_extension_m >= 0.0 else -1.0
+	var elastic_strain := absf(elastic_extension_m) / maxf(original_rest_length_m, 0.0001)
+	if elastic_strain <= yield_strain:
+		return stiffness_n_m * elastic_extension_m
+
+	var yield_extension := yield_strain * original_rest_length_m
+	var force_magnitude := stiffness_n_m * yield_extension
+	force_magnitude += stiffness_n_m * post_yield_stiffness_ratio * maxf(absf(elastic_extension_m) - yield_extension, 0.0)
+	if elastic_strain > hardening_start_strain:
+		force_magnitude += (
+			stiffness_n_m
+			* hardening_stiffness_ratio
+			* (elastic_strain - hardening_start_strain)
+			* original_rest_length_m
+		)
+	return sign_value * force_magnitude
 
 func _apply_plastic_flow(length_m: float, spring_force_n: float, delta_s: float) -> void:
 	var abs_strain := absf(last_total_strain)
@@ -102,7 +144,8 @@ func elastic_energy_j(nodes: Array[StructuralNode]) -> float:
 		return 0.0
 	var length_m := (nodes[node_b].position_m - nodes[node_a].position_m).length()
 	var extension_m := length_m - rest_length_m
-	return 0.5 * stiffness_n_m * extension_m * extension_m
+	var spring_force := _progressive_spring_force_n(extension_m)
+	return 0.5 * absf(spring_force * extension_m)
 
 func permanent_strain() -> float:
 	return (rest_length_m - original_rest_length_m) / original_rest_length_m
