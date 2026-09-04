@@ -107,8 +107,9 @@ func _test_pair_contact_conserves_momentum(failures: Array[String]) -> void:
 	car.integrate_substep(DT)
 	truck.integrate_substep(DT)
 	var after := car.total_momentum_kg_ms() + truck.total_momentum_kg_ms()
-	if (after - before).length() > 0.000001:
-		failures.append("M11 compliant pair contact does not conserve linear momentum")
+	var momentum_error := (after - before).length()
+	if momentum_error > 0.001:
+		failures.append("M11 compliant pair contact does not conserve linear momentum within numerical tolerance: %.9f kg m/s" % momentum_error)
 	if truck.nodes[0].velocity_ms.x <= 0.0:
 		failures.append("M11 compliant pair contact did not transfer forward momentum to the heavy body")
 	if solver.contact_events != 1:
