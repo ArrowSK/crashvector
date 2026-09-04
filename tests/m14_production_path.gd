@@ -22,6 +22,27 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 
+	# Regression for the M10 evidence-scope chip used by labels such as
+	# "Extrapolated". The inherited M8 modal must sit above the full-screen M10
+	# canvas, remain interactive, and closing it must leave the normal editor UI
+	# visible. Previously the panel rendered under M10 and its Close button could
+	# not receive input.
+	_expect(editor.m10_root != null and editor.m10_root.visible, "Production UI must be visible before opening evidence scope")
+	_expect(editor.m10_scope_chip != null, "Production UI must expose the evidence-scope chip")
+	if editor.m10_scope_chip != null:
+		editor.m10_scope_chip.emit_signal("pressed")
+		await process_frame
+		_expect(editor.calibration_panel != null and editor.calibration_panel.visible, "Evidence-scope chip must open calibration/evidence modal")
+		_expect(editor.calibration_canvas != null and editor.m10_canvas != null and editor.calibration_canvas.layer > editor.m10_canvas.layer, "Calibration modal must render and receive input above M10 UI")
+		_expect(editor.m10_root.visible, "Opening evidence scope must not remove the normal editor UI")
+		var close_button := _find_button_by_text(editor.calibration_panel, "Close")
+		_expect(close_button != null, "Calibration/evidence modal must expose its Close button")
+		if close_button != null:
+			close_button.emit_signal("pressed")
+			await process_frame
+			_expect(not editor.calibration_panel.visible, "Calibration/evidence Close button must dismiss the modal")
+			_expect(editor.m10_root.visible, "Closing evidence scope must restore/retain the normal editor UI")
+
 	# Pedestrian is no longer an unported/blocked target. The production scene
 	# must replace the historical direct structural object with a rigid proxy.
 	editor.scenario.apply_target_defaults(ScenarioConfig.TARGET_PEDESTRIAN)
@@ -72,6 +93,17 @@ func _run() -> void:
 	editor.queue_free()
 	await process_frame
 	_finish()
+
+func _find_button_by_text(node: Node, wanted_text: String) -> Button:
+	if node == null:
+		return null
+	if node is Button and (node as Button).text == wanted_text:
+		return node as Button
+	for child in node.get_children():
+		var found := _find_button_by_text(child, wanted_text)
+		if found != null:
+			return found
+	return null
 
 func _on_watchdog_timeout() -> void:
 	if finished:
