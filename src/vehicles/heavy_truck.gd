@@ -129,11 +129,19 @@ func _build_rigid_chassis() -> void:
 	rigid_chassis.add_box_shape("TrailerCollision", Vector3(6.10, 2.95, 2.42), Vector3(3.55, 2.05, 0.0))
 	rigid_chassis.add_box_shape("TractorCollision", Vector3(2.65, 2.55, 2.28), Vector3(8.20, 1.72, 0.0))
 	rigid_chassis.add_box_shape("TruckFrameCollision", Vector3(9.45, 0.30, 1.80), Vector3(4.72, 0.58, 0.0))
+	# M12: road support is suspension force, not rigid tyre spheres. This avoids
+	# high-speed wheel/road impulses kicking the truck upward during an impact.
+	var mass_scale := maxf(total_mass_kg / 18000.0, 0.20)
+	var suspension_k := 300000.0 * mass_scale
+	var suspension_c := 22000.0 * sqrt(mass_scale)
+	var suspension_max := 85000.0 * mass_scale
 	for station in [1, 4, 6]:
 		var x := HeavyTruckBuilder.STATION_X[station]
 		var z := HeavyTruckBuilder.HALF_WIDTH_Z[station]
-		rigid_chassis.add_sphere_shape("TruckWheelCollision", 0.46, Vector3(x, 0.46, -z))
-		rigid_chassis.add_sphere_shape("TruckWheelCollision", 0.46, Vector3(x, 0.46, z))
+		var mount_y := 0.72
+		var rest_distance := 0.82
+		rigid_chassis.add_suspension_point("TruckSuspension", Vector3(x, mount_y, -z), rest_distance, suspension_k, suspension_c, suspension_max)
+		rigid_chassis.add_suspension_point("TruckSuspension", Vector3(x, mount_y, z), rest_distance, suspension_k, suspension_c, suspension_max)
 	last_chassis_transform = rigid_chassis.global_transform
 	chassis_sync_ready = true
 
