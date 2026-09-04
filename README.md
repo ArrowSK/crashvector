@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img alt="M8 complete" src="https://img.shields.io/badge/milestone-M8%20complete-ff4d1f?style=for-the-badge">
+  <img alt="M9 complete" src="https://img.shields.io/badge/milestone-M9%20complete-ff4d1f?style=for-the-badge">
   <a href="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml/badge.svg?branch=main"></a>
 </p>
 
@@ -28,7 +28,7 @@ CrashVector is an open-source desktop crash-simulation sandbox for people who wa
 
 Set up a vehicle and target, press **Simulate**, scrub the recorded crash, compare alternatives side by side, and export a cinematic video. The physics is intentionally visible and measurable, but the claims stay conservative.
 
-> **Current state:** **M8 is complete on `main`**, including the full vehicle/road-user library, arbitrary speed comparison, Comparison Lab and the first evidence-labelled calibration reference. CrashVector currently runs from source in **Godot 4.4.1+**; a packaged desktop release has not been published yet.
+> **Current state:** **M9 is complete on `main`**. The first packaged desktop beta, **0.1.0-beta.1**, is published for macOS Universal 2 and Windows x64 with native installers, SHA-256 sidecars, a machine-readable update manifest and the built-in updater layer. M0–M8 simulation, replay, comparison, calibration and cinematic-export behaviour is retained.
 
 > **Scope:** CrashVector is an educational physics visualisation tool. It is **not** certified accident reconstruction, homologation, manufacturer crash-performance prediction, biomechanics, medical/injury prediction or a safety-rating system.
 
@@ -74,6 +74,7 @@ Mass is editable, but it is never mandatory setup work.
 | Presentation | Car colours, structure/X-ray view, visual lanes, analysis overlays and cinematic cameras |
 | Video export | 1080p / 1440p / 4K offline replay rendering at 30/60 fps with external FFmpeg H.264 encoding |
 | Calibration | Evidence labels plus a narrow NHTSA full-frontal rigid-wall structural-correlation reference |
+| Desktop distribution | macOS Universal 2 DMG and Windows x64 Setup installer with native identity, checksums and update support |
 
 ## Vehicle and target library
 
@@ -234,6 +235,19 @@ CrashVector intentionally rejects some scenarios instead of making a visually pl
 
 For deeper physics assumptions, see [Physics notes](docs/PHYSICS.md).
 
+## Install the packaged beta
+
+The current public prerelease is **0.1.0-beta.1**:
+
+- macOS: `CrashVector-0.1.0-beta.1-macOS-universal.dmg` — Universal 2 for Apple Silicon and Intel; open the DMG and drag CrashVector to Applications.
+- Windows: `CrashVector-0.1.0-beta.1-Windows-x64-Setup.exe` — standard graphical installer with a normal uninstaller.
+
+Download installers only from the official [CrashVector 0.1.0-beta.1 GitHub Release](https://github.com/ArrowSK/crashvector/releases/tag/v0.1.0-beta.1). SHA-256 sidecars are published next to both packages. The first beta is ad-hoc signed on macOS and unsigned on Windows unless signing credentials are configured, so Gatekeeper or SmartScreen may display an unknown-developer warning.
+
+CrashVector includes **Updates → Check for updates**. It can also perform an optional once-daily background check, but installation is never silent: the downloaded package is verified before CrashVector hands it to the operating system installer.
+
+See [Desktop distribution and updates](docs/DISTRIBUTION.md) for installation, removal, update, signing and release-process details.
+
 ## Run from source
 
 Requirements:
@@ -253,16 +267,17 @@ Or open `project.godot` directly in Godot and run the project.
 
 | Guide | What it is for |
 | --- | --- |
-| [Roadmap](docs/ROADMAP.md) | M0–M8 implementation history and the next accuracy work |
-| [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, comparison, export and calibration layers |
+| [Roadmap](docs/ROADMAP.md) | M0–M9 implementation history and the next accuracy work |
+| [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, comparison, export, calibration and distribution layers |
 | [Physics notes](docs/PHYSICS.md) | Contact, energy accounting, structural assumptions and modelling boundaries |
 | [Calibration](docs/CALIBRATION.md) | Reference source, evidence labels and regression corridors |
 | [Scenario format](docs/SCENARIO_FORMAT.md) | Human-readable `.crashvector.json` save/load format |
 | [Video export](docs/VIDEO_EXPORT.md) | Offline rendering, camera modes, FFmpeg boundary and metadata |
+| [Desktop distribution and updates](docs/DISTRIBUTION.md) | Installation, updater, packaging, signing and release architecture |
 
 ## Development status
 
-**M0 through M8 are complete.** The full CI gate imports/parses the Godot project and runs the milestone regression suites, editor runtime smoke tests, calibration checks, road-user tests and comparison-matrix tests.
+**M0 through M9 are complete.** Core CI imports/parses the Godot project, audits against runtime monkey patching, and runs the complete M0–M9 regression/runtime suite. Independent packaging gates build and validate the macOS Universal 2 DMG and Windows x64 installer. The `v0.1.0-beta.1` prerelease was published only after those gates passed and both package checksums were re-verified by the release job.
 
 The next accuracy work should add additional independent public/licensed crash references, richer side-impact contact geometry, tyre/suspension behaviour and other explicit validation milestones rather than silently extending the M8 evidence claim.
 
