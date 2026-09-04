@@ -18,7 +18,7 @@ env:
 
 jobs:
   core-ci:
-    name: Core CI (M0-M9)
+    name: Core CI (M0-M12)
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.4.1
@@ -30,7 +30,7 @@ jobs:
         run: |
           tools/ci_godot_checked.sh godot --headless --path . --editor --quit
           tools/ci_godot_checked.sh godot --headless --path . --script res://tests/project_parse.gd
-      - name: Run complete M0-M9 regression suite
+      - name: Run complete M0-M12 regression suite
         shell: bash
         run: |
           set -euo pipefail
@@ -39,7 +39,9 @@ jobs:
             m4_scenario_editor.gd m5_analysis_replay.gd m5_editor_smoke.gd \
             m6_comparison.gd m6_editor_smoke.gd m7_video_export.gd m7_editor_smoke.gd \
             m8_calibration.gd m8_editor_smoke.gd road_users_comparison.gd \
-            road_users_editor_smoke.gd m9_updater.gd m9_editor_smoke.gd; do
+            road_users_editor_smoke.gd m9_updater.gd m9_editor_smoke.gd \
+            m10_editor_smoke.gd m10_layout.gd m11_crush_dynamics.gd \
+            m12_hybrid_physics.gd m12_production_path.gd; do
             echo "=== $test_script ==="
             tools/ci_godot_checked.sh godot --headless --path . --script "res://tests/$test_script"
           done
