@@ -10,16 +10,69 @@ var surface_position_m := Vector3.ZERO
 var heading_deg := 0.0
 var physics_body: StaticBody3D
 
+# M14 narrow-obstacle response. Wall/barrier remain rigid. Pole/tree keep a
+# static collision body for stable Godot contact, but its complete collision
+# geometry and visible geometry rotate permanently about the ground attachment
+# as collision demand exceeds generic yielding capacity. This is deliberately a
+# reduced-order yielding model, not a soil/foundation or timber/steel FE model.
+var yield_peak_demand_j: float = 0.0
+var yield_bend_angle_rad: float = 0.0
+var yield_impact_direction_world := Vector3.RIGHT
+var yield_failed: bool = false
+
 func configure(type_id: StringName, position_m: Vector3, yaw_deg: float) -> void:
 	obstacle_type = type_id
 	surface_position_m = position_m
 	heading_deg = yaw_deg
+	reset_yield()
 	_build_visuals()
 
 func set_editor_transform(position_m: Vector3, yaw_deg: float) -> void:
 	surface_position_m = position_m
 	heading_deg = yaw_deg
 	_apply_visual_transform()
+
+func reset_yield() -> void:
+	yield_peak_demand_j = 0.0
+	yield_bend_angle_rad = 0.0
+	yield_impact_direction_world = Vector3.RIGHT
+	yield_failed = false
+	_apply_visual_transform()
+
+func apply_collision_demand(energy_j: float, impact_direction_world: Vector3) -> void:
+	if obstacle_type != ScenarioConfig.TARGET_POLE and obstacle_type != ScenarioConfig.TARGET_TREE:
+		return
+	if not is_finite(energy_j) or energy_j <= yield_peak_demand_j:
+		return
+	yield_peak_demand_j = energy_j
+	var horizontal := Vector3(impact_direction_world.x, 0.0, impact_direction_world.z)
+	if horizontal.length_squared() > 0.0001:
+		yield_impact_direction_world = horizontal.normalized()
+	var yield_start_j := 70000.0
+	var full_bend_j := 420000.0
+	var maximum_angle_deg := 78.0
+	var failure_multiplier := 1.15
+	if obstacle_type == ScenarioConfig.TARGET_TREE:
+		yield_start_j = 240000.0
+		full_bend_j = 1550000.0
+		maximum_angle_deg = 62.0
+		failure_multiplier = 1.15
+	var fraction := clampf((yield_peak_demand_j - yield_start_j) / maxf(full_bend_j - yield_start_j, 1.0), 0.0, 1.0)
+	fraction = fraction * fraction * (3.0 - 2.0 * fraction)
+	yield_bend_angle_rad = deg_to_rad(maximum_angle_deg) * fraction
+	if yield_peak_demand_j >= full_bend_j * failure_multiplier:
+		yield_failed = true
+		yield_bend_angle_rad = deg_to_rad(88.0 if obstacle_type == ScenarioConfig.TARGET_POLE else 76.0)
+	_apply_visual_transform()
+
+func bend_angle_deg() -> float:
+	return rad_to_deg(yield_bend_angle_rad)
+
+func has_yielded() -> bool:
+	return yield_bend_angle_rad > deg_to_rad(0.25)
+
+func has_failed() -> bool:
+	return yield_failed
 
 func _build_visuals() -> void:
 	for child in get_children():
@@ -159,7 +212,16 @@ func _add_sphere(node_name: String, radius: float, material: Material, local_pos
 	return instance
 
 func _apply_visual_transform() -> void:
-	rotation = Vector3(0.0, deg_to_rad(heading_deg), 0.0)
+	var yaw_basis := Basis(Vector3.UP, deg_to_rad(heading_deg))
+	if obstacle_type == ScenarioConfig.TARGET_POLE or obstacle_type == ScenarioConfig.TARGET_TREE:
+		var bend_axis := Vector3.UP.cross(yield_impact_direction_world).normalized()
+		if bend_axis.is_zero_approx() or yield_bend_angle_rad <= 0.00001:
+			basis = yaw_basis
+		else:
+			basis = Basis(bend_axis, yield_bend_angle_rad) * yaw_basis
+		position = surface_position_m
+		return
+	basis = yaw_basis
 	if obstacle_type == ScenarioConfig.TARGET_WALL or obstacle_type == ScenarioConfig.TARGET_BARRIER:
 		var forward := Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
 		var thickness := 0.45 if obstacle_type == ScenarioConfig.TARGET_WALL else 0.42
