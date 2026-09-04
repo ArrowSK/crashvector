@@ -12,7 +12,9 @@ The historical `CompactHatchbackBuilder` remains available as the M2 regression 
 
 The refined front structure distinguishes bumper/nose structure, crash boxes, front rails, upper rails, subframe/cross-members and the firewall transition. Front members use progressive post-yield force curves rather than one purely linear axial spring law. Three-node bending constraints add angular stiffness, damping, plastic fold angle and fracture behaviour. The passenger cell receives substantially stronger bending constraints than the crush zone, together with a longitudinal anti-inversion guard so a centred frontal load cannot numerically turn the protected-cell reference frame through 180 degrees.
 
-Structural viscous damping and plastic-flow bookkeeping are bounded by the local relative motion available during the current explicit substep. This prevents the refined, stiffer M11 graph from numerically reporting more dissipated energy than the local motion can supply.
+Structural viscous damping is bounded by the local relative motion available during each explicit substep. Progressive beam strain energy is integrated from the actual nonlinear force/displacement curve rather than using the linear-spring `1/2 F x` shortcut after yield or hardening.
+
+M11 production static-collision energy validation uses a work-conjugate structural ledger. The refined reduced-order model combines axial members, plastic rest-state changes, fracture, phenomenological fold constraints and the passenger-cell guard; their separate diagnostic energy estimates are useful individually but are not assumed to be mutually independent calorimetric channels. The regression balance therefore integrates the actual structural force work against actual node motion and independently accounts contact spring and contact-dissipation energy. This changes only the diagnostic balance calculation, not collision forces, deformation, replay or calibration corridors.
 
 ## Contact changes
 
@@ -24,9 +26,9 @@ Vehicle-pair simulation expands historical two-node contact seeds to the complet
 
 ## Solver convergence and M8 reference
 
-The refined 44-node structure is materially stiffer than the historical production graph. The existing M8 reference scenario therefore exposed timestep sensitivity that was hidden by the older coarse structure: moving the unchanged reference from 8 to 16 structural substeps reduced the numerical energy residual by more than an order of magnitude while returning the reference delta-v to the unchanged project guardrail.
+The refined 44-node structure is materially stiffer than the historical production graph, so M11 expands the public scenario solver range to 1–64 structural substeps. The stored 56.5 km/h M8 reference uses the same public path at 64 substeps.
 
-M11 extends the public scenario solver range from 1–16 to 1–32 substeps and runs the stored 56.5 km/h M8 reference at 32 substeps. This is not a private calibration bypass: `ScenarioConfig`, the desktop Physics control and the reference runner all use the same public limit. The reference mass, speed, contact settings, source-correlation evidence and project regression corridors are unchanged.
+The reference mass, speed, contact settings, source-correlation evidence and project regression corridors are unchanged. In particular, the approximately 120 ms crash pulse remains the external NHTSA-linked observation; delta-v, safety-cell proxy and the energy-balance threshold remain CrashVector project regression guardrails rather than NHTSA acceptance criteria.
 
 ## Acceptance tests
 
@@ -43,6 +45,6 @@ M11 extends the public scenario solver range from 1–16 to 1–32 substeps and 
 - pair linear-momentum conservation;
 - finite, bounded high-speed 140 km/h wall behaviour.
 
-The existing M8 calibration regression remains mandatory and is not weakened for M11. M10 editor smoke also checks that the desktop solver control exposes the same 32-substep maximum accepted by `ScenarioConfig`.
+The existing M8 calibration regression remains mandatory and its corridors are not weakened for M11. M10 editor smoke also checks that the desktop solver control exposes the same 64-substep maximum accepted by `ScenarioConfig`.
 
 M11 does not turn CrashVector into a certified crash-reconstruction or production-vehicle FE model. The refined structure is still a generic reduced-order educational model, and evidence labels remain authoritative.
