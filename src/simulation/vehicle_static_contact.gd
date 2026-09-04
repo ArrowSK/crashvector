@@ -11,13 +11,6 @@ var obstacle_heading_deg: float = 0.0
 var restitution: float = 0.03
 var friction_coefficient: float = 0.55
 
-# M11 compliant contact. The obstacle remains effectively rigid, but it no
-# longer instantaneously zeroes node velocity or teleports the vehicle out of
-# penetration. Contact force participates in the same substep as the vehicle
-# structure so the front members have time to shorten, fold and dissipate work.
-# The contact spring is intentionally softer than the structural rails: the
-# boundary should build load over several solver ticks rather than emulate an
-# impulse at one nose node.
 var normal_stiffness_n_m: float = 3000000.0
 var damping_ratio: float = 0.75
 var maximum_force_per_node_n: float = 750000.0
@@ -111,21 +104,25 @@ func _apply_node_force(node: StructuralNode, normal: Vector3, penetration_m: flo
 	if first_contact_time_s < 0.0:
 		first_contact_time_s = elapsed_s
 
-	var closing_speed := maxf(-node.velocity_ms.dot(n), 0.0)
+	var normal_speed := node.velocity_ms.dot(n)
 	var spring_force := normal_stiffness_n_m * penetration_m
 	var critical_damping := 2.0 * sqrt(maxf(normal_stiffness_n_m * node.mass_kg, 0.0))
 	var damping_coefficient := critical_damping * clampf(damping_ratio, 0.0, 1.0)
-	var damping_force := damping_coefficient * closing_speed
-	var requested_force := spring_force + damping_force
-	var normal_force := minf(requested_force, maximum_force_per_node_n)
-	var force_scale := normal_force / maxf(requested_force, 0.000001)
+	# Negative normal speed means compression and therefore adds damping force;
+	# positive speed means separation and subtracts damping from spring release.
+	# Clamping the combined force at zero prevents a tensile wall contact.
+	var damping_force_signed := -damping_coefficient * normal_speed
+	var requested_force := spring_force + damping_force_signed
+	var normal_force := clampf(requested_force, 0.0, maximum_force_per_node_n)
+	var force_scale := 0.0
+	if requested_force > 0.000001:
+		force_scale = normal_force / requested_force
 	var applied_spring_force := spring_force * force_scale
-	var applied_damping_force := damping_force * force_scale
 	node.add_force(n * normal_force)
 	current_contact_energy_j += 0.5 * applied_spring_force * penetration_m
-	accumulated_dissipation_j += applied_damping_force * closing_speed * delta_s
+	accumulated_dissipation_j += damping_coefficient * normal_speed * normal_speed * force_scale * delta_s
 
-	var tangent_velocity := node.velocity_ms - n * node.velocity_ms.dot(n)
+	var tangent_velocity := node.velocity_ms - n * normal_speed
 	var tangent_speed := tangent_velocity.length()
 	if tangent_speed > 0.000001 and friction_coefficient > 0.0:
 		var tangent_direction := tangent_velocity / tangent_speed
