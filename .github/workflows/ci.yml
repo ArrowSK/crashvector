@@ -5,14 +5,25 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: 4.4.1
+  GODOT_TAG: 4.4.1-stable
+
 jobs:
-  physics-tests:
+  core-ci:
+    name: Core CI (M0-M9)
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.4.1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Audit architecture for runtime monkey-patching
+        run: sh tools/check_no_monkey_patching.sh
 
       - name: Import and parse project
         run: tools/ci_godot_checked.sh godot --headless --path . --editor --quit
@@ -64,3 +75,402 @@ jobs:
 
       - name: Run road-user editor runtime smoke test
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/road_users_editor_smoke.gd
+
+      - name: Run M9 updater and version tests
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m9_updater.gd
+
+      - name: Run M9 complete-editor runtime smoke test
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m9_editor_smoke.gd
+
+  macos-package:
+    name: macOS Universal 2 package
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deterministic icon tooling
+        run: python3 -m pip install --disable-pip-version-check Pillow==11.3.0
+
+      - name: Download official Godot editor and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/godot" "$RUNNER_TEMP/templates"
+          curl --fail --location --retry 3 "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_macos.universal.zip" -o "$RUNNER_TEMP/godot.zip"
+          ditto -x -k "$RUNNER_TEMP/godot.zip" "$RUNNER_TEMP/godot"
+          GODOT_BIN="$(find "$RUNNER_TEMP/godot" -path '*/Contents/MacOS/Godot' -type f | head -n 1)"
+          test -x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+          curl --fail --location --retry 3 "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          ditto -x -k "$RUNNER_TEMP/templates.tpz" "$RUNNER_TEMP/templates"
+          TEMPLATE_HOME="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$TEMPLATE_HOME"
+          cp -R "$RUNNER_TEMP/templates/templates/." "$TEMPLATE_HOME/"
+          test -f "$TEMPLATE_HOME/macos.zip"
+
+      - name: Import project and prepare packaging metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path . --editor --quit
+          "$GODOT_BIN" --headless --path . --script res://tools/render_icon.gd
+          python3 tools/generate_icon_containers.py
+          python3 tools/prepare_packaging.py
+          VERSION="$(python3 tools/prepare_packaging.py --print-version)"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Export real Universal 2 application
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/macos dist
+          "$GODOT_BIN" --headless --path . --export-release "macOS Universal" "build/macos/CrashVector.app"
+          test -x "build/macos/CrashVector.app/Contents/MacOS/CrashVector"
+          ARCHS="$(lipo -archs build/macos/CrashVector.app/Contents/MacOS/CrashVector)"
+          echo "Architectures: $ARCHS"
+          [[ "$ARCHS" == *"arm64"* ]]
+          [[ "$ARCHS" == *"x86_64"* ]]
+
+      - name: Inject generated native icon and verify bundle identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          INFO="build/macos/CrashVector.app/Contents/Info.plist"
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO")"
+          [[ "$BUNDLE_ID" == "com.arrowsk.crashvector" ]]
+          ICON_FILE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$INFO")"
+          [[ "$ICON_FILE" == *.icns ]] || ICON_FILE="${ICON_FILE}.icns"
+          cp build/icons/CrashVector.icns "build/macos/CrashVector.app/Contents/Resources/$ICON_FILE"
+          test -s "build/macos/CrashVector.app/Contents/Resources/$ICON_FILE"
+
+      - name: Sign application (Developer ID when configured, otherwise ad-hoc)
+        shell: bash
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+        run: |
+          set -euo pipefail
+          APP="build/macos/CrashVector.app"
+          if [[ -n "${MACOS_CERTIFICATE_P12:-}" && -n "${MACOS_CERTIFICATE_PASSWORD:-}" && -n "${MACOS_SIGN_IDENTITY:-}" ]]; then
+            KEYCHAIN="$RUNNER_TEMP/crashvector.keychain-db"
+            KEYCHAIN_PASSWORD="crashvector-ci"
+            echo "$MACOS_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/crashvector-cert.p12"
+            security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN"
+            security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+            security import "$RUNNER_TEMP/crashvector-cert.p12" -k "$KEYCHAIN" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+            security list-keychains -d user -s "$KEYCHAIN"
+            codesign --force --deep --options runtime --timestamp --sign "$MACOS_SIGN_IDENTITY" "$APP"
+            echo "CV_DEVELOPER_SIGNED=1" >> "$GITHUB_ENV"
+          else
+            codesign --force --deep --sign - "$APP"
+            echo "CV_DEVELOPER_SIGNED=0" >> "$GITHUB_ENV"
+          fi
+          codesign --verify --deep --strict --verbose=2 "$APP"
+
+      - name: Build and validate DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          DMG="dist/CrashVector-${VERSION}-macOS-universal.dmg"
+          rm -rf build/dmg-root
+          mkdir -p build/dmg-root
+          cp -R build/macos/CrashVector.app build/dmg-root/CrashVector.app
+          ln -s /Applications build/dmg-root/Applications
+          hdiutil create -volname "CrashVector" -srcfolder build/dmg-root -ov -format UDZO "$DMG"
+          test -s "$DMG"
+          MOUNT="$RUNNER_TEMP/crashvector-dmg"
+          mkdir -p "$MOUNT"
+          hdiutil attach "$DMG" -readonly -nobrowse -mountpoint "$MOUNT"
+          test -d "$MOUNT/CrashVector.app"
+          test -L "$MOUNT/Applications"
+          hdiutil detach "$MOUNT"
+
+      - name: Notarize DMG when credentials are configured
+        shell: bash
+        env:
+          MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+          MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          if [[ "${CV_DEVELOPER_SIGNED:-0}" == "1" && -n "${MACOS_NOTARY_APPLE_ID:-}" && -n "${MACOS_NOTARY_PASSWORD:-}" && -n "${MACOS_TEAM_ID:-}" ]]; then
+            DMG="dist/CrashVector-${VERSION}-macOS-universal.dmg"
+            xcrun notarytool submit "$DMG" --apple-id "$MACOS_NOTARY_APPLE_ID" --password "$MACOS_NOTARY_PASSWORD" --team-id "$MACOS_TEAM_ID" --wait
+            xcrun stapler staple "$DMG"
+          else
+            echo "Developer ID/notarization credentials not configured; beta remains ad-hoc/unnotarized."
+          fi
+
+      - name: Generate SHA-256 sidecar
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          shasum -a 256 "CrashVector-${VERSION}-macOS-universal.dmg" > "CrashVector-${VERSION}-macOS-universal.dmg.sha256"
+          shasum -a 256 -c "CrashVector-${VERSION}-macOS-universal.dmg.sha256"
+
+      - name: Upload macOS package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: crashvector-macos
+          path: |
+            dist/CrashVector-${{ env.VERSION }}-macOS-universal.dmg
+            dist/CrashVector-${{ env.VERSION }}-macOS-universal.dmg.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-package:
+    name: Windows x64 package
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install packaging tools
+        shell: powershell
+        run: |
+          python -m pip install --disable-pip-version-check Pillow==11.3.0
+          choco install innosetup --no-progress -y
+
+      - name: Download official Godot editor and export templates
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $godotZip = Join-Path $env:RUNNER_TEMP "godot.zip"
+          $godotDir = Join-Path $env:RUNNER_TEMP "godot"
+          Invoke-WebRequest -Uri "https://github.com/godotengine/godot/releases/download/$env:GODOT_TAG/Godot_v$env:GODOT_TAG`_win64.exe.zip" -OutFile $godotZip
+          Expand-Archive -Path $godotZip -DestinationPath $godotDir -Force
+          $godot = Get-ChildItem $godotDir -Recurse -Filter "*console.exe" | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $godot) { throw "Godot console executable not found" }
+          "GODOT_BIN=$godot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          $templateArchive = Join-Path $env:RUNNER_TEMP "templates.zip"
+          Invoke-WebRequest -Uri "https://github.com/godotengine/godot/releases/download/$env:GODOT_TAG/Godot_v$env:GODOT_TAG`_export_templates.tpz" -OutFile $templateArchive
+          $templateExtract = Join-Path $env:RUNNER_TEMP "templates"
+          Expand-Archive -Path $templateArchive -DestinationPath $templateExtract -Force
+          $templateHome = Join-Path $env:APPDATA "Godot\export_templates\$env:GODOT_VERSION.stable"
+          New-Item -ItemType Directory -Force -Path $templateHome | Out-Null
+          Copy-Item -Recurse -Force (Join-Path $templateExtract "templates\*") $templateHome
+          if (-not (Test-Path (Join-Path $templateHome "windows_release_x86_64.exe"))) { throw "Windows export template not installed" }
+
+      - name: Import project and prepare packaging metadata
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          & $env:GODOT_BIN --headless --path . --editor --quit
+          if ($LASTEXITCODE -ne 0) { throw "Godot project import failed" }
+          & $env:GODOT_BIN --headless --path . --script res://tools/render_icon.gd
+          if ($LASTEXITCODE -ne 0) { throw "Icon rendering failed" }
+          python tools/generate_icon_containers.py
+          python tools/prepare_packaging.py
+          $version = python tools/prepare_packaging.py --print-version
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Export real Windows application
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force -Path build\windows | Out-Null
+          & $env:GODOT_BIN --headless --path . --export-release "Windows x64" "build/windows/CrashVector.exe"
+          if ($LASTEXITCODE -ne 0) { throw "Godot Windows export failed" }
+          if (-not (Test-Path "build/windows/CrashVector.exe")) { throw "CrashVector.exe missing" }
+          if (-not (Test-Path "build/windows/CrashVector.pck")) { throw "CrashVector.pck missing" }
+
+      - name: Apply and verify Windows executable branding
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force -Path build\tools | Out-Null
+          $rcedit = Resolve-Path "build\tools\rcedit-x64.exe" -ErrorAction SilentlyContinue
+          if (-not $rcedit) {
+            Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe" -OutFile "build\tools\rcedit-x64.exe"
+          }
+          $meta = Get-Content "build/version-metadata.json" | ConvertFrom-Json
+          & "build\tools\rcedit-x64.exe" "build\windows\CrashVector.exe" `
+            --set-icon "build\icons\CrashVector.ico" `
+            --set-file-version $meta.windows_numeric_version `
+            --set-product-version $meta.windows_numeric_version `
+            --set-version-string CompanyName "ArrowSK" `
+            --set-version-string ProductName "CrashVector" `
+            --set-version-string FileDescription "CrashVector educational 3D crash simulation" `
+            --set-version-string Comments "CrashVector $env:VERSION"
+          if ($LASTEXITCODE -ne 0) { throw "rcedit failed" }
+          $info = (Get-Item "build\windows\CrashVector.exe").VersionInfo
+          if ($info.ProductName -ne "CrashVector") { throw "ProductName resource mismatch" }
+          if ($info.CompanyName -ne "ArrowSK") { throw "CompanyName resource mismatch" }
+          if ($info.FileDescription -ne "CrashVector educational 3D crash simulation") { throw "FileDescription resource mismatch" }
+
+      - name: Sign Windows executable when Authenticode credentials are configured
+        shell: powershell
+        env:
+          WINDOWS_CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERT_PFX)) {
+            Write-Host "Authenticode credentials not configured; beta executable remains unsigned."
+            exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP "crashvector.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERT_PFX))
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1 -ExpandProperty FullName
+          if (-not $signtool) { throw "signtool.exe not found" }
+          & $signtool sign /f $pfx /p $env:WINDOWS_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "build\windows\CrashVector.exe"
+          if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed" }
+          "WINDOWS_SIGNTOOL=$signtool" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "WINDOWS_PFX=$pfx" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build Inno Setup installer
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "Inno Setup compiler not found" }
+          & $iscc "packaging\windows\crashvector.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup build failed" }
+          $setup = "dist\CrashVector-$env:VERSION-Windows-x64-Setup.exe"
+          if (-not (Test-Path $setup)) { throw "Windows Setup EXE missing" }
+
+      - name: Sign Windows installer when Authenticode credentials are configured
+        shell: powershell
+        env:
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNTOOL)) {
+            Write-Host "Authenticode credentials not configured; beta installer remains unsigned."
+            exit 0
+          }
+          $setup = "dist\CrashVector-$env:VERSION-Windows-x64-Setup.exe"
+          & $env:WINDOWS_SIGNTOOL sign /f $env:WINDOWS_PFX /p $env:WINDOWS_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $setup
+          if ($LASTEXITCODE -ne 0) { throw "Installer Authenticode signing failed" }
+
+      - name: Validate normal installer and uninstaller paths
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $setup = Resolve-Path "dist\CrashVector-$env:VERSION-Windows-x64-Setup.exe"
+          $installDir = Join-Path $env:RUNNER_TEMP "CrashVectorInstallTest"
+          & $setup /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="$installDir"
+          if ($LASTEXITCODE -ne 0) { throw "Installer validation run failed" }
+          if (-not (Test-Path (Join-Path $installDir "CrashVector.exe"))) { throw "Installed executable missing" }
+          $uninstaller = Join-Path $installDir "unins000.exe"
+          if (-not (Test-Path $uninstaller)) { throw "Standard uninstaller missing" }
+          & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+          if ($LASTEXITCODE -ne 0) { throw "Uninstaller validation run failed" }
+          Start-Sleep -Seconds 2
+          if (Test-Path (Join-Path $installDir "CrashVector.exe")) { throw "Uninstall left CrashVector executable behind" }
+
+      - name: Generate SHA-256 sidecar
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $setup = "dist\CrashVector-$env:VERSION-Windows-x64-Setup.exe"
+          $hash = (Get-FileHash -Algorithm SHA256 $setup).Hash.ToLowerInvariant()
+          $name = [IO.Path]::GetFileName($setup)
+          "$hash  $name" | Set-Content -Encoding ascii "$setup.sha256"
+          if ((Get-FileHash -Algorithm SHA256 $setup).Hash.ToLowerInvariant() -ne $hash) { throw "SHA-256 verification failed" }
+
+      - name: Upload Windows package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: crashvector-windows
+          path: |
+            dist/CrashVector-${{ env.VERSION }}-Windows-x64-Setup.exe
+            dist/CrashVector-${{ env.VERSION }}-Windows-x64-Setup.exe.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-release:
+    name: Publish immutable GitHub release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [core-ci, macos-package, windows-package]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve release version and guard immutability
+        id: release_guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python3 tools/prepare_packaging.py --print-version)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release v${VERSION} already exists. Published assets are immutable; nothing will be replaced."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download validated package artifacts
+        if: steps.release_guard.outputs.publish == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: crashvector-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Verify checksums and build update manifest
+        if: steps.release_guard.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.release_guard.outputs.version }}"
+          cd release-assets
+          sha256sum -c "CrashVector-${VERSION}-macOS-universal.dmg.sha256"
+          sha256sum -c "CrashVector-${VERSION}-Windows-x64-Setup.exe.sha256"
+          cd ..
+          python3 tools/build_update_manifest.py \
+            --version "$VERSION" \
+            --tag "v$VERSION" \
+            --macos "release-assets/CrashVector-${VERSION}-macOS-universal.dmg" \
+            --windows "release-assets/CrashVector-${VERSION}-Windows-x64-Setup.exe" \
+            --output "release-assets/update-manifest.json"
+
+      - name: Publish prerelease or stable release
+        if: steps.release_guard.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.release_guard.outputs.version }}"
+          NOTES="docs/releases/${VERSION}.md"
+          test -f "$NOTES"
+          args=(release create "v${VERSION}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "CrashVector ${VERSION}" --notes-file "$NOTES")
+          if [[ "$VERSION" == *-* ]]; then
+            args+=(--prerelease)
+          fi
+          args+=(
+            "release-assets/CrashVector-${VERSION}-macOS-universal.dmg"
+            "release-assets/CrashVector-${VERSION}-macOS-universal.dmg.sha256"
+            "release-assets/CrashVector-${VERSION}-Windows-x64-Setup.exe"
+            "release-assets/CrashVector-${VERSION}-Windows-x64-Setup.exe.sha256"
+            "release-assets/update-manifest.json"
+          )
+          gh "${args[@]}"
+          gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY"
