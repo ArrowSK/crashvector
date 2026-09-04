@@ -108,14 +108,17 @@ func solve(nodes: Array[StructuralNode], delta_s: float) -> void:
 	var damping_coefficient := 2.0 * damping_nm_s_rad / maxf(characteristic_length * characteristic_length, 0.0025)
 	var damping_force := -lateral_velocity * damping_coefficient
 	var middle_force := elastic_force + damping_force
+	var force_scale := 1.0
 	var force_length := middle_force.length()
 	if force_length > maximum_force_n:
-		middle_force *= maximum_force_n / force_length
+		force_scale = maximum_force_n / force_length
+		middle_force *= force_scale
 
 	b.add_force(middle_force)
 	a.add_force(-middle_force * 0.5)
 	c.add_force(-middle_force * 0.5)
-	damping_energy_j += damping_coefficient * lateral_velocity.length_squared() * delta_s
+	var applied_damping_force := damping_force * force_scale
+	damping_energy_j += maxf(-applied_damping_force.dot(lateral_velocity), 0.0) * delta_s
 
 func _apply_plastic_hinge(bend_angle_rad: float, delta_s: float) -> void:
 	if bend_angle_rad <= yield_angle_rad or plastic_flow_rate <= 0.0:
