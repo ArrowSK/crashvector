@@ -5,25 +5,25 @@
 <h1 align="center">CrashVector</h1>
 
 <p align="center">
-  <strong>Build a crash. Change the speed. Compare the outcome.</strong>
+  <strong>Build a crash. Change the speed. Inspect the outcome.</strong>
 </p>
 
 <p align="center">
-  Educational 3D collision simulation with deformable generic vehicles, road users, replay, analysis and cinematic export.
+  Educational 3D collision simulation with generic deformable vehicles, replay, analysis and cinematic export.
 </p>
 
 <p align="center">
-  <img alt="M11 complete" src="https://img.shields.io/badge/milestone-M11%20complete-ff4d1f?style=for-the-badge">
+  <img alt="M12 release candidate" src="https://img.shields.io/badge/milestone-M12%20hybrid%20physics-ff4d1f?style=for-the-badge">
   <a href="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml/badge.svg?branch=main"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.3.0-beta.1/CrashVector-0.3.0-beta.1-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.3.0-beta.1/CrashVector-0.3.0-beta.1-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.4.0-beta.1/CrashVector-0.4.0-beta.1-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.4.0-beta.1/CrashVector-0.4.0-beta.1-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.3.0-beta.1">Release notes & checksums</a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.4.0-beta.1">Release notes & checksums</a>
   ·
   <a href="docs/DISTRIBUTION.md">Installation & updates</a>
 </p>
@@ -37,9 +37,11 @@
 
 CrashVector is an open-source desktop crash-simulation sandbox for people who want to **see what speed, mass and impact configuration change** without turning the exercise into specialist engineering software.
 
-Set up a vehicle and target, press **Simulate**, scrub the recorded crash, compare alternatives side by side, and export a cinematic video. The physics is intentionally visible and measurable, but the claims stay conservative.
+The M12 corrective physics architecture deliberately separates whole-vehicle motion from permanent crush. For supported production scenarios, Godot `RigidBody3D` owns mass, inertia, translation, rotation, gravity, continuous collision detection and road/world collision. CrashVector's custom M11 structure is retained as a local deformable nose rather than moving the whole car as a spring-connected point cloud.
 
-> **Current state:** **M11 is complete on `main`**. The packaged desktop beta, **0.3.0-beta.1**, is published for macOS Universal 2 and Windows x64 with the responsive Scenario/Compare shell, rebuilt presentation layer, compliant multi-point contact, refined 44-node production passenger-car structure, native installers, SHA-256 sidecars, machine-readable update manifest and built-in updater. M0–M10 scenario, replay, analysis, comparison, calibration, cinematic-export, presentation and distribution behaviour is retained.
+> **Current state:** **M12 is the current corrective desktop beta, 0.4.0-beta.1.** The production rigid-body path supports passenger-car impacts with rigid wall, concrete barrier, pole, tree, another passenger car and the heavy articulated truck. Passenger cars use four force-producing suspension contacts; the truck uses six and a physical rear underride contact face. The responsive M10 UI, replay, analysis, cinematic export, native installers, updater and scenario-file format remain in place.
+
+> **Important M12 boundary:** rigid lorry, motorcycle, bicycle and pedestrian production simulation are temporarily blocked until those targets are ported to the same rigid-body world architecture. Visual Compare and Comparison Lab are also temporarily unavailable because their historical batch runner still uses the reduced-order world solver. CrashVector will not silently substitute that old solver for an M12 production result.
 
 > **Scope:** CrashVector is an educational physics visualisation tool. It is **not** certified accident reconstruction, homologation, manufacturer crash-performance prediction, biomechanics, medical/injury prediction or a safety-rating system.
 
@@ -49,68 +51,67 @@ No Git, Godot, Python, Terminal or PowerShell is required for the packaged deskt
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.3.0-beta.1/CrashVector-0.3.0-beta.1-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
-| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.3.0-beta.1/CrashVector-0.3.0-beta.1-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
+| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.4.0-beta.1/CrashVector-0.4.0-beta.1-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
+| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.4.0-beta.1/CrashVector-0.4.0-beta.1-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
 
-The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.3.0-beta.1 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.3.0-beta.1)**.
+The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.4.0-beta.1 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.4.0-beta.1)**.
 
 This beta is ad-hoc signed on macOS and unsigned on Windows when paid signing credentials are not configured, so Gatekeeper or SmartScreen may warn about an unknown developer/publisher. Use only the files attached to the official `ArrowSK/crashvector` release.
 
-**GitHub Packages is not used for the desktop installers.** The repository's Packages sidebar can therefore correctly show no packages. CrashVector's distributable DMG and Setup EXE are **GitHub Release assets**, which is the appropriate distribution location for these desktop binaries.
+**GitHub Packages is not used for the desktop installers.** CrashVector's distributable DMG and Setup EXE are GitHub Release assets.
 
 To uninstall on macOS, quit CrashVector and move it from Applications to Trash. On Windows, use **Settings → Apps → Installed apps → CrashVector → Uninstall**.
 
-CrashVector also includes **Updates → Check for updates**. It can optionally check once per day; an update is downloaded and SHA-256 verified first, and installation is always explicitly handed to the normal operating-system installer.
+CrashVector includes **Updates → Check for updates**. It can optionally check once per day; an update is downloaded and SHA-256 verified first, and installation is explicitly handed to the normal operating-system installer.
 
 See **[Desktop distribution and updates](docs/DISTRIBUTION.md)** for detailed installation, removal, update, checksum and signing information.
 
-## The normal workflow
+## The normal M12 workflow
 
-For a first run, you should not need to understand the solver or enter every parameter.
+For the ready-to-run default you do not need to understand the solver or enter every parameter.
 
 ```text
-choose vehicle + target
-          ↓
-     set speed
-   (defaults exist)
-          ↓
-       Simulate
-          ↓
- replay · analysis · compare
-          ↓
-  optional cinematic video
+choose passenger-car class + supported target
+                    ↓
+                 set speed
+              (defaults exist)
+                    ↓
+                 Simulate
+                    ↓
+              replay · analysis
+                    ↓
+         optional cinematic video
 ```
 
 A typical scenario is simply:
 
 1. choose a passenger-car class;
-2. choose the impact target — CrashVector fills in a sensible default preset and mass;
+2. choose a supported M12 target — rigid wall, barrier, pole, tree, passenger car or heavy articulated truck;
 3. change the speed, colour or advanced values only if you want to;
 4. press **Simulate**;
-5. inspect the replay, open **Compare / Comparison Lab**, or export a video.
+5. inspect the replay/analysis or export a video.
 
 Mass is editable, but it is never mandatory setup work.
 
-## What CrashVector can do today
+## What CrashVector can do in M12
 
 | Area | What you get |
 | --- | --- |
-| Scenario editor | Responsive desktop setup for vehicle class, target, mass, speed, position, heading, contact parameters and presentation |
-| Passenger cars | Generic A / B / C / D / J / M classes with representative default masses and a refined 44-node production crush structure |
-| Heavy vehicles | Articulated heavy truck and rigid lorry / box-truck development models |
-| Road users | Riderless motorcycle, riderless bicycle presets and an articulated pedestrian contact/trajectory proxy |
-| Static targets | Full-frontal rigid wall, concrete barrier, pole and tree |
-| Car vs car | Rear-end and near head-on layouts with independent class, mass and speed |
-| Replay & analysis | 120 Hz recorded replay, timeline scrubbing, Δv, crash pulse, peak simulated deceleration, crush and structural diagnostics in a collapsible analysis drawer |
-| Comparison | Dedicated Compare workspace for exact user-entered speeds plus multi-type / multi-speed Comparison Lab |
-| Presentation | Rebuilt generic vehicle/target silhouettes, car colours, structure/X-ray view, technical road/lighting environment, analysis overlays and cinematic cameras |
+| Scenario editor | Responsive desktop setup for vehicle class, supported target, mass, speed, position, heading, contact parameters and presentation |
+| Passenger cars | Generic A / B / C / D / J / M classes with representative default masses and a refined 44-node local crush structure |
+| Whole-vehicle dynamics | Godot `RigidBody3D`, real gravity, CCD and raycast suspension for the supported production path |
+| Heavy articulated truck | Rigid-body world motion, six suspension contacts and physical rear underride face |
+| Static targets | Rigid wall, concrete barrier, pole and tree with actual `StaticBody3D` collision geometry |
+| Car vs car | Rear-end and near head-on layouts using rigid-body world motion for the passenger cars |
+| Replay & analysis | 120 Hz recorded replay, timeline scrubbing, rigid-body velocity/momentum plus crush/structural diagnostics in the analysis drawer |
+| Comparison | Temporarily unavailable in the M12 corrective beta; the old batch runner is not used for production results |
+| Other dynamic targets | Rigid lorry, motorcycle, bicycle and pedestrian remain editable/library models but production simulation is temporarily blocked pending rigid-body port |
+| Presentation | Generic vehicle/target silhouettes, car colours, structure/X-ray view, technical road/lighting environment, overlays and cinematic cameras |
 | Video export | 1080p / 1440p / 4K offline replay rendering at 30/60 fps with external FFmpeg H.264 encoding |
-| Calibration | Evidence labels plus a narrow NHTSA full-frontal rigid-wall structural-correlation reference |
-| Desktop distribution | macOS Universal 2 DMG and Windows x64 Setup installer with native identity, checksums and update support |
+| Calibration | Historical M8 evidence labels/reference check retained separately from M12 production-world validation |
+| Desktop distribution | macOS Universal 2 DMG and Windows x64 Setup installer with checksums and update support |
 
-## Vehicle and target library
-
-### Passenger-car classes
+## Passenger-car classes
 
 CrashVector uses **generic classes rather than production models**. There are no manufacturer badges, proprietary CAD files or claims that a class reproduces a particular real car.
 
@@ -125,102 +126,54 @@ CrashVector uses **generic classes rather than production models**. There are no
 
 The default mass is only a starting point. You can override it directly in the scenario.
 
-### Other targets
+## M12 physics correction
 
-The same editor can target:
+The pre-M12 production model let the deformable structural node graph control both permanent crush and the entire car's world motion. That was the source of the visibly wrong rebound/jump behavior that scalar regression checks did not catch.
 
-- another passenger car;
-- a heavy articulated truck;
-- a rigid lorry / box truck;
-- a riderless motorcycle;
-- a riderless bicycle;
-- a pedestrian proxy;
-- a rigid wall;
-- a concrete barrier;
-- a pole;
-- a tree.
-
-Useful defaults include a **12,000 kg rigid lorry**, **220 kg riderless motorcycle**, and the road-user presets below.
-
-## Speed comparison is a first-class feature
-
-CrashVector does not force you into a few demonstration speeds.
-
-**Compare** accepts any two or three distinct primary-car speeds from **0–300 km/h**. The familiar 50 / 90 / 140 km/h values are just defaults.
-
-So if the question is:
-
-> What actually changes between **130 km/h** and **140 km/h**?
-
-enter **130** and **140**, disable the third lane, and run exactly those two simulations. At equal mass, 140 km/h starts with about **16% more translational kinetic energy** than 130 km/h because kinetic energy scales with velocity squared.
-
-### Comparison Lab
-
-For broader comparisons, **Comparison Lab** crosses:
-
-- up to **three classes, target types or road-user presets**;
-- with up to **three arbitrary speeds**;
-- for up to **nine independently simulated crashes in one batch**.
-
-Playback can be synchronized to **first impact** so the visual difference is immediately obvious, or to normal scenario time when that is more useful.
-
-Examples:
+M12 changes the default supported path to:
 
 ```text
-A / C / J cars × 50 / 90 / 140 km/h
-Rigid wall / lorry / passenger car × 100 / 130 / 140 km/h
-Adult pedestrian / city bicycle / e-bike × 30 / 40 / 50 km/h
+Godot rigid-body world motion
+        +
+real gravity / CCD / road suspension
+        +
+real rigid target contact
+        ↓
+measured available nose-crush distance
+        ↓
+progressive crash resistance on the rigid chassis
+        +
+local M11 front-structure deformation
 ```
 
-Presentation colours are deliberately separate from physics.
+The rigid passenger-car collision volume stops at the protected cell/subframe. A forward probe measures the remaining distance to the opposing collider; the available nose travel drives both the progressive resistance force and visible crush. The nose is therefore not an invisible rigid block.
 
-## Pedestrian and bicycle models
+The dedicated M12 regression uses actual Godot physics frames and directly rejects the human-visible failures that triggered this milestone. On the accepted release branch, the 50 km/h centred B-class wall test records about **0.541 m front crush, 0.136 m retreat, 0.002 m vertical rise and 0.32° pitch**. The 90 km/h B-class versus 18-tonne truck test records about **0.948 m crush, 0.002 m vertical rise and 0.33° pitch**.
 
-The road-user models are intentionally useful without pretending to be something they are not.
+These are generic project regression measurements, not real-car crash-test claims. See [M12 hybrid physics](docs/M12_HYBRID_PHYSICS.md).
 
-### Pedestrian
+## Temporarily unported models and comparison
 
-The pedestrian is a lightweight articulated contact/trajectory proxy. It can show the sequence of impact, stance release, body motion, gravity and simple ground contact.
+CrashVector still contains the historical rigid-lorry, motorcycle, bicycle and pedestrian structural/library models because old scenarios and deterministic regression data remain useful. They are **not run as M12 production physics** until their world-motion/contact path is ported to rigid bodies.
 
-Presets:
+The same rule applies to Visual Compare and Comparison Lab. Their historical synchronous runner is retained for old regression coverage, but the M12 desktop beta explicitly refuses to execute it as if it were the new production solver.
 
-| Body preset | Default mass | Height |
-| --- | ---: | ---: |
-| Adult — default | 75 kg | 1.75 m |
-| Child-sized | 32 kg | 1.35 m |
-| Tall adult | 90 kg | 1.90 m |
-
-You may change the mass independently.
-
-It is **not** a crash-test dummy, bone/tissue model, AIS estimator, fatality predictor or medical model.
-
-### Bicycle
-
-The bicycle is a deformable **riderless** frame/fork proxy.
-
-| Bicycle preset | Default mass |
-| --- | ---: |
-| City bicycle — default | 16 kg |
-| Road bicycle | 9 kg |
-| E-bike | 24 kg |
-
-A future cyclist model should couple a separately modelled human to the bicycle rather than hiding rider mass inside the bicycle itself.
+This is intentional: an unavailable result is preferable to a visually polished result produced by a physics path already known to be unsuitable for whole-vehicle motion.
 
 ## Replay, analysis and visual presentation
 
-CrashVector records the completed simulation at **120 Hz**, so replay and presentation do not need to re-run the collision.
+CrashVector records the completed supported simulation at **120 Hz**, so replay and presentation do not need to re-run the collision.
 
 You can:
 
 - scrub backward and forward through the crash;
 - replay at 0.05× / 0.10× / 0.25× / 0.50× / 1×;
-- inspect Δv, crash pulse, simulated deceleration, crush and structural failure;
+- inspect rigid-body speed/momentum and local crush/structural diagnostics;
 - expand the Analysis drawer without covering the 3D viewport;
 - toggle velocity / momentum / structure overlays;
-- choose different passenger-car paint colours;
-- compare several recorded crashes in synchronized 3D lanes.
+- choose different passenger-car paint colours.
 
-The visual shell follows the deforming structural model. The X-ray/structure view is there when you want to see what the visible body is responding to.
+The visible passenger-car shell follows the local deforming M11 front structure while global movement follows the rigid chassis.
 
 ## Cinematic video export
 
@@ -243,30 +196,32 @@ CrashVector calls an **external FFmpeg installation** for H.264 MP4 encoding. FF
 
 CrashVector deliberately separates **a convincing visual** from **a validated engineering claim**.
 
-The first direct structural-correlation reference is the NHTSA NCAP full-frontal rigid-wall condition documented in **DOT HS 812 237 / laboratory test 7078**, using the documented **1,661 kg** test mass and **56.5 km/h** impact condition.
+The historical M8 reduced-order reference uses the NHTSA NCAP full-frontal rigid-wall condition documented in **DOT HS 812 237 / laboratory test 7078**, with the documented **1,661 kg** test mass and **56.5 km/h** impact condition.
 
-The application labels scenarios as:
+The application retains the labels:
 
 - **Reference-correlated**
 - **Near reference**
 - **Class-scaled**
 - **Extrapolated**
 
-High-speed demonstrations, most vehicle-pair scenarios, motorcycle/bicycle/pedestrian impacts and other non-reference conditions remain explicitly extrapolated.
+The M8 calibration runner remains a historical regression/correlation path. It does **not** validate the M12 rigid-body/crush coupling, and M12 regression numbers are not manufacturer or regulatory corridors.
 
-See [Calibration and validation scope](docs/CALIBRATION.md) for what is source-derived and what is only a CrashVector numerical regression guardrail.
+See [Calibration and validation scope](docs/CALIBRATION.md) and [M12 hybrid physics](docs/M12_HYBRID_PHYSICS.md).
 
 ## Known modelling boundaries
 
-CrashVector intentionally rejects some scenarios instead of making a visually plausible but unsupported claim.
+CrashVector intentionally rejects or blocks scenarios instead of making a visually plausible but unsupported claim.
 
-- Broadside and strongly oblique car-vs-car contact are not yet supported by the current front/rear paired-contact geometry.
-- Road-user output is trajectory/contact visualisation, not injury prediction.
+- M12 production rigid-body coverage currently includes wall, barrier, pole, tree, passenger-car and heavy-articulated-truck targets.
+- Rigid lorry, motorcycle, bicycle and pedestrian production simulation is temporarily blocked pending rigid-body port.
+- Visual Compare and Comparison Lab are temporarily blocked pending a scene-based rigid-body recorder.
 - Generic vehicle classes are not production-car crash models.
-- Static wall/barrier/pole/tree models are simplified fixed targets.
-- CI validates deterministic logic and editor runtime paths, but does not perform a real 4K GPU render or invoke the machine's FFmpeg binary.
+- M12 local crush is a phenomenological reduced-order model, not finite-element structural analysis.
+- Static target geometry is simplified.
+- CI validates deterministic logic, editor runtime and engine-physics regression paths, but does not perform a real 4K GPU render or invoke the machine's FFmpeg binary.
 
-For deeper physics assumptions, see [Physics notes](docs/PHYSICS.md).
+For deeper assumptions, see [M12 hybrid physics](docs/M12_HYBRID_PHYSICS.md) and [Physics notes](docs/PHYSICS.md).
 
 ## Run from source
 
@@ -287,20 +242,23 @@ Or open `project.godot` directly in Godot and run the project.
 
 | Guide | What it is for |
 | --- | --- |
-| [Roadmap](docs/ROADMAP.md) | M0–M11 implementation history and the next accuracy work |
-| [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, comparison, export, calibration, distribution and M10 presentation layers |
-| [M11 crush dynamics](docs/M11_CRUSH_DYNAMICS.md) | Refined production structure, compliant contact, work-conjugate energy validation and M11 acceptance tests |
+| [Roadmap](docs/ROADMAP.md) | M0–M12 implementation history and the next physics ports |
+| [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, export, calibration, distribution and presentation layers |
+| [M12 hybrid physics](docs/M12_HYBRID_PHYSICS.md) | Authoritative M12 rigid-body world-motion architecture, crush coupling and coverage boundaries |
+| [M11 crush dynamics](docs/M11_CRUSH_DYNAMICS.md) | Refined 44-node structure and historical reduced-order M11 dynamics |
 | [Physics notes](docs/PHYSICS.md) | Contact, energy accounting, structural assumptions and modelling boundaries |
-| [Calibration](docs/CALIBRATION.md) | Reference source, evidence labels and regression corridors |
+| [Calibration](docs/CALIBRATION.md) | Reference source, evidence labels and historical regression corridors |
 | [Scenario format](docs/SCENARIO_FORMAT.md) | Human-readable `.crashvector.json` save/load format |
 | [Video export](docs/VIDEO_EXPORT.md) | Offline rendering, camera modes, FFmpeg boundary and metadata |
 | [Desktop distribution and updates](docs/DISTRIBUTION.md) | Installation, updater, packaging, signing and release architecture |
 
 ## Development status
 
-**M0 through M11 are complete.** Core CI imports/parses the Godot project, audits against runtime monkey patching, and retains the complete M0–M9 regression/runtime suite. M10 adds its dedicated editor/runtime and responsive-layout gate covering 1280×720 through 2560×1440. M11 adds a dedicated crush-dynamics gate covering compliant contact, progressive front collapse, passenger-cell preservation, symmetry, permanent folding, multipoint pair contact, momentum conservation and 140 km/h stability. Independent packaging gates build and validate the macOS Universal 2 DMG and Windows x64 installer, including a real Windows Program Files install/uninstall lifecycle. The `v0.3.0-beta.1` prerelease is published from the successful M11 merge run only after all required gates pass, both package checksums are re-verified and `update-manifest.json` is generated.
+**M0 through M11 remain complete; M12 is the corrective hybrid-physics release milestone.** Canonical Core CI now runs the complete M0–M12 regression suite, including the M10 responsive editor gate, M11 crush-dynamics gate, M12 real Godot rigid-wall/car-truck/road-support regression and M12 production-routing check that prevents silent fallback to the old solver. Independent packaging gates build the macOS Universal 2 DMG and Windows x64 installer, including a real Windows Program Files install/uninstall lifecycle.
 
-The next accuracy work should add additional independent public/licensed crash references, richer side-impact contact geometry, tyre/suspension behaviour and other explicit validation milestones rather than silently extending the M8 evidence claim.
+`v0.4.0-beta.1` is the M12 corrective packaged prerelease. Release automation verifies both package checksum sidecars, generates `update-manifest.json`, and refuses to replace an already-published release under the same version.
+
+The next physics work is to port rigid lorry, motorcycle, bicycle/pedestrian contact and the comparison recorder to the rigid-body world architecture, then add additional independent public/licensed references before extending validation claims.
 
 ## Licence
 

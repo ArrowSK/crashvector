@@ -138,7 +138,7 @@ M10 is complete. PR #13 was merged only after the dedicated editor/responsive-la
 
 ## M11 — Crush dynamics rebuild — complete
 
-M11 replaces the production collision-response path that produced the post-M10 pivot/inversion failure while preserving the M0–M10 scenario, replay, comparison, calibration, export, updater and presentation layers.
+M11 replaced the production collision-response path that produced the post-M10 pivot/inversion failure while preserving the M0–M10 scenario, replay, comparison, calibration, export, updater and presentation layers.
 
 - Production passenger cars retain the seven historical reference stations and add four engine-bay cross-sections, increasing the production structural graph from 28 to 44 nodes.
 - Front structure distinguishes bumper/nose, crash boxes, front rails, upper rails, subframe/cross-members and firewall-transition members.
@@ -147,11 +147,32 @@ M11 replaces the production collision-response path that produced the post-M10 p
 - Static wall/barrier/pole/tree collision response is compliant and force-based inside structural substeps rather than an instantaneous stop plus large penetration correction.
 - Vehicle-pair contact expands historical two-node seeds to the full impact face, performs multi-point matching and applies equal-and-opposite compliant forces.
 - Contact damping follows configured restitution and both contact and structural damping are bounded so one explicit substep cannot remove more local relative motion than is available.
-- Solver substeps are supported from 1 through 32. The M8 stored 56.5 km/h reference uses 32 substeps for reference-quality convergence of the refined M11 structure; the scenario itself and its evidence/regression corridors are unchanged.
+- Solver substeps are supported from 1 through 64. The M8 stored 56.5 km/h historical correlation reference uses 64 substeps for convergence of the refined M11 reduced-order structure; its evidence/regression corridors are unchanged.
 - Dedicated M11 regression covers compliant contact, material front shortening, passenger-cell preservation, left/right symmetry, centred-impact yaw, permanent fold angle, multi-point pair contact, momentum conservation and finite 140 km/h wall behaviour.
-- M10 editor smoke additionally verifies that the desktop Physics control exposes the same 32-substep ceiling as `ScenarioConfig`.
-- Canonical target prerelease is `0.3.0-beta.1`, using the existing M9 desktop packaging, updater and immutable-version release architecture.
+- M10 editor smoke additionally verifies that the desktop Physics control exposes the same 64-substep ceiling as `ScenarioConfig`.
+- Canonical packaged prerelease `0.3.0-beta.1` was published after the M11 gates passed.
 
-## Beyond M11
+## M12 — Hybrid rigid-body physics correction — release candidate
 
-Further accuracy work should add additional independent public/licensed reference tests before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, suspension/tyre behaviour, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references should be developed as explicit future milestones rather than implied by M8–M11 completion.
+M12 corrects a more fundamental problem exposed by real use of M11: the deformable point-mass graph was still responsible for whole-vehicle world motion. That allowed visually implausible rebound and vertical motion even when scalar crush/yaw regression checks passed.
+
+- Godot `RigidBody3D` is authoritative for supported production vehicle mass, inertia, translation, rotation, gravity and collision response.
+- Continuous collision detection is enabled for the production vehicle bodies.
+- Passenger cars use four force-producing raycast suspension contacts; the heavy articulated truck uses six. Visual wheel meshes no longer masquerade as the road-support model.
+- Rigid wall, concrete barrier, pole and tree targets have real `StaticBody3D` collision shapes.
+- The M11 44-node passenger-car structure is retained as a local deformable nose anchored to the protected rigid chassis instead of moving the entire vehicle through custom node integration.
+- The passenger-car rigid collision volume ends at the protected cell/subframe. A forward distance probe measures available nose-crush travel and drives both a progressive resistance force on the rigid body and the visible/local crush geometry.
+- The heavy articulated truck includes a physical rear underride collision face and raycast suspension so the passenger car cannot numerically climb an exposed low chassis rail.
+- Dedicated M12 engine-physics regression directly checks 50 km/h rigid-wall rebound/retreat, vertical rise/speed, pitch and material nose crush; stationary road support; and 90 km/h passenger-car versus 18-tonne-truck jump/rebound/crush behavior.
+- The accepted release-branch wall regression records approximately 0.541 m front crush, 0.731 m/s maximum reverse speed, 0.136 m retreat, 2 mm vertical rise and 0.32 degrees pitch.
+- The accepted release-branch 90 km/h car-versus-truck regression records approximately 0.948 m passenger-car crush, 0.981 m/s maximum reverse speed, 2 mm vertical rise and 0.33 degrees pitch.
+- M12 does not silently fall back to the old production world-motion solver. Rigid lorry, motorcycle, bicycle and pedestrian simulation are temporarily blocked until ported to the rigid-body path.
+- Visual Compare and Comparison Lab are temporarily unavailable for the same reason: their historical synchronous runner remains in the repository for legacy regression but is not presented as M12 production physics.
+- The M8 calibration runner remains a separate historical reduced-order correlation/regression path and does not validate the M12 rigid-body/crush coupling.
+- Target corrective prerelease is `0.4.0-beta.1` using the existing native macOS/Windows installer and update architecture.
+
+See `docs/M12_HYBRID_PHYSICS.md` for the detailed architecture and coverage boundaries.
+
+## Beyond M12
+
+The next physics work should port rigid lorry, motorcycle, bicycle/pedestrian contact and the comparison recorder to the rigid-body world architecture before those paths are re-enabled. Additional independent public/licensed crash references should then be added before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references remain explicit future work rather than implied by M8–M12 completion.
