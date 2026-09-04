@@ -32,6 +32,20 @@ var hybrid_target_front_crush_m: float = 0.0
 var hybrid_geometric_front_crush_m: float = 0.0
 var hybrid_reference_local_positions: Array[Vector3] = []
 
+# M13 staged whole-body failure state. Whole-vehicle translation/rotation remains
+# authoritative in Godot's RigidBody3D. These values represent permanent local
+# structural collapse relative to that body once the engineered front zone has
+# exhausted its energy/travel capacity.
+var hybrid_peak_collision_energy_j: float = 0.0
+var hybrid_firewall_intrusion_m: float = 0.0
+var hybrid_cabin_collapse_m: float = 0.0
+var hybrid_rear_buckle_m: float = 0.0
+var hybrid_cell_front_retreat_m: float = 0.0
+var hybrid_primary_collider: Object = null
+var safety_cell_collision: CollisionShape3D
+var safety_cell_base_size_m := Vector3.ZERO
+var safety_cell_base_position_m := Vector3.ZERO
+
 func _ready() -> void:
 	model = PassengerCarBuilder.build(vehicle_preset_id, total_mass_kg, 0.0, barrier_x_m, origin_offset_m)
 	model.rotate_y_about(origin_offset_m, deg_to_rad(heading_deg), true)
@@ -70,9 +84,8 @@ func begin_simulation() -> void:
 	rigid_chassis.rotation = Vector3(0.0, deg_to_rad(heading_deg), 0.0)
 	last_chassis_transform = rigid_chassis.global_transform
 	chassis_sync_ready = true
-	hybrid_crush_impulse_ns = 0.0
-	hybrid_target_front_crush_m = 0.0
-	hybrid_geometric_front_crush_m = 0.0
+	_reset_hybrid_failure_state()
+	_restore_reference_structure()
 	rigid_chassis.begin_motion(initial_speed_kmh, heading_deg)
 
 func set_simulation_paused(value: bool) -> void:
@@ -151,7 +164,7 @@ func front_crush_deformation_m() -> float:
 	return maxf(model.max_permanent_deformation_for_role(&"front_crush"), hybrid_geometric_front_crush_m)
 
 func safety_cell_deformation_m() -> float:
-	return model.max_permanent_deformation_for_role(&"safety_cell")
+	return maxf(model.max_permanent_deformation_for_role(&"safety_cell"), hybrid_firewall_intrusion_m + hybrid_cabin_collapse_m)
 
 func hybrid_contact_count() -> int:
 	if rigid_chassis == null:
@@ -164,6 +177,21 @@ func hybrid_maximum_vertical_speed_ms() -> float:
 func hybrid_maximum_reverse_speed_ms() -> float:
 	return 0.0 if rigid_chassis == null else rigid_chassis.maximum_reverse_speed_ms
 
+func hybrid_collision_energy_j() -> float:
+	return hybrid_peak_collision_energy_j
+
+func hybrid_firewall_intrusion_deformation_m() -> float:
+	return hybrid_firewall_intrusion_m
+
+func hybrid_cabin_collapse_deformation_m() -> float:
+	return hybrid_cabin_collapse_m
+
+func hybrid_rear_buckle_deformation_m() -> float:
+	return hybrid_rear_buckle_m
+
+func hybrid_total_longitudinal_collapse_m() -> float:
+	return hybrid_geometric_front_crush_m + hybrid_cell_front_retreat_m + hybrid_rear_buckle_m * 0.20
+
 func replay_visual_state() -> Dictionary:
 	return {
 		"front_bumper_detached": front_bumper_detached,
@@ -172,20 +200,33 @@ func replay_visual_state() -> Dictionary:
 		"rigid_transform": global_reference_transform(),
 		"rigid_linear_velocity_ms": global_linear_velocity_ms(),
 		"hybrid_front_crush_m": hybrid_geometric_front_crush_m,
+		"hybrid_collision_energy_j": hybrid_peak_collision_energy_j,
+		"hybrid_firewall_intrusion_m": hybrid_firewall_intrusion_m,
+		"hybrid_cabin_collapse_m": hybrid_cabin_collapse_m,
+		"hybrid_rear_buckle_m": hybrid_rear_buckle_m,
+		"hybrid_cell_front_retreat_m": hybrid_cell_front_retreat_m,
 	}
 
 func apply_replay_visual_state(state: Dictionary) -> void:
 	front_bumper_detached = bool(state.get("front_bumper_detached", false))
 	front_bumper_velocity_ms = state.get("front_bumper_velocity_ms", Vector3.ZERO)
 	hybrid_geometric_front_crush_m = float(state.get("hybrid_front_crush_m", hybrid_geometric_front_crush_m))
+	hybrid_peak_collision_energy_j = float(state.get("hybrid_collision_energy_j", hybrid_peak_collision_energy_j))
+	hybrid_firewall_intrusion_m = float(state.get("hybrid_firewall_intrusion_m", hybrid_firewall_intrusion_m))
+	hybrid_cabin_collapse_m = float(state.get("hybrid_cabin_collapse_m", hybrid_cabin_collapse_m))
+	hybrid_rear_buckle_m = float(state.get("hybrid_rear_buckle_m", hybrid_rear_buckle_m))
+	hybrid_cell_front_retreat_m = float(state.get("hybrid_cell_front_retreat_m", hybrid_cell_front_retreat_m))
 	if front_bumper_detached:
 		front_bumper.position = state.get("front_bumper_position_m", front_bumper.position)
 	_update_visuals(0.0)
 
 func _prepare_local_crush_model() -> void:
-	# The engine rigid body owns global translation, rotation, gravity and road
-	# support. Stations through the firewall are anchored to that chassis; only
-	# the engine-bay/nose structure remains deformable.
+	# RigidBody3D owns world translation, rotation, gravity and road support.
+	# Base/cabin nodes remain kinematically anchored for ordinary crashes so the
+	# old spring cloud can never move the car. M13 may reposition those anchored
+	# nodes relative to the chassis after the front structure exhausts its
+	# energy capacity, which produces stable permanent firewall/cabin collapse
+	# without reintroducing M11 whole-car instability.
 	for node in model.nodes:
 		node.velocity_ms = Vector3.ZERO
 	for station in range(CompactHatchbackBuilder.CABIN_FRONT_STATION + 1):
@@ -206,14 +247,17 @@ func _build_rigid_chassis() -> void:
 	var scale_y := float(preset.get("scale_y", 1.0))
 	var scale_z := float(preset.get("scale_z", 1.0))
 	rigid_chassis.configure(total_mass_kg, origin_offset_m, heading_deg, initial_speed_kmh, 0.88, 0.0)
-	# The rigid collision volume stops at the protected cell/subframe. The nose
-	# is a non-colliding overlap sensor so it can consume distance while the
-	# progressive crush force decelerates the real rigid chassis.
-	rigid_chassis.add_box_shape(
+	# The rigid collision volume begins at the protected cell/subframe. In M13
+	# its front face may retreat as the firewall/cabin itself collapses, so severe
+	# impacts gain real additional travel instead of hitting an indestructible
+	# invisible box after roughly one metre of nose crush.
+	safety_cell_collision = rigid_chassis.add_box_shape(
 		"SafetyCellCollision",
 		Vector3(2.55 * scale_x, 0.86 * scale_y, 1.62 * scale_z),
 		Vector3(-0.28 * scale_x, 0.88 * scale_y, 0.0)
 	)
+	safety_cell_base_size_m = (safety_cell_collision.shape as BoxShape3D).size
+	safety_cell_base_position_m = safety_cell_collision.position
 	rigid_chassis.add_front_crush_sensor(
 		Vector3(1.05 * scale_x, 0.72 * scale_y, 1.40 * scale_z),
 		Vector3(1.53 * scale_x, 0.72 * scale_y, 0.0)
@@ -237,6 +281,40 @@ func _capture_hybrid_reference_geometry() -> void:
 	hybrid_reference_local_positions.resize(model.nodes.size())
 	for index in range(model.nodes.size()):
 		hybrid_reference_local_positions[index] = rigid_chassis.to_local(model.nodes[index].position_m)
+
+func _reset_hybrid_failure_state() -> void:
+	hybrid_crush_impulse_ns = 0.0
+	hybrid_target_front_crush_m = 0.0
+	hybrid_geometric_front_crush_m = 0.0
+	hybrid_peak_collision_energy_j = 0.0
+	hybrid_firewall_intrusion_m = 0.0
+	hybrid_cabin_collapse_m = 0.0
+	hybrid_rear_buckle_m = 0.0
+	hybrid_cell_front_retreat_m = 0.0
+	hybrid_primary_collider = null
+	front_bumper_detached = false
+	front_bumper_velocity_ms = Vector3.ZERO
+	_reset_safety_cell_collision()
+
+func _restore_reference_structure() -> void:
+	if rigid_chassis == null or hybrid_reference_local_positions.size() != model.nodes.size():
+		return
+	for index in range(model.nodes.size()):
+		model.nodes[index].position_m = rigid_chassis.to_global(hybrid_reference_local_positions[index])
+		model.nodes[index].velocity_ms = Vector3.ZERO
+
+func _reset_safety_cell_collision() -> void:
+	if safety_cell_collision == null:
+		return
+	var box := safety_cell_collision.shape as BoxShape3D
+	if box == null:
+		return
+	box.size = safety_cell_base_size_m
+	safety_cell_collision.position = safety_cell_base_position_m
+	if rigid_chassis.front_crush_probe != null:
+		var probe_position := rigid_chassis.front_crush_probe.position
+		probe_position.x = safety_cell_base_position_m.x + safety_cell_base_size_m.x * 0.5
+		rigid_chassis.front_crush_probe.position = probe_position
 
 func _sync_model_to_chassis() -> void:
 	if rigid_chassis == null:
@@ -268,10 +346,52 @@ func _consume_real_contact_impulses() -> void:
 func _update_hybrid_crush_target() -> void:
 	if rigid_chassis == null:
 		return
+	if rigid_chassis.front_crush_overlap_active():
+		var collider := rigid_chassis.front_crush_collider()
+		if hybrid_primary_collider == null:
+			hybrid_primary_collider = collider
+		hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _normal_collision_energy_j(collider))
 	hybrid_target_front_crush_m = maxf(hybrid_target_front_crush_m, rigid_chassis.front_crush_travel_m())
 	var preset := PassengerCarCatalog.data(vehicle_preset_id)
 	var scale_x := float(preset.get("scale_x", 1.0))
 	hybrid_target_front_crush_m = clampf(hybrid_target_front_crush_m, 0.0, 0.98 * scale_x)
+
+func _normal_collision_energy_j(collider: Object) -> float:
+	if rigid_chassis == null:
+		return 0.0
+	var forward := rigid_chassis.global_transform.basis.x.normalized()
+	var collider_velocity := Vector3.ZERO
+	var effective_mass := rigid_chassis.mass
+	if collider is RigidBody3D:
+		var other := collider as RigidBody3D
+		collider_velocity = other.linear_velocity
+		var other_mass := maxf(other.mass, 1.0)
+		effective_mass = rigid_chassis.mass * other_mass / maxf(rigid_chassis.mass + other_mass, 1.0)
+	var closing_speed := maxf((rigid_chassis.linear_velocity - collider_velocity).dot(forward), 0.0)
+	return 0.5 * effective_mass * closing_speed * closing_speed
+
+func _failure_stage_targets() -> Dictionary:
+	var preset := PassengerCarCatalog.data(vehicle_preset_id)
+	var scale_x := maxf(float(preset.get("scale_x", 1.0)), 0.55)
+	var stiffness_scale := maxf(float(preset.get("stiffness_scale", 1.0)), 0.45)
+	var structural_scale := stiffness_scale * scale_x
+	var front_capacity_j := 430000.0 * structural_scale
+	var firewall_capacity_j := 260000.0 * structural_scale
+	var cabin_capacity_j := 620000.0 * structural_scale
+	var rear_capacity_j := 520000.0 * structural_scale
+	var front_design_crush := maxf(0.98 * scale_x, 0.20)
+	var front_ratio := clampf(hybrid_target_front_crush_m / front_design_crush, 0.0, 1.0)
+	var front_gate := smoothstep(0.82, 0.97, front_ratio)
+	var firewall_fraction := clampf((hybrid_peak_collision_energy_j - front_capacity_j) / maxf(firewall_capacity_j, 1.0), 0.0, 1.0) * front_gate
+	var cabin_fraction := clampf((hybrid_peak_collision_energy_j - front_capacity_j - firewall_capacity_j) / maxf(cabin_capacity_j, 1.0), 0.0, 1.0)
+	cabin_fraction *= smoothstep(0.70, 0.98, firewall_fraction)
+	var rear_fraction := clampf((hybrid_peak_collision_energy_j - front_capacity_j - firewall_capacity_j - cabin_capacity_j) / maxf(rear_capacity_j, 1.0), 0.0, 1.0)
+	rear_fraction *= smoothstep(0.72, 0.98, cabin_fraction)
+	return {
+		"firewall_m": 0.30 * scale_x * firewall_fraction,
+		"cabin_m": 0.82 * scale_x * cabin_fraction,
+		"rear_m": 0.28 * scale_x * rear_fraction,
+	}
 
 func _apply_hybrid_crush_resistance() -> void:
 	if rigid_chassis == null or not rigid_chassis.front_crush_overlap_active():
@@ -288,13 +408,16 @@ func _apply_hybrid_crush_resistance() -> void:
 	var stiffness_scale := maxf(float(preset.get("stiffness_scale", 1.0)), 0.45)
 	var mass_scale := sqrt(maxf(total_mass_kg / 1150.0, 0.45))
 	var crush := hybrid_target_front_crush_m
-	# Reduced-order crush-force curve: an initial crash-box/rail plateau followed
-	# by progressive rail hardening as the firewall is approached. It acts on
-	# the real rigid body, so world deceleration/rotation remains Godot physics.
+	# Normal impacts retain the M12 crash-box/rail curve. Once M13 staged cell
+	# failure begins, resistance rises again for firewall/rocker/A-pillar load
+	# paths rather than letting the remaining energy disappear into a rigid box.
 	var force_n := (105000.0 + 155000.0 * clampf(crush / 0.62, 0.0, 1.0)) * stiffness_scale * mass_scale
 	if crush > 0.62:
 		force_n += 420000.0 * stiffness_scale * mass_scale * clampf((crush - 0.62) / 0.30, 0.0, 1.0)
-	force_n = minf(force_n, 760000.0 * stiffness_scale * mass_scale)
+	var cell_failure := hybrid_firewall_intrusion_m + hybrid_cabin_collapse_m
+	if cell_failure > 0.01:
+		force_n += (220000.0 + 520000.0 * clampf(cell_failure / 0.90, 0.0, 1.0)) * stiffness_scale * mass_scale
+	force_n = minf(force_n, 1380000.0 * stiffness_scale * mass_scale)
 	if collider is VehicleRigidChassis:
 		var other := collider as VehicleRigidChassis
 		# Only one side applies the equal/opposite pair to avoid double counting
@@ -307,9 +430,19 @@ func _apply_hybrid_crush_resistance() -> void:
 		rigid_chassis.apply_central_force(-forward * force_n)
 
 func _enforce_hybrid_crush_shape(delta: float) -> void:
-	if hybrid_target_front_crush_m <= 0.0001 or hybrid_reference_local_positions.size() != model.nodes.size():
+	if hybrid_reference_local_positions.size() != model.nodes.size():
+		return
+	if hybrid_target_front_crush_m <= 0.0001 and hybrid_peak_collision_energy_j <= 0.0:
 		return
 	var alpha := clampf(1.0 - exp(-28.0 * maxf(delta, 0.0)), 0.0, 1.0)
+	var stage_targets := _failure_stage_targets()
+	hybrid_firewall_intrusion_m = maxf(hybrid_firewall_intrusion_m, lerpf(hybrid_firewall_intrusion_m, float(stage_targets["firewall_m"]), alpha))
+	hybrid_cabin_collapse_m = maxf(hybrid_cabin_collapse_m, lerpf(hybrid_cabin_collapse_m, float(stage_targets["cabin_m"]), alpha))
+	hybrid_rear_buckle_m = maxf(hybrid_rear_buckle_m, lerpf(hybrid_rear_buckle_m, float(stage_targets["rear_m"]), alpha))
+	var retreat_target := hybrid_firewall_intrusion_m + hybrid_cabin_collapse_m * 0.75 + hybrid_rear_buckle_m * 0.18
+	hybrid_cell_front_retreat_m = maxf(hybrid_cell_front_retreat_m, lerpf(hybrid_cell_front_retreat_m, retreat_target, alpha))
+	_update_safety_cell_collision_shape()
+
 	var sections: Array[Dictionary] = [
 		{"nodes": PassengerCarBuilder.extra_section_nodes(0), "weight": 0.18},
 		{"nodes": PassengerCarBuilder.extra_section_nodes(1), "weight": 0.32},
@@ -327,7 +460,7 @@ func _enforce_hybrid_crush_shape(delta: float) -> void:
 				continue
 			var reference_local := hybrid_reference_local_positions[index]
 			var target_local := reference_local
-			target_local.x -= hybrid_target_front_crush_m * weight
+			target_local.x -= hybrid_cell_front_retreat_m + hybrid_target_front_crush_m * weight
 			var corner := index % 4
 			if corner >= 2:
 				target_local.y -= 0.10 * hybrid_target_front_crush_m * weight
@@ -337,7 +470,99 @@ func _enforce_hybrid_crush_shape(delta: float) -> void:
 			var target_world := rigid_chassis.to_global(target_local)
 			model.nodes[index].position_m = model.nodes[index].position_m.lerp(target_world, alpha)
 			model.nodes[index].velocity_ms *= 0.80
+
+	# Staged collapse propagates rearward only after the front capacity is
+	# consumed. Upper nodes move farther/downward than floor nodes so the cowl,
+	# A-pillars and roof buckle instead of the cabin translating as a rigid box.
+	_enforce_cabin_station(
+		CompactHatchbackBuilder.CABIN_FRONT_STATION,
+		hybrid_firewall_intrusion_m + hybrid_cabin_collapse_m * 0.72,
+		hybrid_firewall_intrusion_m * 0.20 + hybrid_cabin_collapse_m * 0.48,
+		hybrid_firewall_intrusion_m * 0.08 + hybrid_cabin_collapse_m * 0.10,
+		0.11 * clampf(hybrid_cabin_collapse_m / 0.82, 0.0, 1.0), alpha
+	)
+	_enforce_cabin_station(
+		3,
+		hybrid_firewall_intrusion_m * 0.12 + hybrid_cabin_collapse_m * 0.46,
+		hybrid_cabin_collapse_m * 0.38,
+		hybrid_cabin_collapse_m * 0.07,
+		0.10 * clampf(hybrid_cabin_collapse_m / 0.82, 0.0, 1.0), alpha
+	)
+	_enforce_cabin_station(
+		2,
+		hybrid_cabin_collapse_m * 0.20 + hybrid_rear_buckle_m * 0.05,
+		hybrid_cabin_collapse_m * 0.22 + hybrid_rear_buckle_m * 0.05,
+		hybrid_cabin_collapse_m * 0.035,
+		0.07 * clampf(hybrid_cabin_collapse_m / 0.82, 0.0, 1.0), alpha
+	)
+	_enforce_cabin_station(
+		CompactHatchbackBuilder.CABIN_REAR_STATION,
+		-hybrid_rear_buckle_m * 0.08,
+		hybrid_rear_buckle_m * 0.12,
+		hybrid_rear_buckle_m * 0.04,
+		0.05 * clampf(hybrid_rear_buckle_m / 0.28, 0.0, 1.0), alpha
+	)
+	_enforce_cabin_station(
+		CompactHatchbackBuilder.REAR_STATION,
+		-hybrid_rear_buckle_m * 0.24,
+		hybrid_rear_buckle_m * 0.08,
+		hybrid_rear_buckle_m * 0.025,
+		0.04 * clampf(hybrid_rear_buckle_m / 0.28, 0.0, 1.0), alpha
+	)
 	_update_geometric_crush_measurement()
+
+func _enforce_cabin_station(
+	station: int,
+	x_shift_m: float,
+	roof_drop_m: float,
+	floor_drop_m: float,
+	width_failure: float,
+	alpha: float
+) -> void:
+	for corner in range(4):
+		var index := CompactHatchbackBuilder.node_index(station, corner)
+		if index < 0 or index >= model.nodes.size():
+			continue
+		var target_local := hybrid_reference_local_positions[index]
+		var upper := corner >= 2
+		target_local.x -= x_shift_m * (1.08 if upper else 0.92)
+		if upper:
+			target_local.y -= roof_drop_m
+			target_local.z *= 1.0 - width_failure
+		else:
+			target_local.y -= floor_drop_m
+			target_local.z *= 1.0 + width_failure * 0.45
+		var target_world := rigid_chassis.to_global(target_local)
+		model.nodes[index].position_m = model.nodes[index].position_m.lerp(target_world, alpha)
+		model.nodes[index].velocity_ms = Vector3.ZERO
+
+func _update_safety_cell_collision_shape() -> void:
+	if safety_cell_collision == null:
+		return
+	var box := safety_cell_collision.shape as BoxShape3D
+	if box == null:
+		return
+	var preset := PassengerCarCatalog.data(vehicle_preset_id)
+	var scale_x := maxf(float(preset.get("scale_x", 1.0)), 0.55)
+	var base_rear_x := safety_cell_base_position_m.x - safety_cell_base_size_m.x * 0.5
+	var base_front_x := safety_cell_base_position_m.x + safety_cell_base_size_m.x * 0.5
+	var rear_face_x := base_rear_x + hybrid_rear_buckle_m * 0.10
+	var front_face_x := base_front_x - hybrid_cell_front_retreat_m
+	var minimum_length := 1.05 * scale_x
+	front_face_x = maxf(front_face_x, rear_face_x + minimum_length)
+	var new_size := safety_cell_base_size_m
+	new_size.x = front_face_x - rear_face_x
+	box.size = new_size
+	var new_position := safety_cell_base_position_m
+	new_position.x = (front_face_x + rear_face_x) * 0.5
+	safety_cell_collision.position = new_position
+	# Keep the distance probe on the current structural front face. This lets it
+	# continue measuring the obstacle while the protected-cell collision face
+	# retreats during catastrophic collapse.
+	if rigid_chassis.front_crush_probe != null:
+		var probe_position := rigid_chassis.front_crush_probe.position
+		probe_position.x = front_face_x
+		rigid_chassis.front_crush_probe.position = probe_position
 
 func _update_geometric_crush_measurement() -> void:
 	var front := PassengerCarBuilder.front_contact_nodes()
@@ -353,7 +578,10 @@ func _update_geometric_crush_measurement() -> void:
 		current_x += rigid_chassis.to_local(model.nodes[index].position_m).x
 		count += 1
 	if count > 0:
-		hybrid_geometric_front_crush_m = maxf(hybrid_geometric_front_crush_m, (original_x - current_x) / float(count))
+		# Remove protected-cell retreat from the nose-only measurement. Whole-body
+		# shortening is reported separately by hybrid_total_longitudinal_collapse_m.
+		var measured := (original_x - current_x) / float(count) - hybrid_cell_front_retreat_m
+		hybrid_geometric_front_crush_m = maxf(hybrid_geometric_front_crush_m, maxf(measured, 0.0))
 
 func _build_body_shell() -> void:
 	body_shell = DeformableBodyShell.new()
