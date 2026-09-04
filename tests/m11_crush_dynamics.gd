@@ -51,6 +51,8 @@ func _test_contact_is_compliant_not_impulsive(failures: Array[String]) -> void:
 		failures.append("M11 wall contact applied a large teleport-style position correction")
 	if contact.current_contact_energy_j <= 0.0:
 		failures.append("M11 compliant contact did not retain elastic contact energy")
+	if VehicleStaticContact.damping_ratio_for_restitution(0.01) <= VehicleStaticContact.damping_ratio_for_restitution(0.20):
+		failures.append("M11 contact damping no longer follows the configured restitution")
 
 func _test_symmetric_wall_crush_shape(failures: Array[String]) -> void:
 	var model := PassengerCarBuilder.build(
@@ -114,7 +116,7 @@ func _test_dynamic_pair_multipoint_contact(failures: Array[String]) -> void:
 		Vector3(-6.0, 0.0, 0.0)
 	)
 	var truck := HeavyTruckBuilder.build(18000.0, 0.0, Vector3(2.5, 0.0, 0.0))
-	var initial_yaw_deg := _reference_yaw_deg(car)
+	var initial_cabin_yaw_deg := _cabin_yaw_deg(car)
 	var historical_two_node_seed := PackedInt32Array([
 		CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.FRONT_STATION, 0),
 		CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.FRONT_STATION, 1),
@@ -127,10 +129,10 @@ func _test_dynamic_pair_multipoint_contact(failures: Array[String]) -> void:
 		failures.append("M11 did not expand the truck rear contact seed to a multi-point face")
 	for _step in range(240):
 		simulation.step(DT, 12)
-	var yaw_change_deg := _yaw_change_deg(initial_yaw_deg, _reference_yaw_deg(car))
-	print("M11 pair metrics: car_contacts=%d truck_contacts=%d events=%d yaw_change=%.3f momentum_error=%.6f front_perm=%.3f penetration=%.3f" % [
+	var cabin_yaw_change_deg := _yaw_change_deg(initial_cabin_yaw_deg, _cabin_yaw_deg(car))
+	print("M11 pair metrics: car_contacts=%d truck_contacts=%d events=%d cabin_yaw_change=%.3f momentum_error=%.6f front_perm=%.3f penetration=%.3f" % [
 		simulation.vehicle_contact_nodes.size(), simulation.truck_contact_nodes.size(),
-		simulation.contact.contact_events, yaw_change_deg, simulation.momentum_error_kg_ms(),
+		simulation.contact.contact_events, cabin_yaw_change_deg, simulation.momentum_error_kg_ms(),
 		car.max_permanent_deformation_for_role(&"front_crush"), simulation.contact.maximum_penetration_m,
 	])
 	if simulation.contact.contact_events <= 0:
@@ -141,8 +143,8 @@ func _test_dynamic_pair_multipoint_contact(failures: Array[String]) -> void:
 		failures.append("M11 dynamic pair scenario produced no meaningful front-crush deformation")
 	if simulation.momentum_error_kg_ms() > 0.05:
 		failures.append("M11 multipoint pair contact lost excessive linear momentum: %.6f kg m/s" % simulation.momentum_error_kg_ms())
-	if yaw_change_deg > 3.0:
-		failures.append("M11 symmetric rear-truck impact generated excessive artificial car yaw change: %.3f deg" % yaw_change_deg)
+	if cabin_yaw_change_deg > 3.0:
+		failures.append("M11 symmetric rear-truck impact generated excessive passenger-cell yaw change: %.3f deg" % cabin_yaw_change_deg)
 	if not _model_is_finite(car) or not _model_is_finite(truck):
 		failures.append("M11 dynamic pair scenario produced non-finite state")
 
@@ -199,6 +201,14 @@ func _reference_yaw_deg(model: StructuralModel) -> float:
 		CompactHatchbackBuilder.right_reference_nodes()
 	)
 	return rad_to_deg(atan2(transform.basis.x.z, transform.basis.x.x))
+
+func _cabin_yaw_deg(model: StructuralModel) -> float:
+	var rear := model.average_position_for_nodes(CompactHatchbackBuilder.station_nodes(CompactHatchbackBuilder.CABIN_REAR_STATION))
+	var front := model.average_position_for_nodes(CompactHatchbackBuilder.station_nodes(CompactHatchbackBuilder.CABIN_FRONT_STATION))
+	var forward := front - rear
+	if forward.length_squared() <= 0.000001:
+		return 0.0
+	return rad_to_deg(atan2(forward.z, forward.x))
 
 func _yaw_change_deg(initial_yaw_deg: float, final_yaw_deg: float) -> float:
 	return absf(wrapf(final_yaw_deg - initial_yaw_deg, -180.0, 180.0))
