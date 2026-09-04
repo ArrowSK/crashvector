@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect x="44" y="44" width="936" height="936" rx="218" fill="#0d1218"/>
+  <rect x="60" y="60" width="904" height="904" rx="202" fill="none" stroke="#303842" stroke-width="10"/>
+
+  <!-- Telemetry ring deliberately shaped as a C -->
+  <path d="M707 228 A334 334 0 1 0 707 796" fill="none" stroke="#d8dee5" stroke-width="30"/>
+  <path d="M682 263 A291 291 0 1 0 682 761" fill="none" stroke="#707b87" stroke-width="18"/>
+  <path d="M457 189 A334 334 0 0 0 286 247" fill="none" stroke="#0d1218" stroke-width="38"/>
+  <path d="M291 778 A334 334 0 0 0 454 835" fill="none" stroke="#0d1218" stroke-width="38"/>
+  <path d="M548 195 A334 334 0 0 1 627 230" fill="none" stroke="#f4f6f8" stroke-width="8" opacity=".55"/>
+  <path d="M545 828 A334 334 0 0 0 617 797" fill="none" stroke="#f4f6f8" stroke-width="8" opacity=".35"/>
+
+  <!-- Explicit V -->
+  <path d="M754 324 L826 640 L918 321" fill="none" stroke="#05080b" stroke-width="54" stroke-linejoin="miter"/>
+  <path d="M754 324 L826 640 L918 321" fill="none" stroke="#aeb7c1" stroke-width="36" stroke-linejoin="miter"/>
+  <path d="M761 326 L828 609" fill="none" stroke="#eef2f5" stroke-width="6" opacity=".45"/>
+
+  <!-- Wheels -->
+  <rect x="245" y="392" width="82" height="42" rx="18" fill="#05080b"/>
+  <rect x="245" y="590" width="82" height="42" rx="18" fill="#05080b"/>
+  <rect x="558" y="392" width="78" height="42" rx="18" fill="#05080b"/>
+  <rect x="558" y="590" width="78" height="42" rx="18" fill="#05080b"/>
+
+  <!-- Car body -->
+  <path d="M236 412 Q218 427 214 468 L214 556 Q218 597 236 612 L520 612 Q570 609 614 579 L680 542 L680 482 L614 445 Q570 415 520 412 Z"
+        fill="#d8dee5" stroke="#05080b" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M236 425 Q224 443 222 472 L222 552 Q224 582 236 599 L302 599 L302 425 Z" fill="#c5cdd6"/>
+  <rect x="230" y="458" width="12" height="108" rx="6" fill="#ff4b1b" opacity=".85"/>
+  <path d="M315 425 L516 425 Q557 427 590 452 L617 474 L617 550 L590 572 Q557 597 516 599 L315 599 Q301 557 301 512 Q301 466 315 425 Z" fill="#cbd2d9"/>
+  <path d="M334 438 L404 438 L404 586 L334 586 Q319 551 319 512 Q319 473 334 438 Z" fill="#0b1117"/>
+  <path d="M476 438 L520 438 Q552 440 582 460 L605 480 L605 544 L582 564 Q552 584 520 586 L476 586 Z" fill="#0b1117"/>
+  <path d="M419 438 L461 438 L461 586 L419 586 Z" fill="#edf1f4"/>
+  <path d="M328 426 L512 426 Q555 428 587 452" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity=".62"/>
+  <path d="M567 412 L600 396 L614 408 L585 428 Z" fill="#cfd6dd" stroke="#05080b" stroke-width="6"/>
+  <path d="M567 612 L600 628 L614 616 L585 596 Z" fill="#cfd6dd" stroke="#05080b" stroke-width="6"/>
+
+  <!-- Crumple zone -->
+  <g stroke="#05080b" stroke-width="5" stroke-linejoin="round">
+    <path d="M648 459 L697 443 L722 470 L694 493 Z" fill="#f3f5f7"/>
+    <path d="M663 482 L718 470 L733 502 L698 514 Z" fill="#bac3cc"/>
+    <path d="M664 542 L718 554 L733 522 L698 510 Z" fill="#e4e8ec"/>
+    <path d="M648 565 L697 581 L722 554 L694 531 Z" fill="#9ba6b1"/>
+    <path d="M690 484 L735 500 L728 524 L695 513 Z" fill="#ffffff"/>
+    <path d="M690 540 L735 524 L728 500 L695 511 Z" fill="#c5cdd6"/>
+    <path d="M706 451 L733 427 L750 456 L731 475 Z" fill="#d8dee5"/>
+    <path d="M706 573 L733 597 L750 568 L731 549 Z" fill="#a7b1bb"/>
+  </g>
+
+  <!-- Incoming vector -->
+  <line x1="158" y1="512" x2="704" y2="512" stroke="#7d1d0d" stroke-width="34" opacity=".35"/>
+  <line x1="158" y1="512" x2="704" y2="512" stroke="#ff4b1b" stroke-width="20" stroke-linecap="round"/>
+  <polygon points="690,486 726,512 690,538" fill="#ff4b1b"/>
+
+  <!-- Impact point -->
+  <circle cx="720" cy="512" r="29" fill="#120b08" stroke="#ff4b1b" stroke-width="8"/>
+  <circle cx="720" cy="512" r="9" fill="#fff3ec"/>
+
+  <!-- Deflection vectors -->
+  <line x1="735" y1="496" x2="873" y2="343" stroke="#7d1d0d" stroke-width="32" opacity=".35"/>
+  <line x1="735" y1="496" x2="873" y2="343" stroke="#ff4b1b" stroke-width="19" stroke-linecap="round"/>
+  <polygon points="854,346 889,325 880,365" fill="#ff4b1b"/>
+  <line x1="735" y1="528" x2="873" y2="681" stroke="#7d1d0d" stroke-width="32" opacity=".35"/>
+  <line x1="735" y1="528" x2="873" y2="681" stroke="#ff4b1b" stroke-width="19" stroke-linecap="round"/>
+  <polygon points="854,678 889,699 880,659" fill="#ff4b1b"/>
+
+  <!-- Debris -->
+  <path d="M748 477 l20 -9 -5 23 z" fill="#cbd2d9"/>
+  <path d="M759 546 l23 13 -20 11 z" fill="#7d8792"/>
+  <path d="M736 460 l8 -18 10 16 z" fill="#f2f4f6"/>
+</svg>
