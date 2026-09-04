@@ -9,11 +9,15 @@ extends Node3D
 @export_range(0.0, 140.0, 1.0, "or_greater") var initial_speed_kmh: float = 0.0
 @export var origin_offset_m: Vector3 = Vector3(2.0, 0.0, 0.0)
 @export_range(-180.0, 180.0, 1.0) var heading_deg: float = 0.0
-@export_range(1, 16, 1) var solver_substeps: int = 6
+@export_range(1, 64, 1) var solver_substeps: int = 8
 @export var show_structure: bool = false
 @export var auto_step: bool = true
+@export var hybrid_physics_enabled: bool = true
 
 var model: StructuralModel
+var rigid_chassis: VehicleRigidChassis
+var last_chassis_transform := Transform3D.IDENTITY
+var chassis_sync_ready: bool = false
 var debug_renderer: StructuralDebugRenderer
 var trailer_visual: MeshInstance3D
 var cab_visual: MeshInstance3D
@@ -27,8 +31,10 @@ var fifth_wheel_visual: MeshInstance3D
 var wheel_visuals: Array[Node3D] = []
 
 func _ready() -> void:
-	model = HeavyTruckBuilder.build(total_mass_kg, initial_speed_kmh, origin_offset_m)
+	model = HeavyTruckBuilder.build(total_mass_kg, 0.0, origin_offset_m)
 	model.rotate_y_about(origin_offset_m, deg_to_rad(heading_deg), true)
+	_prepare_rigid_visual_model()
+	_build_rigid_chassis()
 	_build_visuals()
 	_build_structure_debugger()
 	update_from_model()
@@ -36,10 +42,47 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if model == null or not auto_step:
 		return
+	if hybrid_physics_enabled:
+		step_external(delta)
+		return
 	model.step(delta, solver_substeps)
 	update_from_model()
 
 func step_external(_delta: float) -> void:
+	if hybrid_physics_enabled:
+		_sync_model_to_chassis()
+	update_from_model()
+
+func begin_simulation() -> void:
+	if rigid_chassis == null or not hybrid_physics_enabled:
+		return
+	rigid_chassis.position = origin_offset_m
+	rigid_chassis.rotation = Vector3(0.0, deg_to_rad(heading_deg), 0.0)
+	last_chassis_transform = rigid_chassis.global_transform
+	chassis_sync_ready = true
+	rigid_chassis.begin_motion(initial_speed_kmh, heading_deg)
+
+func set_simulation_paused(value: bool) -> void:
+	if rigid_chassis != null and hybrid_physics_enabled:
+		rigid_chassis.set_motion_paused(value)
+
+func end_simulation() -> void:
+	if rigid_chassis != null and hybrid_physics_enabled:
+		_sync_model_to_chassis()
+		rigid_chassis.stop_motion()
+
+func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
+	origin_offset_m = position_m
+	heading_deg = yaw_deg
+	if rigid_chassis == null:
+		return
+	var previous := rigid_chassis.global_transform
+	rigid_chassis.position = position_m
+	rigid_chassis.rotation = Vector3(0.0, deg_to_rad(yaw_deg), 0.0)
+	var current := rigid_chassis.global_transform
+	_apply_rigid_delta_to_model(current * previous.affine_inverse())
+	last_chassis_transform = current
+	chassis_sync_ready = true
 	update_from_model()
 
 func toggle_structure_debug() -> void:
@@ -51,10 +94,65 @@ func set_structure_debug(value: bool) -> void:
 		debug_renderer.visible = value
 
 func global_linear_velocity_ms() -> Vector3:
+	if hybrid_physics_enabled and rigid_chassis != null:
+		return rigid_chassis.linear_velocity
 	return VehicleKinematics.linear_velocity_ms(model)
+
+func global_momentum_kg_ms() -> Vector3:
+	if hybrid_physics_enabled and rigid_chassis != null:
+		return rigid_chassis.linear_velocity * rigid_chassis.mass
+	return model.total_momentum_kg_ms()
+
+func global_kinetic_energy_j() -> float:
+	if hybrid_physics_enabled and rigid_chassis != null:
+		return 0.5 * rigid_chassis.mass * rigid_chassis.linear_velocity.length_squared()
+	return model.total_kinetic_energy_j()
 
 func rear_guard_deformation_m() -> float:
 	return model.max_permanent_deformation_for_role(&"underride_guard")
+
+func _prepare_rigid_visual_model() -> void:
+	for node in model.nodes:
+		node.velocity_ms = Vector3.ZERO
+		node.pinned = true
+		node.inverse_mass = 0.0
+	model.gravity_ms2 = Vector3.ZERO
+	model.ground_enabled = false
+	model.barrier_enabled = false
+	model.capture_initial_energy()
+
+func _build_rigid_chassis() -> void:
+	rigid_chassis = VehicleRigidChassis.new()
+	rigid_chassis.name = "RigidTruckChassis"
+	add_child(rigid_chassis)
+	rigid_chassis.configure(total_mass_kg, origin_offset_m, heading_deg, initial_speed_kmh, 0.86, 0.0)
+	rigid_chassis.add_box_shape("TrailerCollision", Vector3(6.10, 2.95, 2.42), Vector3(3.55, 2.05, 0.0))
+	rigid_chassis.add_box_shape("TractorCollision", Vector3(2.65, 2.55, 2.28), Vector3(8.20, 1.72, 0.0))
+	rigid_chassis.add_box_shape("TruckFrameCollision", Vector3(9.45, 0.30, 1.80), Vector3(4.72, 0.58, 0.0))
+	for station in [1, 4, 6]:
+		var x := HeavyTruckBuilder.STATION_X[station]
+		var z := HeavyTruckBuilder.HALF_WIDTH_Z[station]
+		rigid_chassis.add_sphere_shape("TruckWheelCollision", 0.46, Vector3(x, 0.46, -z))
+		rigid_chassis.add_sphere_shape("TruckWheelCollision", 0.46, Vector3(x, 0.46, z))
+	last_chassis_transform = rigid_chassis.global_transform
+	chassis_sync_ready = true
+
+func _sync_model_to_chassis() -> void:
+	if rigid_chassis == null:
+		return
+	var current := rigid_chassis.global_transform
+	if not chassis_sync_ready:
+		last_chassis_transform = current
+		chassis_sync_ready = true
+		return
+	var delta_transform := current * last_chassis_transform.affine_inverse()
+	_apply_rigid_delta_to_model(delta_transform)
+	last_chassis_transform = current
+
+func _apply_rigid_delta_to_model(delta_transform: Transform3D) -> void:
+	for node in model.nodes:
+		node.position_m = delta_transform * node.position_m
+		node.velocity_ms = Vector3.ZERO
 
 func _build_visuals() -> void:
 	var trailer_material := _material(Color(0.79, 0.81, 0.84), 0.16, 0.52)
@@ -130,7 +228,7 @@ func _create_box(node_name: String, size: Vector3, material: Material) -> MeshIn
 func update_from_model() -> void:
 	if model == null:
 		return
-	var reference := VehicleKinematics.reference_transform(
+	var reference := rigid_chassis.global_transform if hybrid_physics_enabled and rigid_chassis != null else VehicleKinematics.reference_transform(
 		model,
 		HeavyTruckBuilder.rear_reference_nodes(),
 		HeavyTruckBuilder.front_reference_nodes(),
