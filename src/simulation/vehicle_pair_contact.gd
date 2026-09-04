@@ -8,9 +8,9 @@ extends RefCounted
 var restitution: float = 0.03
 var friction_coefficient: float = 0.55
 var tangent_contact_radius_m: float = 1.25
-var normal_stiffness_n_m: float = 9000000.0
+var normal_stiffness_n_m: float = 3000000.0
 var damping_ratio: float = 0.75
-var maximum_force_per_pair_n: float = 4000000.0
+var maximum_force_per_pair_n: float = 1000000.0
 var emergency_penetration_m: float = 0.35
 var emergency_position_fraction: float = 0.015
 var contact_events: int = 0
