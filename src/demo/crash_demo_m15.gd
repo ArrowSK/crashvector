@@ -5,9 +5,9 @@
 extends "res://src/demo/crash_demo_m14.gd"
 
 # M15 deliberately keeps the proven M14 production/editor layer intact and
-# upgrades the shared RoadUserRigidProxy3D implementation underneath it.
-# Pedestrians are now lightweight articulated rigid-body chains and bicycles
-# have independently simulated wheel bodies joined to the rigid frame.
+# upgrades the road-user implementation underneath it. Pedestrians are
+# lightweight articulated rigid-body chains with bounded generic joints and
+# bicycles have independently simulated wheel bodies joined to the rigid frame.
 #
 # Road-user rigid segments use a dedicated collision channel. They collide
 # physically with the road but not the passenger-car protected-cell collider;
@@ -25,6 +25,37 @@ func _ready() -> void:
 func _rebuild_preview() -> void:
 	super._rebuild_preview()
 	_configure_articulated_collision_channels()
+
+func _replace_legacy_road_user_with_rigid_proxy() -> void:
+	if bicycle != null and is_instance_valid(bicycle) and bicycle.get_parent() == self:
+		remove_child(bicycle)
+		bicycle.queue_free()
+	if pedestrian != null and is_instance_valid(pedestrian) and pedestrian.get_parent() == self:
+		remove_child(pedestrian)
+		pedestrian.queue_free()
+	bicycle = null
+	pedestrian = null
+	pair_simulation = null
+	static_simulation = null
+	hybrid_production_active = true
+
+	road_user_proxy = RoadUserArticulatedProxy3D.new()
+	road_user_proxy.name = "RoadUserArticulatedProxy"
+	road_user_proxy.configure(
+		scenario.target_type,
+		scenario.target_preset_id,
+		scenario.target_mass_kg,
+		scenario.target_speed_kmh,
+		scenario.target_position_m,
+		scenario.target_heading_deg,
+		scenario.show_structure
+	)
+	add_child(road_user_proxy)
+	bicycle = road_user_proxy.bicycle_visual
+	pedestrian = road_user_proxy.pedestrian_visual
+	if status_label != null:
+		status_label.text = "Bounded articulated road-user preview — press Simulate"
+	_update_metrics()
 
 func _configure_articulated_collision_channels() -> void:
 	if road_user_proxy == null or not is_instance_valid(road_user_proxy):
@@ -47,10 +78,10 @@ func _set_road_user_body_channels(body: PhysicsBody3D) -> void:
 	body.collision_mask = ROAD_USER_GROUND_LAYER
 
 func _rebind_articulated_joints() -> void:
-	# The rig is assembled before its sibling bodies are moved to their configured
-	# preview offsets. Rebinding after set_preview_pose() makes Godot derive each
-	# local pivot from the final body/joint transforms and avoids a large initial
-	# constraint correction when the bodies are unfrozen.
+	# Rebinding after preview placement makes Godot derive each local pivot from
+	# the final body/joint transforms and avoids a large initial correction when
+	# the bodies are unfrozen. The bounded M15 proxy performs the same operation
+	# internally; repeating it here also covers the bicycle hub pins.
 	for joint in road_user_proxy.articulated_joints:
 		if joint == null or not is_instance_valid(joint):
 			continue
