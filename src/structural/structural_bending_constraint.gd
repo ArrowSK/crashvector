@@ -18,6 +18,8 @@ var yield_angle_rad: float = deg_to_rad(8.0)
 var max_plastic_angle_rad: float = deg_to_rad(55.0)
 var break_angle_rad: float = deg_to_rad(105.0)
 var plastic_flow_rate: float = 12.0
+var maximum_force_n: float = 500000.0
+var plastic_bend_angle_rad: float = 0.0
 var broken: bool = false
 var last_angle_rad: float = 0.0
 var last_angle_error_rad: float = 0.0
@@ -64,75 +66,88 @@ func solve(nodes: Array[StructuralNode], delta_s: float) -> void:
 	var a := nodes[node_a]
 	var b := nodes[node_b]
 	var c := nodes[node_c]
-	var ab := a.position_m - b.position_m
-	var cb := c.position_m - b.position_m
-	var len_ab := ab.length()
-	var len_cb := cb.length()
-	if len_ab <= 0.00001 or len_cb <= 0.00001:
+	var ba := a.position_m - b.position_m
+	var bc := c.position_m - b.position_m
+	var len_ba := ba.length()
+	var len_bc := bc.length()
+	if len_ba <= 0.00001 or len_bc <= 0.00001:
 		return
 
-	var u := ab / len_ab
-	var v := cb / len_cb
-	var cosine := clampf(u.dot(v), -0.99995, 0.99995)
-	var angle := acos(cosine)
-	var sine := maxf(sqrt(maxf(1.0 - cosine * cosine, 0.0)), 0.01)
-	last_angle_rad = angle
-	var total_change := angle - original_rest_angle_rad
-	if absf(total_change) >= break_angle_rad:
+	var u := ba / len_ba
+	var v := bc / len_bc
+	var bend_angle := acos(clampf(-u.dot(v), -1.0, 1.0))
+	last_angle_rad = _current_angle(nodes)
+	last_angle_error_rad = bend_angle
+	if bend_angle >= break_angle_rad:
 		fracture_energy_j += elastic_energy_j(nodes)
 		broken = true
 		last_generalized_torque_nm = 0.0
 		return
 
-	# These vectors are the negative gradients of the A-B-C angle. Using them
-	# directly for the elastic term gives a restoring force. Their velocity
-	# projection is therefore the negative physical angular rate, so damping
-	# must subtract that projection rather than add it.
-	var negative_gradient_a := (v - u * cosine) / (len_ab * sine)
-	var negative_gradient_c := (u - v * cosine) / (len_cb * sine)
-	var negative_gradient_b := -(negative_gradient_a + negative_gradient_c)
-	var negative_angular_rate := (
-		negative_gradient_a.dot(a.velocity_ms)
-		+ negative_gradient_b.dot(b.velocity_ms)
-		+ negative_gradient_c.dot(c.velocity_ms)
-	)
-	last_angle_error_rad = angle - rest_angle_rad
-	var generalized_torque := (
-		stiffness_nm_rad * last_angle_error_rad
-		- damping_nm_s_rad * negative_angular_rate
-	)
-	last_generalized_torque_nm = generalized_torque
+	_apply_plastic_hinge(bend_angle, delta_s)
+	var damage := clampf(plastic_bend_angle_rad / maxf(max_plastic_angle_rad, 0.0001), 0.0, 1.0)
+	var effective_stiffness := stiffness_nm_rad * lerpf(1.0, 0.12, damage)
+	last_generalized_torque_nm = effective_stiffness * bend_angle
 
-	a.add_force(negative_gradient_a * generalized_torque)
-	b.add_force(negative_gradient_b * generalized_torque)
-	c.add_force(negative_gradient_c * generalized_torque)
-	damping_energy_j += damping_nm_s_rad * negative_angular_rate * negative_angular_rate * delta_s
-	_apply_plastic_flow(angle, generalized_torque, delta_s)
-
-func _apply_plastic_flow(angle_rad: float, generalized_torque_nm: float, delta_s: float) -> void:
-	var total_change := angle_rad - original_rest_angle_rad
-	var abs_change := absf(total_change)
-	if abs_change <= yield_angle_rad or plastic_flow_rate <= 0.0:
+	# For a straight A-B-C rail, u and v point in opposite directions and
+	# u+v is zero. As B leaves the A-C line, u+v points back toward the chord.
+	# This curvature surrogate is well-conditioned at the straight position,
+	# unlike an acos/sin angle-gradient formulation, and does not resist pure
+	# axial shortening when all three nodes stay collinear.
+	var chord := c.position_m - a.position_m
+	var chord_length := chord.length()
+	var tangent := chord / chord_length if chord_length > 0.00001 else (v - u).normalized()
+	if tangent.is_zero_approx():
 		return
-	var minimum_rest := original_rest_angle_rad - max_plastic_angle_rad
-	var maximum_rest := original_rest_angle_rad + max_plastic_angle_rad
-	var target_rest := clampf(angle_rad, minimum_rest, maximum_rest)
+	var curvature := u + v
+	curvature -= tangent * curvature.dot(tangent)
+	var characteristic_length := maxf((len_ba + len_bc) * 0.5, 0.05)
+	var relative_middle_velocity := b.velocity_ms - (a.velocity_ms + c.velocity_ms) * 0.5
+	var lateral_velocity := relative_middle_velocity - tangent * relative_middle_velocity.dot(tangent)
+	var elastic_force := curvature * (effective_stiffness / characteristic_length)
+	var damping_coefficient := 2.0 * damping_nm_s_rad / maxf(characteristic_length * characteristic_length, 0.0025)
+	var damping_force := -lateral_velocity * damping_coefficient
+	var middle_force := elastic_force + damping_force
+	var force_length := middle_force.length()
+	if force_length > maximum_force_n:
+		middle_force *= maximum_force_n / force_length
+
+	b.add_force(middle_force)
+	a.add_force(-middle_force * 0.5)
+	c.add_force(-middle_force * 0.5)
+	damping_energy_j += damping_coefficient * lateral_velocity.length_squared() * delta_s
+
+func _apply_plastic_hinge(bend_angle_rad: float, delta_s: float) -> void:
+	if bend_angle_rad <= yield_angle_rad or plastic_flow_rate <= 0.0:
+		return
+	var target_plastic := minf(bend_angle_rad, max_plastic_angle_rad)
 	var flow_span := maxf(max_plastic_angle_rad - yield_angle_rad, deg_to_rad(0.1))
-	var flow_factor := clampf((abs_change - yield_angle_rad) / flow_span, 0.0, 1.0)
-	var alpha := clampf(plastic_flow_rate * flow_factor * delta_s, 0.0, 1.0)
-	var old_rest := rest_angle_rad
-	rest_angle_rad = lerpf(rest_angle_rad, target_rest, alpha)
-	plastic_energy_j += absf(generalized_torque_nm) * absf(rest_angle_rad - old_rest)
+	var flow_factor := clampf((bend_angle_rad - yield_angle_rad) / flow_span, 0.0, 1.0)
+	var alpha := clampf(plastic_flow_rate * maxf(flow_factor, 0.15) * delta_s, 0.0, 1.0)
+	var old_plastic := plastic_bend_angle_rad
+	plastic_bend_angle_rad = lerpf(plastic_bend_angle_rad, target_plastic, alpha)
+	rest_angle_rad = original_rest_angle_rad - plastic_bend_angle_rad
+	plastic_energy_j += absf(last_generalized_torque_nm) * absf(plastic_bend_angle_rad - old_plastic)
 
 func elastic_energy_j(nodes: Array[StructuralNode]) -> float:
 	if broken:
 		return 0.0
-	var angle := _current_angle(nodes)
-	var error := angle - rest_angle_rad
-	return 0.5 * stiffness_nm_rad * error * error
+	var bend_angle := _current_bend_angle(nodes)
+	var damage := clampf(plastic_bend_angle_rad / maxf(max_plastic_angle_rad, 0.0001), 0.0, 1.0)
+	var effective_stiffness := stiffness_nm_rad * lerpf(1.0, 0.12, damage)
+	return 0.5 * effective_stiffness * bend_angle * bend_angle
 
 func permanent_angle_rad() -> float:
-	return rest_angle_rad - original_rest_angle_rad
+	return plastic_bend_angle_rad
+
+func _current_bend_angle(nodes: Array[StructuralNode]) -> float:
+	if node_a < 0 or node_b < 0 or node_c < 0 or node_a >= nodes.size() or node_b >= nodes.size() or node_c >= nodes.size():
+		return 0.0
+	var ba := nodes[node_a].position_m - nodes[node_b].position_m
+	var bc := nodes[node_c].position_m - nodes[node_b].position_m
+	if ba.length() <= 0.00001 or bc.length() <= 0.00001:
+		return 0.0
+	return acos(clampf(-ba.normalized().dot(bc.normalized()), -1.0, 1.0))
 
 func _current_angle(nodes: Array[StructuralNode]) -> float:
 	if node_a < 0 or node_b < 0 or node_c < 0 or node_a >= nodes.size() or node_b >= nodes.size() or node_c >= nodes.size():
