@@ -47,4 +47,6 @@ static func from_result(result: Dictionary) -> Dictionary:
 		"final_kinetic_energy_j": float(last_metrics.get("kinetic_energy_j", 0.0)),
 		"final_elastic_energy_j": float(last_metrics.get("elastic_energy_j", 0.0)),
 		"plastic_energy_j": float(last_metrics.get("plastic_energy_j", 0.0)),
+		"damping_energy_j": float(last_metrics.get("damping_energy_j", 0.0)),
+		"fracture_energy_j": float(last_metrics.get("fracture_energy_j", 0.0)),
 	}
