@@ -84,6 +84,14 @@ func add_front_crush_probe(
 	add_child(front_crush_probe)
 	return front_crush_probe
 
+# Compatibility bridge for the first M12 branch revision. The former box
+# sensor's rear face is exactly the firewall-side probe origin and its X size
+# is the undeformed crush-zone length, so preserve that call shape while using
+# the more reliable distance probe internally.
+func add_front_crush_sensor(size_m: Vector3, local_position_m: Vector3) -> RayCast3D:
+	var mount := local_position_m - Vector3(size_m.x * 0.5, 0.0, 0.0)
+	return add_front_crush_probe(mount, size_m.x, 0.22)
+
 func add_suspension_point(
 	node_name: String,
 	local_mount_m: Vector3,
