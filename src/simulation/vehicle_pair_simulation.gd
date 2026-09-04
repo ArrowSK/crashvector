@@ -26,17 +26,18 @@ func configure(
 ) -> void:
 	vehicle_model = car
 	truck_model = truck
-	vehicle_contact_nodes = car_contact_nodes.duplicate()
 	contact_normal = normal.normalized()
 	if contact_normal.is_zero_approx():
 		contact_normal = Vector3.RIGHT
-	truck_contact_nodes = _best_transverse_pair_order(
+	vehicle_contact_nodes = _expand_contact_surface(vehicle_model, car_contact_nodes, contact_normal)
+	var target_seed := _best_transverse_pair_order(
 		vehicle_model,
 		vehicle_contact_nodes,
 		truck_model,
 		truck_rear_contact_nodes,
 		contact_normal
 	)
+	truck_contact_nodes = _expand_contact_surface(truck_model, target_seed, contact_normal)
 	vehicle_model.barrier_enabled = false
 	truck_model.barrier_enabled = false
 	initial_energy_j = vehicle_model.initial_energy_j + truck_model.initial_energy_j
@@ -45,6 +46,7 @@ func configure(
 	contact = VehiclePairContact.new()
 	contact.friction_coefficient = clampf(friction_coefficient, 0.0, 1.5)
 	contact.restitution = clampf(restitution, 0.0, 0.5)
+	contact.damping_ratio = VehiclePairContact.damping_ratio_for_restitution(contact.restitution)
 
 func step(delta_s: float, substeps: int = 8) -> void:
 	if delta_s <= 0.0 or vehicle_model == null or truck_model == null:
@@ -52,16 +54,19 @@ func step(delta_s: float, substeps: int = 8) -> void:
 	var count := maxi(substeps, 1)
 	var h := delta_s / float(count)
 	for _substep in range(count):
-		vehicle_model.step(h, 1)
-		truck_model.step(h, 1)
-		contact.resolve_pairs(
+		vehicle_model.prepare_substep(h)
+		truck_model.prepare_substep(h)
+		contact.apply_forces(
 			vehicle_model,
 			vehicle_contact_nodes,
 			truck_model,
 			truck_contact_nodes,
 			contact_normal,
+			h,
 			elapsed_s
 		)
+		vehicle_model.integrate_substep(h)
+		truck_model.integrate_substep(h)
 		elapsed_s += h
 
 func closing_speed_kmh() -> float:
@@ -77,12 +82,50 @@ func momentum_error_kg_ms() -> float:
 	return (current_total_momentum_kg_ms() - initial_momentum_kg_ms).length()
 
 func accounted_energy_j() -> float:
-	return vehicle_model.accounted_energy_j() + truck_model.accounted_energy_j() + contact.accumulated_dissipation_j
+	return (
+		vehicle_model.accounted_energy_j()
+		+ truck_model.accounted_energy_j()
+		+ contact.accumulated_dissipation_j
+		+ contact.current_contact_energy_j
+	)
 
 func energy_balance_relative_error() -> float:
 	if initial_energy_j <= 0.0:
 		return 0.0
 	return absf(initial_energy_j - accounted_energy_j()) / initial_energy_j
+
+func _expand_contact_surface(
+	model: StructuralModel,
+	seed_indices: PackedInt32Array,
+	normal: Vector3
+) -> PackedInt32Array:
+	if model == null or seed_indices.is_empty():
+		return seed_indices.duplicate()
+	var reference_projection := 0.0
+	var reference_center := Vector3.ZERO
+	var valid_count := 0
+	for index in seed_indices:
+		if not _valid_index(model, index):
+			continue
+		reference_projection += model.nodes[index].position_m.dot(normal)
+		reference_center += model.nodes[index].position_m
+		valid_count += 1
+	if valid_count <= 0:
+		return seed_indices.duplicate()
+	reference_projection /= float(valid_count)
+	reference_center /= float(valid_count)
+
+	var expanded := PackedInt32Array()
+	for index in range(model.nodes.size()):
+		var position := model.nodes[index].position_m
+		if absf(position.dot(normal) - reference_projection) > 0.075:
+			continue
+		var delta := position - reference_center
+		var tangent := delta - normal * delta.dot(normal)
+		if tangent.length() > 2.25:
+			continue
+		expanded.append(index)
+	return seed_indices.duplicate() if expanded.is_empty() else expanded
 
 func _best_transverse_pair_order(
 	model_a: StructuralModel,

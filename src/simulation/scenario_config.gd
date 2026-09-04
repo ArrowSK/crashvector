@@ -6,6 +6,7 @@ class_name ScenarioConfig
 extends RefCounted
 
 const FORMAT_VERSION: int = 1
+const MAX_SOLVER_SUBSTEPS: int = 64
 const TARGET_PASSENGER_CAR: StringName = &"passenger_car"
 const TARGET_TRUCK: StringName = &"heavy_truck"
 const TARGET_LORRY: StringName = &"rigid_lorry"
@@ -197,8 +198,8 @@ func validation_errors() -> Array[String]:
 		errors.append("Restitution must be between 0 and 0.5")
 	if duration_s < 0.5 or duration_s > 20.0:
 		errors.append("Simulation duration must be between 0.5 and 20 seconds")
-	if solver_substeps < 1 or solver_substeps > 16:
-		errors.append("Solver substeps must be between 1 and 16")
+	if solver_substeps < 1 or solver_substeps > MAX_SOLVER_SUBSTEPS:
+		errors.append("Solver substeps must be between 1 and %d" % MAX_SOLVER_SUBSTEPS)
 	if not _finite_vector(car_position_m) or not _finite_vector(target_position_m):
 		errors.append("Object positions must contain finite numbers")
 	var forward_separation := (target_position_m - car_position_m).dot(car_forward())

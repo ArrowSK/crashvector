@@ -10,11 +10,17 @@ var obstacle_position_m: Vector3 = Vector3.ZERO
 var obstacle_heading_deg: float = 0.0
 var restitution: float = 0.03
 var friction_coefficient: float = 0.55
-var position_correction_fraction: float = 0.90
-var penetration_slop_m: float = 0.001
+
+var normal_stiffness_n_m: float = 3000000.0
+var damping_ratio: float = 0.75
+var maximum_force_per_node_n: float = 750000.0
+var emergency_penetration_m: float = 0.20
+var emergency_position_fraction: float = 0.02
 var contact_events: int = 0
+var active_contacts: int = 0
 var first_contact_time_s: float = -1.0
 var accumulated_dissipation_j: float = 0.0
+var current_contact_energy_j: float = 0.0
 var maximum_penetration_m: float = 0.0
 
 func configure(
@@ -29,9 +35,17 @@ func configure(
 	obstacle_heading_deg = heading_deg
 	friction_coefficient = clampf(friction, 0.0, 1.5)
 	restitution = clampf(bounce, 0.0, 0.5)
+	damping_ratio = damping_ratio_for_restitution(restitution)
 
-func resolve_model(model: StructuralModel, elapsed_s: float) -> void:
-	if model == null:
+static func damping_ratio_for_restitution(coefficient: float) -> float:
+	var e := clampf(coefficient, 0.0001, 0.9999)
+	var log_e := log(e)
+	return clampf(-log_e / sqrt(PI * PI + log_e * log_e), 0.0, 1.0)
+
+func apply_forces(model: StructuralModel, delta_s: float, elapsed_s: float) -> void:
+	current_contact_energy_j = 0.0
+	active_contacts = 0
+	if model == null or delta_s <= 0.0:
 		return
 	for node in model.nodes:
 		if node.pinned:
@@ -39,7 +53,10 @@ func resolve_model(model: StructuralModel, elapsed_s: float) -> void:
 		var contact_data := _contact_for_point(node.position_m)
 		if contact_data.is_empty():
 			continue
-		_resolve_node(node, contact_data["normal"], float(contact_data["penetration"]), elapsed_s)
+		_apply_node_force(node, contact_data["normal"], float(contact_data["penetration"]), delta_s, elapsed_s)
+
+func resolve_model(model: StructuralModel, elapsed_s: float) -> void:
+	apply_forces(model, 1.0 / 240.0, elapsed_s)
 
 func _contact_for_point(point_m: Vector3) -> Dictionary:
 	match obstacle_type:
@@ -77,29 +94,56 @@ func _cylinder_contact(point_m: Vector3, radius_m: float, height_m: float) -> Di
 		normal = -Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(obstacle_heading_deg)).normalized()
 	return {"normal": normal, "penetration": radius_m - distance_m}
 
-func _resolve_node(node: StructuralNode, normal: Vector3, penetration_m: float, elapsed_s: float) -> void:
+func _apply_node_force(node: StructuralNode, normal: Vector3, penetration_m: float, delta_s: float, elapsed_s: float) -> void:
 	var n := normal.normalized()
-	if n.is_zero_approx():
+	if n.is_zero_approx() or penetration_m <= 0.0:
 		return
 	maximum_penetration_m = maxf(maximum_penetration_m, penetration_m)
-	var normal_speed := node.velocity_ms.dot(n)
-	if normal_speed < 0.0:
-		var before_j := node.kinetic_energy_j()
-		var normal_impulse_ns := -(1.0 + restitution) * normal_speed / maxf(node.inverse_mass, 0.0000001)
-		node.velocity_ms += n * normal_impulse_ns * node.inverse_mass
-		var tangent_velocity := node.velocity_ms - n * node.velocity_ms.dot(n)
-		var tangent_speed := tangent_velocity.length()
-		if tangent_speed > 0.000001 and friction_coefficient > 0.0:
-			var tangent_direction := tangent_velocity / tangent_speed
-			var desired_tangent_impulse := tangent_speed / maxf(node.inverse_mass, 0.0000001)
-			var tangent_impulse := minf(desired_tangent_impulse, friction_coefficient * normal_impulse_ns)
-			node.velocity_ms -= tangent_direction * tangent_impulse * node.inverse_mass
-		var after_j := node.kinetic_energy_j()
-		accumulated_dissipation_j += maxf(before_j - after_j, 0.0)
-		contact_events += 1
-		if first_contact_time_s < 0.0:
-			first_contact_time_s = elapsed_s
+	active_contacts += 1
+	contact_events += 1
+	if first_contact_time_s < 0.0:
+		first_contact_time_s = elapsed_s
 
-	var correction_depth := maxf(penetration_m - penetration_slop_m, 0.0)
-	if correction_depth > 0.0:
-		node.position_m += n * correction_depth * clampf(position_correction_fraction, 0.0, 1.0)
+	var normal_speed := node.velocity_ms.dot(n)
+	var spring_force := normal_stiffness_n_m * penetration_m
+	var critical_damping := 2.0 * sqrt(maxf(normal_stiffness_n_m * node.mass_kg, 0.0))
+	var damping_coefficient := critical_damping * clampf(damping_ratio, 0.0, 1.0)
+	# Negative normal speed means compression and therefore adds damping force;
+	# positive speed means separation and subtracts damping from spring release.
+	var raw_damping_force_signed := -damping_coefficient * normal_speed
+	var damping_force_signed := raw_damping_force_signed
+	if absf(normal_speed) > 0.000001:
+		var maximum_damping_force := node.mass_kg * absf(normal_speed) / delta_s
+		damping_force_signed = clampf(raw_damping_force_signed, -maximum_damping_force, maximum_damping_force)
+	var requested_force := spring_force + damping_force_signed
+	var normal_force := clampf(requested_force, 0.0, maximum_force_per_node_n)
+	var force_scale := 0.0
+	if requested_force > 0.000001:
+		force_scale = normal_force / requested_force
+	var applied_spring_force := spring_force * force_scale
+	var applied_damping_force_signed := damping_force_signed * force_scale
+	node.add_force(n * normal_force)
+	current_contact_energy_j += 0.5 * applied_spring_force * penetration_m
+	if absf(normal_speed) > 0.000001:
+		var damping_only_after_speed := normal_speed + applied_damping_force_signed / node.mass_kg * delta_s
+		accumulated_dissipation_j += maxf(
+			0.5 * node.mass_kg * (normal_speed * normal_speed - damping_only_after_speed * damping_only_after_speed),
+			0.0
+		)
+
+	var tangent_velocity := node.velocity_ms - n * normal_speed
+	var tangent_speed := tangent_velocity.length()
+	if tangent_speed > 0.000001 and friction_coefficient > 0.0:
+		var tangent_direction := tangent_velocity / tangent_speed
+		var desired_friction_force := node.mass_kg * tangent_speed / maxf(delta_s, 0.000001)
+		var friction_force := minf(desired_friction_force, friction_coefficient * normal_force)
+		node.add_force(-tangent_direction * friction_force)
+		var tangent_after_speed := maxf(tangent_speed - friction_force / node.mass_kg * delta_s, 0.0)
+		accumulated_dissipation_j += maxf(
+			0.5 * node.mass_kg * (tangent_speed * tangent_speed - tangent_after_speed * tangent_after_speed),
+			0.0
+		)
+
+	if penetration_m > emergency_penetration_m:
+		var correction := (penetration_m - emergency_penetration_m) * clampf(emergency_position_fraction, 0.0, 0.05)
+		node.position_m += n * correction

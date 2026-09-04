@@ -114,16 +114,72 @@ func update_from_model() -> void:
 func _build_body_surface() -> void:
 	body_mesh.clear_surfaces()
 	body_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, body_material)
-	for station in range(station_count - 1):
-		var next := station + 1
-		_quad_on(body_mesh, _lower(station, 0), _lower(next, 0), _visual_upper(next, 0), _visual_upper(station, 0))
-		_quad_on(body_mesh, _lower(station, 1), _visual_upper(station, 1), _visual_upper(next, 1), _lower(next, 1))
-		_quad_on(body_mesh, _visual_upper(station, 0), _visual_upper(next, 0), _visual_upper(next, 1), _visual_upper(station, 1))
-		_quad_on(body_mesh, _lower(station, 0), _lower(station, 1), _lower(next, 1), _lower(next, 0))
+
+	# Rear body and passenger cell retain the M10 visual stations. The M11
+	# production car then switches to the refined engine-bay section chain so
+	# crash-box/rail folding is visible in the painted body instead of being
+	# hidden behind two coarse interpolation spans.
+	var cabin_front := mini(CompactHatchbackBuilder.CABIN_FRONT_STATION, station_count - 1)
+	for station in range(cabin_front):
+		_add_body_span(
+			_lower(station, 0), _lower(station, 1),
+			_visual_upper(station, 0), _visual_upper(station, 1),
+			_lower(station + 1, 0), _lower(station + 1, 1),
+			_visual_upper(station + 1, 0), _visual_upper(station + 1, 1)
+		)
+
+	if model.nodes.size() >= PassengerCarBuilder.BASE_NODE_COUNT + PassengerCarBuilder.M11_EXTRA_SECTION_X.size() * 4:
+		var refined := PassengerCarBuilder.front_crush_section_nodes()
+		for section in range(refined.size() - 1):
+			var rear_points := _surface_points_for_refined_section(refined[section], section == 0)
+			var front_points := _surface_points_for_refined_section(refined[section + 1], false)
+			_add_body_span(
+				rear_points[0], rear_points[1], rear_points[2], rear_points[3],
+				front_points[0], front_points[1], front_points[2], front_points[3]
+			)
+	else:
+		for station in range(cabin_front, station_count - 1):
+			_add_body_span(
+				_lower(station, 0), _lower(station, 1),
+				_visual_upper(station, 0), _visual_upper(station, 1),
+				_lower(station + 1, 0), _lower(station + 1, 1),
+				_visual_upper(station + 1, 0), _visual_upper(station + 1, 1)
+			)
+
 	_quad_on(body_mesh, _lower(0, 0), _visual_upper(0, 0), _visual_upper(0, 1), _lower(0, 1))
 	var last := station_count - 1
 	_quad_on(body_mesh, _lower(last, 0), _lower(last, 1), _visual_upper(last, 1), _visual_upper(last, 0))
 	body_mesh.surface_end()
+
+func _add_body_span(
+	rear_lower_left: Vector3,
+	rear_lower_right: Vector3,
+	rear_upper_left: Vector3,
+	rear_upper_right: Vector3,
+	front_lower_left: Vector3,
+	front_lower_right: Vector3,
+	front_upper_left: Vector3,
+	front_upper_right: Vector3
+) -> void:
+	_quad_on(body_mesh, rear_lower_left, front_lower_left, front_upper_left, rear_upper_left)
+	_quad_on(body_mesh, rear_lower_right, rear_upper_right, front_upper_right, front_lower_right)
+	_quad_on(body_mesh, rear_upper_left, front_upper_left, front_upper_right, rear_upper_right)
+	_quad_on(body_mesh, rear_lower_left, rear_lower_right, front_lower_right, front_lower_left)
+
+func _surface_points_for_refined_section(indices: PackedInt32Array, use_cabin_visual_upper: bool) -> Array[Vector3]:
+	if use_cabin_visual_upper:
+		return [
+			model.nodes[indices[0]].position_m,
+			model.nodes[indices[1]].position_m,
+			_visual_upper(CompactHatchbackBuilder.CABIN_FRONT_STATION, 0),
+			_visual_upper(CompactHatchbackBuilder.CABIN_FRONT_STATION, 1),
+		]
+	return [
+		model.nodes[indices[0]].position_m,
+		model.nodes[indices[1]].position_m,
+		model.nodes[indices[2]].position_m,
+		model.nodes[indices[3]].position_m,
+	]
 
 func _build_glazing_surface() -> void:
 	glass_mesh.clear_surfaces()

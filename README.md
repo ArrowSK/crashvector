@@ -13,17 +13,17 @@
 </p>
 
 <p align="center">
-  <img alt="M10 complete" src="https://img.shields.io/badge/milestone-M10%20complete-ff4d1f?style=for-the-badge">
+  <img alt="M11 complete" src="https://img.shields.io/badge/milestone-M11%20complete-ff4d1f?style=for-the-badge">
   <a href="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml/badge.svg?branch=main"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.2.0-beta.1/CrashVector-0.2.0-beta.1-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.2.0-beta.1/CrashVector-0.2.0-beta.1-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.3.0-beta.1/CrashVector-0.3.0-beta.1-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.3.0-beta.1/CrashVector-0.3.0-beta.1-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.2.0-beta.1">Release notes & checksums</a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.3.0-beta.1">Release notes & checksums</a>
   ·
   <a href="docs/DISTRIBUTION.md">Installation & updates</a>
 </p>
@@ -39,7 +39,7 @@ CrashVector is an open-source desktop crash-simulation sandbox for people who wa
 
 Set up a vehicle and target, press **Simulate**, scrub the recorded crash, compare alternatives side by side, and export a cinematic video. The physics is intentionally visible and measurable, but the claims stay conservative.
 
-> **Current state:** **M10 is complete on `main`**. The packaged desktop beta, **0.2.0-beta.1**, is published for macOS Universal 2 and Windows x64 with the responsive Scenario/Compare shell, rebuilt presentation layer, native installers, SHA-256 sidecars, machine-readable update manifest and built-in updater. M0–M9 simulation, replay, analysis, comparison, calibration, cinematic-export and distribution behaviour is retained.
+> **Current state:** **M11 is complete on `main`**. The packaged desktop beta, **0.3.0-beta.1**, is published for macOS Universal 2 and Windows x64 with the responsive Scenario/Compare shell, rebuilt presentation layer, compliant multi-point contact, refined 44-node production passenger-car structure, native installers, SHA-256 sidecars, machine-readable update manifest and built-in updater. M0–M10 scenario, replay, analysis, comparison, calibration, cinematic-export, presentation and distribution behaviour is retained.
 
 > **Scope:** CrashVector is an educational physics visualisation tool. It is **not** certified accident reconstruction, homologation, manufacturer crash-performance prediction, biomechanics, medical/injury prediction or a safety-rating system.
 
@@ -49,10 +49,10 @@ No Git, Godot, Python, Terminal or PowerShell is required for the packaged deskt
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.2.0-beta.1/CrashVector-0.2.0-beta.1-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
-| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.2.0-beta.1/CrashVector-0.2.0-beta.1-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
+| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.3.0-beta.1/CrashVector-0.3.0-beta.1-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
+| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.3.0-beta.1/CrashVector-0.3.0-beta.1-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
 
-The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.2.0-beta.1 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.2.0-beta.1)**.
+The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.3.0-beta.1 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.3.0-beta.1)**.
 
 This beta is ad-hoc signed on macOS and unsigned on Windows when paid signing credentials are not configured, so Gatekeeper or SmartScreen may warn about an unknown developer/publisher. Use only the files attached to the official `ArrowSK/crashvector` release.
 
@@ -96,7 +96,7 @@ Mass is editable, but it is never mandatory setup work.
 | Area | What you get |
 | --- | --- |
 | Scenario editor | Responsive desktop setup for vehicle class, target, mass, speed, position, heading, contact parameters and presentation |
-| Passenger cars | Generic A / B / C / D / J / M classes with representative default masses |
+| Passenger cars | Generic A / B / C / D / J / M classes with representative default masses and a refined 44-node production crush structure |
 | Heavy vehicles | Articulated heavy truck and rigid lorry / box-truck development models |
 | Road users | Riderless motorcycle, riderless bicycle presets and an articulated pedestrian contact/trajectory proxy |
 | Static targets | Full-frontal rigid wall, concrete barrier, pole and tree |
@@ -287,8 +287,9 @@ Or open `project.godot` directly in Godot and run the project.
 
 | Guide | What it is for |
 | --- | --- |
-| [Roadmap](docs/ROADMAP.md) | M0–M10 implementation history and the next accuracy work |
+| [Roadmap](docs/ROADMAP.md) | M0–M11 implementation history and the next accuracy work |
 | [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, comparison, export, calibration, distribution and M10 presentation layers |
+| [M11 crush dynamics](docs/M11_CRUSH_DYNAMICS.md) | Refined production structure, compliant contact, work-conjugate energy validation and M11 acceptance tests |
 | [Physics notes](docs/PHYSICS.md) | Contact, energy accounting, structural assumptions and modelling boundaries |
 | [Calibration](docs/CALIBRATION.md) | Reference source, evidence labels and regression corridors |
 | [Scenario format](docs/SCENARIO_FORMAT.md) | Human-readable `.crashvector.json` save/load format |
@@ -297,7 +298,7 @@ Or open `project.godot` directly in Godot and run the project.
 
 ## Development status
 
-**M0 through M10 are complete.** The legacy Core CI imports/parses the Godot project, audits against runtime monkey patching, and runs the complete M0–M9 regression/runtime suite. M10 adds a dedicated editor/runtime and responsive-layout gate covering 1280×720 through 2560×1440, including sidebar, toolbar, replay-bar and expanded-analysis overlap checks. Independent packaging gates build and validate the macOS Universal 2 DMG and Windows x64 installer, including a real Windows Program Files install/uninstall lifecycle. The `v0.2.0-beta.1` prerelease was published from the successful M10 merge run only after both package checksums were re-verified and `update-manifest.json` was generated.
+**M0 through M11 are complete.** Core CI imports/parses the Godot project, audits against runtime monkey patching, and retains the complete M0–M9 regression/runtime suite. M10 adds its dedicated editor/runtime and responsive-layout gate covering 1280×720 through 2560×1440. M11 adds a dedicated crush-dynamics gate covering compliant contact, progressive front collapse, passenger-cell preservation, symmetry, permanent folding, multipoint pair contact, momentum conservation and 140 km/h stability. Independent packaging gates build and validate the macOS Universal 2 DMG and Windows x64 installer, including a real Windows Program Files install/uninstall lifecycle. The `v0.3.0-beta.1` prerelease is published from the successful M11 merge run only after all required gates pass, both package checksums are re-verified and `update-manifest.json` is generated.
 
 The next accuracy work should add additional independent public/licensed crash references, richer side-impact contact geometry, tyre/suspension behaviour and other explicit validation milestones rather than silently extending the M8 evidence claim.
 

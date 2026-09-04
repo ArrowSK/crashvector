@@ -136,6 +136,22 @@ M10 is complete. PR #13 was merged only after the dedicated editor/responsive-la
 - Existing M0–M9 regression, no-monkey-patching audit and macOS/Windows packaging gates remained mandatory through merge and release.
 - Canonical packaged prerelease `0.2.0-beta.1` is published with the Universal 2 DMG, Windows x64 Setup EXE, both SHA-256 sidecars and `update-manifest.json`.
 
-## Beyond M10
+## M11 — Crush dynamics rebuild — complete
 
-Further accuracy work should add additional independent public/licensed reference tests before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, suspension/tyre behaviour, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references should be developed as explicit future milestones rather than implied by M8–M10 completion.
+M11 replaces the production collision-response path that produced the post-M10 pivot/inversion failure while preserving the M0–M10 scenario, replay, comparison, calibration, export, updater and presentation layers.
+
+- Production passenger cars retain the seven historical reference stations and add four engine-bay cross-sections, increasing the production structural graph from 28 to 44 nodes.
+- Front structure distinguishes bumper/nose, crash boxes, front rails, upper rails, subframe/cross-members and firewall-transition members.
+- Progressive post-yield axial force curves and plastic three-node bending/fold constraints replace the earlier front-structure response that could collapse around one or two contact nodes.
+- Stronger protected-cell angular constraints and a longitudinal anti-inversion guard prevent the passenger-cell reference frame from numerically turning through 180 degrees in symmetric frontal loading.
+- Static wall/barrier/pole/tree collision response is compliant and force-based inside structural substeps rather than an instantaneous stop plus large penetration correction.
+- Vehicle-pair contact expands historical two-node seeds to the full impact face, performs multi-point matching and applies equal-and-opposite compliant forces.
+- Contact damping follows configured restitution and both contact and structural damping are bounded so one explicit substep cannot remove more local relative motion than is available.
+- Solver substeps are supported from 1 through 32. The M8 stored 56.5 km/h reference uses 32 substeps for reference-quality convergence of the refined M11 structure; the scenario itself and its evidence/regression corridors are unchanged.
+- Dedicated M11 regression covers compliant contact, material front shortening, passenger-cell preservation, left/right symmetry, centred-impact yaw, permanent fold angle, multi-point pair contact, momentum conservation and finite 140 km/h wall behaviour.
+- M10 editor smoke additionally verifies that the desktop Physics control exposes the same 32-substep ceiling as `ScenarioConfig`.
+- Canonical target prerelease is `0.3.0-beta.1`, using the existing M9 desktop packaging, updater and immutable-version release architecture.
+
+## Beyond M11
+
+Further accuracy work should add additional independent public/licensed reference tests before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, suspension/tyre behaviour, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references should be developed as explicit future milestones rather than implied by M8–M11 completion.

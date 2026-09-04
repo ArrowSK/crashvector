@@ -11,6 +11,7 @@ func _ready() -> void:
 	super._ready()
 	_harden_m10_scenario_rail()
 	_harden_m10_replay_drawer()
+	_harden_solver_substep_controls()
 	_layout_m10()
 
 func _layout_m10() -> void:
@@ -106,6 +107,15 @@ func _harden_m10_replay_drawer() -> void:
 	m10_replay_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	m10_replay_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.add_child(m10_replay_content)
+
+func _harden_solver_substep_controls() -> void:
+	# M11's refined 44-node production structure needs a finer timestep for
+	# reference-quality convergence. Keep the desktop UI and the inherited
+	# compatibility control aligned with ScenarioConfig's public validator.
+	if m10_substeps != null:
+		m10_substeps.max_value = float(ScenarioConfig.MAX_SOLVER_SUBSTEPS)
+	if substeps_spin != null:
+		substeps_spin.max_value = float(ScenarioConfig.MAX_SOLVER_SUBSTEPS)
 
 func _adopt_legacy_panels() -> void:
 	# M10 must never move proven M0-M9 controls out of their existing ownership

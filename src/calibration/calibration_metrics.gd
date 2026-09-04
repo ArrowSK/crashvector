@@ -32,6 +32,7 @@ static func from_result(result: Dictionary) -> Dictionary:
 				break
 	var pulse_duration := -1.0 if pulse_end_time < 0.0 or contact_time < 0.0 else pulse_end_time - contact_time
 	var last := recording.last_frame()
+	var last_metrics: Dictionary = last.get("primary_metrics", {})
 	var context: Dictionary = last.get("context", {})
 	return {
 		"first_contact_time_s": contact_time,
@@ -42,4 +43,10 @@ static func from_result(result: Dictionary) -> Dictionary:
 		"front_crush_mm": float(analysis.get("max_front_crush_mm", 0.0)),
 		"safety_cell_proxy_mm": float(analysis.get("max_safety_cell_deformation_mm", 0.0)),
 		"energy_balance_relative_error": float(context.get("energy_balance_relative_error", 0.0)),
+		"contact_dissipation_j": float(context.get("contact_dissipation_j", 0.0)),
+		"final_kinetic_energy_j": float(last_metrics.get("kinetic_energy_j", 0.0)),
+		"final_elastic_energy_j": float(last_metrics.get("elastic_energy_j", 0.0)),
+		"plastic_energy_j": float(last_metrics.get("plastic_energy_j", 0.0)),
+		"damping_energy_j": float(last_metrics.get("damping_energy_j", 0.0)),
+		"fracture_energy_j": float(last_metrics.get("fracture_energy_j", 0.0)),
 	}

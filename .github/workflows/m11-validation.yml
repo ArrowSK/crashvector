@@ -1,0 +1,33 @@
+name: M11 validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crashvector-m11-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  m11-crush-dynamics:
+    name: M11 crush dynamics
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Architecture audit
+        run: sh tools/check_no_monkey_patching.sh
+      - name: Import and parse project
+        run: |
+          tools/ci_godot_checked.sh godot --headless --path . --editor --quit
+          tools/ci_godot_checked.sh godot --headless --path . --script res://tests/project_parse.gd
+      - name: M11 crush dynamics regression
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m11_crush_dynamics.gd

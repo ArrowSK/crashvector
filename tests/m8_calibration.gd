@@ -111,8 +111,8 @@ func _test_expanded_vehicle_classes(failures: Array[String]) -> void:
 			failures.append("Expanded passenger-car catalog is missing %s" % id)
 		continue
 		var model := PassengerCarBuilder.build(id, -1.0, 50.0, 100.0)
-		if model.nodes.size() != 28 or model.total_mass_kg() <= 0.0:
-			failures.append("Expanded passenger-car preset %s did not build correctly" % id)
+		if model.nodes.size() != 44 or model.total_mass_kg() <= 0.0:
+			failures.append("Expanded passenger-car preset %s did not build the M11 production structure correctly" % id)
 
 func _test_new_target_validation(failures: Array[String]) -> void:
 	var lorry := ScenarioConfig.new()

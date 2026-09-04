@@ -11,12 +11,16 @@ const MATRIX_CAR_CLASSES: StringName = &"car_classes"
 const MATRIX_TARGET_TYPES: StringName = &"target_types"
 const MATRIX_BODY_PRESETS: StringName = &"body_presets"
 
-static func run_speed_sweep(base_scenario: ScenarioConfig, speeds_kmh: Array[float] = [50.0, 90.0, 140.0]) -> Array[Dictionary]:
+static func run_speed_sweep(
+	base_scenario: ScenarioConfig,
+	speeds_kmh: Array[float] = [50.0, 90.0, 140.0],
+	solver_substeps_override: int = -1
+) -> Array[Dictionary]:
 	var results: Array[Dictionary] = []
 	for speed in _normalise_speeds(speeds_kmh):
 		var config := _clone_scenario(base_scenario)
 		config.car_speed_kmh = speed
-		results.append(_run_variant(config, _speed_label(speed), &"speed"))
+		results.append(_run_variant(config, _speed_label(speed), &"speed", solver_substeps_override))
 	return results
 
 static func run_vehicle_class_sweep(
@@ -82,7 +86,12 @@ static func run_matrix(
 			results.append(_run_variant(config, "%s • %s" % [variant_label, _speed_label(speed)], &"matrix"))
 	return results
 
-static func _run_variant(config: ScenarioConfig, label: String, sweep_type: StringName) -> Dictionary:
+static func _run_variant(
+	config: ScenarioConfig,
+	label: String,
+	sweep_type: StringName,
+	solver_substeps_override: int = -1
+) -> Dictionary:
 	var errors := config.validation_errors()
 	if not errors.is_empty():
 		return {
@@ -154,15 +163,18 @@ static func _run_variant(config: ScenarioConfig, label: String, sweep_type: Stri
 	recorder.begin(REPLAY_INTERVAL)
 	_capture(recorder, 0.0, primary, target, config, pair_simulation, static_simulation, true)
 
+	var integration_substeps := config.solver_substeps
+	if solver_substeps_override > 0:
+		integration_substeps = solver_substeps_override
 	var elapsed_s := 0.0
 	while elapsed_s < config.duration_s - 0.0000001:
 		var step_s := minf(DT, config.duration_s - elapsed_s)
 		if pair_simulation != null:
-			pair_simulation.step(step_s, config.solver_substeps)
+			pair_simulation.step(step_s, integration_substeps)
 			if pedestrian_target and pair_simulation.contact.contact_events > 0 and not PedestrianBuilder.stance_released(target):
 				PedestrianBuilder.release_stance(target)
 		else:
-			static_simulation.step(step_s, config.solver_substeps)
+			static_simulation.step(step_s, integration_substeps)
 		elapsed_s += step_s
 		_capture(recorder, elapsed_s, primary, target, config, pair_simulation, static_simulation, false)
 
@@ -229,6 +241,8 @@ static func _primary_metrics(model: StructuralModel) -> Dictionary:
 		"safety_cell_m": model.max_permanent_deformation_for_role(&"safety_cell"),
 		"broken_beams": model.broken_beam_count(),
 		"plastic_energy_j": model.total_plastic_energy_j(),
+		"damping_energy_j": model.total_damping_energy_j(),
+		"fracture_energy_j": model.total_fracture_energy_j(),
 		"elastic_energy_j": model.total_elastic_energy_j(),
 	}
 
@@ -244,6 +258,8 @@ static func _target_metrics(model: StructuralModel, target_type: StringName) -> 
 		"kinetic_energy_j": model.total_kinetic_energy_j(),
 		"broken_beams": model.broken_beam_count(),
 		"plastic_energy_j": model.total_plastic_energy_j(),
+		"damping_energy_j": model.total_damping_energy_j(),
+		"fracture_energy_j": model.total_fracture_energy_j(),
 		"elastic_energy_j": model.total_elastic_energy_j(),
 	}
 	if target_type == ScenarioConfig.TARGET_PASSENGER_CAR:

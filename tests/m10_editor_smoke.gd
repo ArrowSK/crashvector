@@ -34,6 +34,10 @@ func _run() -> void:
 	if scenario.car_preset_id != PassengerCarCatalog.B_SEGMENT_HATCHBACK or scenario.target_type != ScenarioConfig.TARGET_WALL or absf(scenario.car_speed_kmh - 50.0) > 0.001:
 		_fail("M10 first-run ready scenario is not B-class vs rigid wall at 50 km/h")
 		return
+	var solver_control := instance.get("m10_substeps") as SpinBox
+	if solver_control == null or int(solver_control.max_value) != ScenarioConfig.MAX_SOLVER_SUBSTEPS:
+		_fail("M11 desktop solver control is not aligned with the public 32-substep scenario limit")
+		return
 
 	var lab_canvas := instance.get_node_or_null("RoadUserComparisonLabUI")
 	var update_canvas := instance.get_node_or_null("M9UpdateUI")
