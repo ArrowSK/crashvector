@@ -31,3 +31,5 @@ jobs:
           tools/ci_godot_checked.sh godot --headless --path . --script res://tests/project_parse.gd
       - name: M12 rigid-body rebound and road-contact regression
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m12_hybrid_physics.gd
+      - name: M12 production-path routing regression
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m12_production_path.gd
