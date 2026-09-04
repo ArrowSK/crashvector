@@ -9,7 +9,7 @@ var restitution: float = 0.03
 var friction_coefficient: float = 0.55
 var tangent_contact_radius_m: float = 1.25
 var normal_stiffness_n_m: float = 9000000.0
-var damping_ratio: float = 0.09
+var damping_ratio: float = 0.75
 var maximum_force_per_pair_n: float = 4000000.0
 var emergency_penetration_m: float = 0.35
 var emergency_position_fraction: float = 0.015
@@ -19,6 +19,11 @@ var first_contact_time_s: float = -1.0
 var accumulated_dissipation_j: float = 0.0
 var current_contact_energy_j: float = 0.0
 var maximum_penetration_m: float = 0.0
+
+static func damping_ratio_for_restitution(coefficient: float) -> float:
+	var e := clampf(coefficient, 0.0001, 0.9999)
+	var log_e := log(e)
+	return clampf(-log_e / sqrt(PI * PI + log_e * log_e), 0.0, 1.0)
 
 func apply_forces(
 	model_a: StructuralModel,
