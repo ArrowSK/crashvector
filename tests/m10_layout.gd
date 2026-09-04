@@ -37,8 +37,14 @@ func _run() -> void:
 	await process_frame
 	var viewport := _find_named(instance, "M10ViewportFrame") as Control
 	var replay := _find_named(instance, "M10ReplayDrawer") as Control
-	if viewport == null or replay == null or replay.size.y < 200.0 or viewport.position.y + viewport.size.y > replay.position.y + 0.5:
-		_fail("Expanded M10 analysis drawer overlaps the viewport")
+	if viewport == null or replay == null:
+		_fail("Expanded M10 analysis controls are missing")
+		return
+	if replay.size.y < 200.0:
+		_fail("Expanded M10 analysis drawer stayed collapsed: replay pos=%s size=%s viewport pos=%s size=%s" % [replay.position, replay.size, viewport.position, viewport.size])
+		return
+	if viewport.position.y + viewport.size.y > replay.position.y + 0.5:
+		_fail("Expanded M10 analysis drawer crosses the viewport: replay pos=%s size=%s viewport pos=%s size=%s" % [replay.position, replay.size, viewport.position, viewport.size])
 		return
 	instance.call("_toggle_replay_drawer")
 
