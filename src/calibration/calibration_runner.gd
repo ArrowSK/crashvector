@@ -5,12 +5,22 @@
 class_name CalibrationRunner
 extends RefCounted
 
+const REFERENCE_SOLVER_SUBSTEPS: int = 512
+
 static func run_default_reference() -> Dictionary:
 	var reference := CalibrationReference.load_default()
 	if reference == null:
 		return {"ok": false, "message": "Calibration reference could not be loaded."}
 	var config := reference.make_scenario()
-	var results := ComparisonRunner.run_speed_sweep(config, [config.car_speed_kmh])
+	# M11's 44-node refined production structure is intentionally integrated at
+	# a substantially finer timestep for the stored reference assessment. This
+	# changes neither the saved scenario nor the physical/contact parameters;
+	# it is an internal numerical-convergence setting for the calibration gate.
+	var results := ComparisonRunner.run_speed_sweep(
+		config,
+		[config.car_speed_kmh],
+		REFERENCE_SOLVER_SUBSTEPS
+	)
 	if results.is_empty():
 		return {"ok": false, "message": "Reference simulation produced no result.", "reference": reference}
 	var result := results[0]
