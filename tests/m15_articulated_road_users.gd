@@ -4,6 +4,9 @@
 
 extends SceneTree
 
+const ROAD_USER_LAYER: int = 2
+const ROAD_USER_GROUND_LAYER: int = 4
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -80,6 +83,7 @@ func _run_case(target_type: StringName, preset_id: StringName, target_mass: floa
 	target.configure(target_type, preset_id, target_mass, 0.0, Vector3.ZERO, 0.0, false)
 	root.add_child(target)
 	await physics_frame
+	_configure_road_user_channels(target, car)
 	var initial_car_y := car.rigid_chassis.global_position.y
 	var maximum_car_y_rise := 0.0
 	car.begin_simulation()
@@ -110,10 +114,21 @@ func _run_case(target_type: StringName, preset_id: StringName, target_mass: floa
 	await physics_frame
 	return result
 
+func _configure_road_user_channels(target: RoadUserRigidProxy3D, car: CompactHatchback) -> void:
+	target.collision_layer = ROAD_USER_LAYER
+	target.collision_mask = ROAD_USER_GROUND_LAYER
+	for body in target.articulated_bodies:
+		if body != null and is_instance_valid(body):
+			body.collision_layer = ROAD_USER_LAYER
+			body.collision_mask = ROAD_USER_GROUND_LAYER
+	if car.rigid_chassis != null and car.rigid_chassis.front_crush_probe != null:
+		car.rigid_chassis.front_crush_probe.collision_mask = ROAD_USER_LAYER
+
 func _road_body() -> StaticBody3D:
 	var road := StaticBody3D.new()
 	road.name = "Road"
 	road.position = Vector3(0.0, -0.25, 0.0)
+	road.collision_layer = 1 | ROAD_USER_GROUND_LAYER
 	var material := PhysicsMaterial.new()
 	material.friction = 0.90
 	material.bounce = 0.0
