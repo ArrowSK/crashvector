@@ -6,7 +6,7 @@ class_name ScenarioConfig
 extends RefCounted
 
 const FORMAT_VERSION: int = 1
-const MAX_SOLVER_SUBSTEPS: int = 32
+const MAX_SOLVER_SUBSTEPS: int = 64
 const TARGET_PASSENGER_CAR: StringName = &"passenger_car"
 const TARGET_TRUCK: StringName = &"heavy_truck"
 const TARGET_LORRY: StringName = &"rigid_lorry"
