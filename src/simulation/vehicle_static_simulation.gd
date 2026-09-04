@@ -31,14 +31,19 @@ func step(delta_s: float, substeps: int = 8) -> void:
 	var count := maxi(substeps, 1)
 	var h := delta_s / float(count)
 	for _substep in range(count):
-		vehicle_model.step(h, 1)
-		contact.resolve_model(vehicle_model, elapsed_s)
+		vehicle_model.prepare_substep(h)
+		contact.apply_forces(vehicle_model, h, elapsed_s)
+		vehicle_model.integrate_substep(h)
 		elapsed_s += h
 
 func accounted_energy_j() -> float:
 	if vehicle_model == null:
 		return 0.0
-	return vehicle_model.accounted_energy_j() + contact.accumulated_dissipation_j
+	return (
+		vehicle_model.accounted_energy_j()
+		+ contact.accumulated_dissipation_j
+		+ contact.current_contact_energy_j
+	)
 
 func energy_balance_relative_error() -> float:
 	if initial_energy_j <= 0.0:
