@@ -14,17 +14,17 @@ func _ready() -> void:
 
 func _layout_m10() -> void:
 	super._layout_m10()
-	_fit_collapsed_replay_drawer()
+	_fit_m10_scenario_geometry()
 
 func _layout_non_recursive() -> void:
 	super._layout_non_recursive()
-	_fit_collapsed_replay_drawer()
+	_fit_m10_scenario_geometry()
 
-func _fit_collapsed_replay_drawer() -> void:
-	# The proven M5 replay controls have a real minimum height greater than the
-	# initial M10 58 px estimate. Reserve their actual height rather than clipping
-	# them or allowing the collapsed bar to extend beyond the window.
-	if m10_root == null or m10_replay_drawer == null or m10_replay_expanded:
+func _fit_m10_scenario_geometry() -> void:
+	# M10 initially used estimated compact dimensions. Reserve the actual minimum
+	# size of the inherited controls instead, so the sidebars and replay drawer
+	# can never grow into the viewport at supported desktop sizes.
+	if m10_root == null or m10_replay_drawer == null:
 		return
 	if m10_mode == MODE_COMPARE or comparison_active:
 		return
@@ -32,21 +32,24 @@ func _fit_collapsed_replay_drawer() -> void:
 	var bottom_margin := 12.0
 	var gap := 10.0
 	var top_y := 72.0
-	var collapsed_height := maxf(58.0, m10_replay_drawer.get_combined_minimum_size().y)
-	var content_bottom := size.y - collapsed_height - bottom_margin - gap
+	var requested_replay_height := 248.0 if m10_replay_expanded else 58.0
+	var replay_height := maxf(requested_replay_height, m10_replay_drawer.get_combined_minimum_size().y)
+	var content_bottom := size.y - replay_height - bottom_margin - gap
 	if size.x < 1120.0:
 		_set_rect(m10_viewport_frame, 12.0, top_y, size.x - 12.0, content_bottom)
-		_set_rect(m10_replay_drawer, 12.0, size.y - collapsed_height - bottom_margin, size.x - 12.0, size.y - bottom_margin)
+		_set_rect(m10_replay_drawer, 12.0, size.y - replay_height - bottom_margin, size.x - 12.0, size.y - bottom_margin)
 		return
 	var compact := size.x < 1380.0
-	var left_width := 214.0 if compact else 238.0
-	var right_width := 292.0 if compact else 328.0
+	var requested_left := 214.0 if compact else 238.0
+	var requested_right := 292.0 if compact else 328.0
+	var left_width := maxf(requested_left, m10_left_panel.get_combined_minimum_size().x)
+	var right_width := maxf(requested_right, m10_right_panel.get_combined_minimum_size().x)
 	var content_left := 12.0 + left_width + gap
 	var content_right := size.x - 12.0 - right_width - gap
 	_set_rect(m10_left_panel, 12.0, top_y, 12.0 + left_width, content_bottom)
 	_set_rect(m10_right_panel, size.x - 12.0 - right_width, top_y, size.x - 12.0, content_bottom)
 	_set_rect(m10_viewport_frame, content_left, top_y, content_right, content_bottom)
-	_set_rect(m10_replay_drawer, content_left, size.y - collapsed_height - bottom_margin, content_right, size.y - bottom_margin)
+	_set_rect(m10_replay_drawer, content_left, size.y - replay_height - bottom_margin, content_right, size.y - bottom_margin)
 
 func _harden_m10_scenario_rail() -> void:
 	# At the supported 1280x720 desktop floor, long option labels and the full
