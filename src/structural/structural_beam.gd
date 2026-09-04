@@ -139,6 +139,32 @@ func _progressive_spring_force_n(elastic_extension_m: float) -> float:
 		)
 	return sign_value * force_magnitude
 
+func _progressive_elastic_energy_j(elastic_extension_m: float) -> float:
+	# Recoverable strain energy is the integral of the force/displacement curve,
+	# not 1/2 F x once the curve has yielded or entered the hardening branch.
+	# The law is symmetric in tension/compression, so integrate the magnitude.
+	var extension := absf(elastic_extension_m)
+	if extension <= 0.000000001:
+		return 0.0
+	if post_yield_stiffness_ratio >= 0.9999 and hardening_stiffness_ratio <= 0.0001:
+		return 0.5 * stiffness_n_m * extension * extension
+
+	var original_length := maxf(original_rest_length_m, 0.0001)
+	var yield_extension := yield_strain * original_length
+	if extension <= yield_extension:
+		return 0.5 * stiffness_n_m * extension * extension
+
+	var post_extension := extension - yield_extension
+	var energy := 0.5 * stiffness_n_m * yield_extension * yield_extension
+	energy += stiffness_n_m * yield_extension * post_extension
+	energy += 0.5 * stiffness_n_m * post_yield_stiffness_ratio * post_extension * post_extension
+
+	var hardening_extension := hardening_start_strain * original_length
+	if hardening_stiffness_ratio > 0.0 and extension > hardening_extension:
+		var hardening_overtravel := extension - hardening_extension
+		energy += 0.5 * stiffness_n_m * hardening_stiffness_ratio * hardening_overtravel * hardening_overtravel
+	return maxf(energy, 0.0)
+
 func _apply_plastic_flow(length_m: float, delta_s: float) -> void:
 	var abs_strain := absf(last_total_strain)
 	if abs_strain <= yield_strain or plastic_flow_rate <= 0.0:
@@ -152,25 +178,20 @@ func _apply_plastic_flow(length_m: float, delta_s: float) -> void:
 	var alpha := clampf(plastic_flow_rate * flow_factor * delta_s, 0.0, 1.0)
 	var old_rest := rest_length_m
 	var old_extension := length_m - old_rest
-	var old_force := _progressive_spring_force_n(old_extension)
-	var old_elastic_energy := 0.5 * absf(old_force * old_extension)
+	var old_elastic_energy := _progressive_elastic_energy_j(old_extension)
 	rest_length_m = lerpf(rest_length_m, target_rest, alpha)
 	var new_extension := length_m - rest_length_m
-	var new_force := _progressive_spring_force_n(new_extension)
-	var new_elastic_energy := 0.5 * absf(new_force * new_extension)
+	var new_elastic_energy := _progressive_elastic_energy_j(new_extension)
 	# Plastic flow changes the rest state at fixed instantaneous geometry. The
 	# irreversible work is the recoverable spring energy actually removed by
-	# that state change, not force multiplied by an independently accumulated
-	# rest-length increment (which can count the same energy repeatedly).
+	# that state change, evaluated with the same nonlinear law used for force.
 	plastic_energy_j += maxf(old_elastic_energy - new_elastic_energy, 0.0)
 
 func elastic_energy_j(nodes: Array[StructuralNode]) -> float:
 	if broken:
 		return 0.0
 	var length_m := (nodes[node_b].position_m - nodes[node_a].position_m).length()
-	var extension_m := length_m - rest_length_m
-	var spring_force := _progressive_spring_force_n(extension_m)
-	return 0.5 * absf(spring_force * extension_m)
+	return _progressive_elastic_energy_j(length_m - rest_length_m)
 
 func permanent_strain() -> float:
 	return (rest_length_m - original_rest_length_m) / original_rest_length_m
