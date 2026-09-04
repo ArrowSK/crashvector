@@ -156,7 +156,7 @@ func safety_cell_deformation_m() -> float:
 func hybrid_contact_count() -> int:
 	if rigid_chassis == null:
 		return 0
-	return rigid_chassis.non_ground_contact_events + (1 if rigid_chassis.front_sensor_contact_ever else 0)
+	return rigid_chassis.non_ground_contact_events + (1 if rigid_chassis.front_probe_contact_ever else 0)
 
 func hybrid_maximum_vertical_speed_ms() -> float:
 	return 0.0 if rigid_chassis == null else rigid_chassis.maximum_vertical_speed_ms
