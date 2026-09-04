@@ -16,9 +16,9 @@ Wall and concrete-barrier targets remain rigid. Pole and tree targets retain sta
 
 The current project parameters are phenomenological educational values:
 
-- generic pole: yielding begins around 70 kJ and progresses toward a large permanent bend around 420 kJ;
-- generic tree: yielding begins around 240 kJ and progresses toward a large permanent bend around 1.55 MJ;
-- sufficiently larger demand can mark base/foundation failure and increase the permanent rotation further.
+- generic pole: yielding begins around 70 kJ and the fixture is marked failed at 480 kJ;
+- generic tree: yielding begins around 240 kJ and the fixture is marked failed at 1.65 MJ;
+- sufficiently larger demand can increase the permanent target motion further after release.
 
 These values are not claims about a particular lamp post, utility pole, tree species, trunk diameter, soil condition or foundation design. They exist to remove the visibly false assumption that every narrow target remains perfectly vertical under arbitrarily severe impact.
 
