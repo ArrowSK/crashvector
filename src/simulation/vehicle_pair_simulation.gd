@@ -46,6 +46,7 @@ func configure(
 	contact = VehiclePairContact.new()
 	contact.friction_coefficient = clampf(friction_coefficient, 0.0, 1.5)
 	contact.restitution = clampf(restitution, 0.0, 0.5)
+	contact.damping_ratio = VehiclePairContact.damping_ratio_for_restitution(contact.restitution)
 
 func step(delta_s: float, substeps: int = 8) -> void:
 	if delta_s <= 0.0 or vehicle_model == null or truck_model == null:
