@@ -43,6 +43,7 @@ static func build(
 	for station in range(CompactHatchbackBuilder.CABIN_FRONT_STATION):
 		_add_base_longitudinal_segment(model, station, station + 1, stiffness_scale)
 	_add_passenger_cell_reinforcement(model, stiffness_scale)
+	_add_passenger_cell_guard(model, stiffness_scale)
 	_add_refined_front_structure(model, stiffness_scale)
 	_add_bending_constraints(model, stiffness_scale)
 	model.set_uniform_velocity(Vector3.RIGHT * PhysicsMetrics.kmh_to_ms(speed_kmh))
@@ -221,6 +222,17 @@ static func _add_passenger_cell_reinforcement(model: StructuralModel, stiffness_
 			CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.CABIN_FRONT_STATION, corner),
 			&"safety_cell", stiffness_scale, &"safety_cell_longitudinal_tie", 1.60
 		)
+
+static func _add_passenger_cell_guard(model: StructuralModel, stiffness_scale: float) -> void:
+	var s := maxf(stiffness_scale, 0.1)
+	model.add_longitudinal_guard(
+		CompactHatchbackBuilder.station_nodes(CompactHatchbackBuilder.CABIN_REAR_STATION),
+		CompactHatchbackBuilder.station_nodes(CompactHatchbackBuilder.CABIN_FRONT_STATION),
+		0.74,
+		14000000.0 * s,
+		95000.0 * sqrt(s),
+		4500000.0 * s
+	)
 
 static func _add_bending_constraints(model: StructuralModel, stiffness_scale: float) -> void:
 	var s := maxf(stiffness_scale, 0.1)
