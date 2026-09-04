@@ -129,6 +129,10 @@ func _build_rigid_chassis() -> void:
 	rigid_chassis.add_box_shape("TrailerCollision", Vector3(6.10, 2.95, 2.42), Vector3(3.55, 2.05, 0.0))
 	rigid_chassis.add_box_shape("TractorCollision", Vector3(2.65, 2.55, 2.28), Vector3(8.20, 1.72, 0.0))
 	rigid_chassis.add_box_shape("TruckFrameCollision", Vector3(9.45, 0.30, 1.80), Vector3(4.72, 0.58, 0.0))
+	# The visible/structural rear underride guard must also be a physical face.
+	# Without this the passenger-car safety-cell box can climb the exposed low
+	# chassis rail, producing the visibly absurd upward kick reported in M11.
+	rigid_chassis.add_box_shape("RearUnderrideCollision", Vector3(0.24, 0.68, 2.20), Vector3(0.02, 0.70, 0.0))
 	# M12: road support is suspension force, not rigid tyre spheres. This avoids
 	# high-speed wheel/road impulses kicking the truck upward during an impact.
 	var mass_scale := maxf(total_mass_kg / 18000.0, 0.20)
