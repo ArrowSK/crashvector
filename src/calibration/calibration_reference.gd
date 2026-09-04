@@ -74,9 +74,10 @@ func make_scenario() -> ScenarioConfig:
 	# M11 refines the production passenger-car graph from the historical
 	# coarse structure to 44 nodes with substantially stiffer protected-cell
 	# members. Keep the same stored physical scenario and evidence corridors,
-	# but integrate the reference at the converged 16-substep timestep already
-	# used by M11 high-speed stability coverage.
-	config.solver_substeps = 16
+	# but integrate this deliberately narrow reference at a converged timestep.
+	# The 8->16 step comparison reduced the numerical energy residual by more
+	# than an order of magnitude; 32 substeps is the reference-quality setting.
+	config.solver_substeps = 32
 	config.contact_friction = 0.55
 	config.restitution = 0.03
 	return config
