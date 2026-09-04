@@ -90,16 +90,31 @@ func solve(nodes: Array[StructuralNode], delta_s: float) -> void:
 	var relative_speed_ms := (b.velocity_ms - a.velocity_ms).dot(direction)
 	var elastic_extension_m := length_m - rest_length_m
 	var spring_force_n := _progressive_spring_force_n(elastic_extension_m)
-	var damping_force_n := damping_n_s_m * relative_speed_ms
+	var raw_damping_force_n := damping_n_s_m * relative_speed_ms
+	var damping_force_n := raw_damping_force_n
+	var inverse_mass_sum := a.inverse_mass + b.inverse_mass
+	if inverse_mass_sum > 0.0 and not is_zero_approx(relative_speed_ms):
+		# Explicit integration must not let a viscous damper reverse its own
+		# relative degree of freedom within one substep. Without this bound a
+		# stiff damper can numerically alternate the node velocities and both
+		# inject kinetic energy and report impossible cumulative dissipation.
+		var maximum_damping_force := absf(relative_speed_ms) / (inverse_mass_sum * delta_s)
+		damping_force_n = clampf(raw_damping_force_n, -maximum_damping_force, maximum_damping_force)
 	last_spring_force_n = spring_force_n
 	last_force_n = spring_force_n + damping_force_n
 
 	var force_vector := direction * last_force_n
 	a.add_force(force_vector)
 	b.add_force(-force_vector)
-	damping_energy_j += damping_n_s_m * relative_speed_ms * relative_speed_ms * delta_s
+	if inverse_mass_sum > 0.0 and not is_zero_approx(relative_speed_ms):
+		var effective_mass := 1.0 / inverse_mass_sum
+		var damping_only_after_speed := relative_speed_ms - damping_force_n * inverse_mass_sum * delta_s
+		damping_energy_j += maxf(
+			0.5 * effective_mass * (relative_speed_ms * relative_speed_ms - damping_only_after_speed * damping_only_after_speed),
+			0.0
+		)
 
-	_apply_plastic_flow(length_m, spring_force_n, delta_s)
+	_apply_plastic_flow(length_m, delta_s)
 
 func _progressive_spring_force_n(elastic_extension_m: float) -> float:
 	if absf(elastic_extension_m) <= 0.000000001:
@@ -124,7 +139,7 @@ func _progressive_spring_force_n(elastic_extension_m: float) -> float:
 		)
 	return sign_value * force_magnitude
 
-func _apply_plastic_flow(length_m: float, spring_force_n: float, delta_s: float) -> void:
+func _apply_plastic_flow(length_m: float, delta_s: float) -> void:
 	var abs_strain := absf(last_total_strain)
 	if abs_strain <= yield_strain or plastic_flow_rate <= 0.0:
 		return
@@ -136,8 +151,18 @@ func _apply_plastic_flow(length_m: float, spring_force_n: float, delta_s: float)
 	var flow_factor := clampf((abs_strain - yield_strain) / flow_span, 0.0, 1.0)
 	var alpha := clampf(plastic_flow_rate * flow_factor * delta_s, 0.0, 1.0)
 	var old_rest := rest_length_m
+	var old_extension := length_m - old_rest
+	var old_force := _progressive_spring_force_n(old_extension)
+	var old_elastic_energy := 0.5 * absf(old_force * old_extension)
 	rest_length_m = lerpf(rest_length_m, target_rest, alpha)
-	plastic_energy_j += absf(spring_force_n) * absf(rest_length_m - old_rest)
+	var new_extension := length_m - rest_length_m
+	var new_force := _progressive_spring_force_n(new_extension)
+	var new_elastic_energy := 0.5 * absf(new_force * new_extension)
+	# Plastic flow changes the rest state at fixed instantaneous geometry. The
+	# irreversible work is the recoverable spring energy actually removed by
+	# that state change, not force multiplied by an independently accumulated
+	# rest-length increment (which can count the same energy repeatedly).
+	plastic_energy_j += maxf(old_elastic_energy - new_elastic_energy, 0.0)
 
 func elastic_energy_j(nodes: Array[StructuralNode]) -> float:
 	if broken:
