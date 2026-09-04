@@ -118,13 +118,13 @@ M9 is complete. The distribution layer was merged only after the real macOS and 
 - `v0.1.0-beta.1` was published with the Universal 2 DMG, Windows x64 Setup EXE, both SHA-256 sidecars and `update-manifest.json`.
 - Installation, removal, update, signing limitations, packaging architecture, release process and version policy are documented in `docs/DISTRIBUTION.md`.
 
-## M10 — Visual and UX rebuild — release candidate
+## M10 — Visual and UX rebuild — complete
 
-M10 changes the application surface and visible scene presentation while deliberately preserving the M0–M9 solver, scenario format, replay/analysis, comparison, calibration, video-export and updater services.
+M10 is complete. PR #13 was merged only after the dedicated editor/responsive-layout gate, complete M0–M9 regression suite, architecture audit, macOS Universal 2 package gate and real Windows install/uninstall package validation were green. The `v0.2.0-beta.1` prerelease was then published from the successful `main` merge run after both package checksums were re-verified and the update manifest was generated.
 
 - New responsive desktop shell with compact Scenario and dedicated Compare workspaces.
 - Vehicle, Target, Physics and Appearance inspector tabs replace the crowded fixed-position control stack.
-- Replay/analysis lives in a collapsible bottom drawer instead of covering the 3D scene.
+- Replay/analysis lives in a collapsible bottom drawer instead of covering the 3D scene; inherited M5 analysis content remains intact inside a bounded scroll viewport at the supported desktop floor.
 - Updates, Calibration, Video and Comparison Lab are launched from the new shell while their proven M7–M9 service CanvasLayers stay in their original ownership hierarchy.
 - First-run ready scenario is a generic B-class passenger car against a rigid wall at 50 km/h.
 - Technical road surface, lane markings, lighting and environment framing improve depth and scale without changing contact geometry.
@@ -132,9 +132,9 @@ M10 changes the application surface and visible scene presentation while deliber
 - Heavy articulated truck, rigid lorry, motorcycle and bicycle presentation is rebuilt around recognisable generic silhouettes while retaining their existing structural graphs.
 - Static targets use clearer material/shape presentation for wall, barrier, pole and tree without changing solver behaviour.
 - Pedestrian presentation remains an articulated contact/trajectory proxy and does not imply biomechanical or injury validation.
-- M10 has dedicated editor and responsive-layout regression tests across 1280×720, 1440×900, 1920×1080 and 2560×1440, including explicit sidebar/top-bar/replay overlap checks.
-- Existing M0–M9 regression, no-monkey-patching audit and macOS/Windows packaging gates remain mandatory.
-- Target packaged prerelease is `0.2.0-beta.1`; M10 is complete only after those gates pass on the PR and the immutable `v0.2.0-beta.1` release is published from `main`.
+- M10 has dedicated editor and responsive-layout regression tests across 1280×720, 1440×900, 1920×1080 and 2560×1440, including explicit sidebar/top-bar/replay overlap checks and expanded-analysis drawer coverage.
+- Existing M0–M9 regression, no-monkey-patching audit and macOS/Windows packaging gates remained mandatory through merge and release.
+- Canonical packaged prerelease `0.2.0-beta.1` is published with the Universal 2 DMG, Windows x64 Setup EXE, both SHA-256 sidecars and `update-manifest.json`.
 
 ## Beyond M10
 
