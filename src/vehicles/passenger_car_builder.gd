@@ -208,8 +208,19 @@ static func _add_passenger_cell_reinforcement(model: StructuralModel, stiffness_
 		var front_station := rear_station + 1
 		_add_profile_beam(model, CompactHatchbackBuilder.node_index(rear_station, 0), CompactHatchbackBuilder.node_index(front_station, 3), &"safety_cell", stiffness_scale, &"safety_cell_diagonal", 1.0)
 		_add_profile_beam(model, CompactHatchbackBuilder.node_index(rear_station, 1), CompactHatchbackBuilder.node_index(front_station, 2), &"safety_cell", stiffness_scale, &"safety_cell_diagonal", 1.0)
-	_add_profile_beam(model, CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.CABIN_REAR_STATION, 0), CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.CABIN_FRONT_STATION, 2), &"safety_cell", stiffness_scale, &"safety_cell_long_diagonal", 1.0)
-	_add_profile_beam(model, CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.CABIN_REAR_STATION, 1), CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.CABIN_FRONT_STATION, 3), &"safety_cell", stiffness_scale, &"safety_cell_long_diagonal", 1.0)
+	_add_profile_beam(model, CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.CABIN_REAR_STATION, 0), CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.CABIN_FRONT_STATION, 2), &"safety_cell", stiffness_scale, &"safety_cell_long_diagonal", 1.25)
+	_add_profile_beam(model, CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.CABIN_REAR_STATION, 1), CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.CABIN_FRONT_STATION, 3), &"safety_cell", stiffness_scale, &"safety_cell_long_diagonal", 1.25)
+	# Long rocker/roof ties keep the protected cell ordered longitudinally after
+	# the engine-bay crush sections have exhausted their travel. They are not a
+	# rigid proxy: they use the same plastic safety-cell beam law, but span the
+	# complete cabin so adjacent stations cannot fold through one another.
+	for corner in range(4):
+		_add_profile_beam(
+			model,
+			CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.CABIN_REAR_STATION, corner),
+			CompactHatchbackBuilder.node_index(CompactHatchbackBuilder.CABIN_FRONT_STATION, corner),
+			&"safety_cell", stiffness_scale, &"safety_cell_longitudinal_tie", 1.60
+		)
 
 static func _add_bending_constraints(model: StructuralModel, stiffness_scale: float) -> void:
 	var s := maxf(stiffness_scale, 0.1)
@@ -223,16 +234,13 @@ static func _add_bending_constraints(model: StructuralModel, stiffness_scale: fl
 				&"front_bending", k, 420.0 * sqrt(s), deg_to_rad(6.0), deg_to_rad(68.0), deg_to_rad(118.0), 18.0, component
 			)
 
-	# The passenger cell gets much stronger angular constraints. It can flex,
-	# but a symmetric frontal impact must predominantly shorten the engine bay
-	# rather than rotate the cell around a single nose node.
 	for corner in range(4):
 		for station in range(CompactHatchbackBuilder.CABIN_REAR_STATION + 1, CompactHatchbackBuilder.CABIN_FRONT_STATION):
 			model.add_bending_constraint(
 				CompactHatchbackBuilder.node_index(station - 1, corner),
 				CompactHatchbackBuilder.node_index(station, corner),
 				CompactHatchbackBuilder.node_index(station + 1, corner),
-				&"safety_cell_bending", 85000.0 * s, 1200.0 * sqrt(s), deg_to_rad(3.0), deg_to_rad(12.0), deg_to_rad(32.0), 3.0, &"safety_cell"
+				&"safety_cell_bending", 110000.0 * s, 1350.0 * sqrt(s), deg_to_rad(3.0), deg_to_rad(15.0), deg_to_rad(45.0), 2.5, &"safety_cell"
 			)
 
 static func _profile_for_station(station: int) -> StringName:
@@ -276,6 +284,6 @@ static func _add_profile_beam(
 			beam = model.add_beam(a, b, profile, 1250000.0 * s * m, 4200.0 * sqrt(s) * sqrt(m), 0.040, 0.42, 0.64, 15.0)
 			beam.configure_progressive_curve(0.42, 0.32, 0.70, component)
 		_:
-			beam = model.add_beam(a, b, &"safety_cell", 5400000.0 * s * m, 7600.0 * sqrt(s) * sqrt(m), 0.080, 0.16, 0.30, 6.0)
+			beam = model.add_beam(a, b, &"safety_cell", 7200000.0 * s * m, 9000.0 * sqrt(s) * sqrt(m), 0.080, 0.20, 0.48, 5.0)
 			beam.component = component
 	return beam
