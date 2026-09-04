@@ -6,10 +6,13 @@ class_name VehicleRigidChassis
 extends RigidBody3D
 
 var contact_samples: Array[Dictionary] = []
+var suspension_points: Array[Dictionary] = []
 var non_ground_contact_events: int = 0
 var cumulative_non_ground_impulse_ns: float = 0.0
 var maximum_vertical_speed_ms: float = 0.0
 var maximum_reverse_speed_ms: float = 0.0
+var maximum_suspension_compression_m: float = 0.0
+var active_suspension_contacts: int = 0
 var initial_forward_world := Vector3.RIGHT
 var stored_linear_velocity := Vector3.ZERO
 var stored_angular_velocity := Vector3.ZERO
@@ -60,6 +63,30 @@ func add_sphere_shape(node_name: String, radius_m: float, local_position_m: Vect
 	add_child(collision)
 	return collision
 
+func add_suspension_point(
+	node_name: String,
+	local_mount_m: Vector3,
+	rest_distance_m: float,
+	stiffness_n_m: float,
+	damping_n_s_m: float,
+	maximum_force_n: float
+) -> RayCast3D:
+	var ray := RayCast3D.new()
+	ray.name = node_name
+	ray.position = local_mount_m
+	ray.target_position = Vector3(0.0, -maxf(rest_distance_m + 0.25, 0.30), 0.0)
+	ray.enabled = true
+	ray.exclude_parent = true
+	add_child(ray)
+	suspension_points.append({
+		"ray": ray,
+		"rest_distance_m": maxf(rest_distance_m, 0.05),
+		"stiffness_n_m": maxf(stiffness_n_m, 1.0),
+		"damping_n_s_m": maxf(damping_n_s_m, 0.0),
+		"maximum_force_n": maxf(maximum_force_n, 1.0),
+	})
+	return ray
+
 func begin_motion(speed_kmh: float, heading_deg: float) -> void:
 	initial_forward_world = Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
 	linear_velocity = initial_forward_world * PhysicsMetrics.kmh_to_ms(speed_kmh)
@@ -71,6 +98,8 @@ func begin_motion(speed_kmh: float, heading_deg: float) -> void:
 	cumulative_non_ground_impulse_ns = 0.0
 	maximum_vertical_speed_ms = 0.0
 	maximum_reverse_speed_ms = 0.0
+	maximum_suspension_compression_m = 0.0
+	active_suspension_contacts = 0
 	freeze = false
 	sleeping = false
 
@@ -94,6 +123,38 @@ func drain_contact_samples() -> Array[Dictionary]:
 	var result: Array[Dictionary] = contact_samples.duplicate(true)
 	contact_samples.clear()
 	return result
+
+func _physics_process(delta: float) -> void:
+	if freeze or delta <= 0.0 or suspension_points.is_empty():
+		return
+	active_suspension_contacts = 0
+	for point in suspension_points:
+		var ray := point.get("ray") as RayCast3D
+		if ray == null or not ray.is_colliding():
+			continue
+		var collider := ray.get_collider()
+		var collider_name := StringName("")
+		if collider is Node:
+			collider_name = (collider as Node).name
+		if not _is_ground_contact(collider_name):
+			continue
+		var distance_m := ray.global_position.distance_to(ray.get_collision_point())
+		var rest_distance := float(point.get("rest_distance_m", 0.60))
+		var compression := maxf(rest_distance - distance_m, 0.0)
+		if compression <= 0.0:
+			continue
+		maximum_suspension_compression_m = maxf(maximum_suspension_compression_m, compression)
+		active_suspension_contacts += 1
+		var offset_world := ray.global_position - global_position
+		var point_velocity := linear_velocity + angular_velocity.cross(offset_world)
+		var spring_force := float(point.get("stiffness_n_m", 60000.0)) * compression
+		var damping_force := -float(point.get("damping_n_s_m", 6000.0)) * point_velocity.dot(Vector3.UP)
+		var normal_force := clampf(
+			spring_force + damping_force,
+			0.0,
+			float(point.get("maximum_force_n", 12000.0))
+		)
+		apply_force(Vector3.UP * normal_force, offset_world)
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	contact_samples.clear()
