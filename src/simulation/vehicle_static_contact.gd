@@ -15,9 +15,12 @@ var friction_coefficient: float = 0.55
 # longer instantaneously zeroes node velocity or teleports the vehicle out of
 # penetration. Contact force participates in the same substep as the vehicle
 # structure so the front members have time to shorten, fold and dissipate work.
-var normal_stiffness_n_m: float = 14000000.0
+# The contact spring is intentionally softer than the structural rails: the
+# boundary should build load over several solver ticks rather than emulate an
+# impulse at one nose node.
+var normal_stiffness_n_m: float = 3000000.0
 var damping_ratio: float = 0.75
-var maximum_force_per_node_n: float = 3500000.0
+var maximum_force_per_node_n: float = 750000.0
 var emergency_penetration_m: float = 0.20
 var emergency_position_fraction: float = 0.02
 var contact_events: int = 0
