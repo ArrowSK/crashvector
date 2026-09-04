@@ -93,12 +93,15 @@ func _test_preflight_rules(failures: Array[String]) -> void:
 
 func _test_heading_transform(failures: Array[String]) -> void:
 	var model := PassengerCarBuilder.build(PassengerCarCatalog.B_SEGMENT_HATCHBACK, 1150.0, 50.0, 5.0, Vector3.ZERO)
-	var original_energy := model.initial_energy_j
+	# This regression is specifically about rigid heading transforms preserving
+	# kinetic energy. M11 adds elastic structural state, so initial_energy_j is
+	# intentionally broader than the quantity this historical test names.
+	var original_energy := model.total_kinetic_energy_j()
 	model.rotate_y_about(Vector3.ZERO, PI * 0.5, true)
 	var velocity := model.average_velocity_ms()
 	if absf(velocity.length() - PhysicsMetrics.kmh_to_ms(50.0)) > 0.000001:
 		failures.append("M4 heading transform changed vehicle speed")
-	if absf(model.initial_energy_j - original_energy) > 0.01:
+	if absf(model.total_kinetic_energy_j() - original_energy) > 0.01:
 		failures.append("M4 heading transform changed kinetic energy")
 	if absf(velocity.x) > 0.00001 or absf(velocity.z) < 1.0:
 		failures.append("M4 heading transform did not rotate vehicle velocity")
