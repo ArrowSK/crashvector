@@ -8,6 +8,7 @@ extends RefCounted
 var nodes: Array[StructuralNode] = []
 var beams: Array[StructuralBeam] = []
 var bending_constraints: Array[StructuralBendingConstraint] = []
+var longitudinal_guards: Array[StructuralLongitudinalGuard] = []
 var barrier_enabled: bool = true
 var barrier_x_m: float = 5.0
 var barrier_restitution: float = 0.0
@@ -83,6 +84,26 @@ func add_bending_constraint(
 	bending_constraints.append(constraint)
 	return constraint
 
+func add_longitudinal_guard(
+	rear_indices: PackedInt32Array,
+	front_indices: PackedInt32Array,
+	minimum_span_ratio: float,
+	stiffness_n_m: float,
+	damping_n_s_m: float,
+	maximum_force_n: float
+) -> StructuralLongitudinalGuard:
+	var guard := StructuralLongitudinalGuard.new(
+		rear_indices,
+		front_indices,
+		nodes,
+		minimum_span_ratio,
+		stiffness_n_m,
+		damping_n_s_m,
+		maximum_force_n
+	)
+	longitudinal_guards.append(guard)
+	return guard
+
 func set_uniform_velocity(velocity_ms: Vector3) -> void:
 	for node in nodes:
 		if not node.pinned:
@@ -103,6 +124,8 @@ func rotate_y_about(pivot_m: Vector3, angle_rad: float, rotate_velocities: bool 
 		node.position_m = pivot_m + basis * (node.position_m - pivot_m)
 		if rotate_velocities:
 			node.velocity_ms = basis * node.velocity_ms
+	for guard in longitudinal_guards:
+		guard.rotate_y(angle_rad)
 	capture_initial_energy()
 
 func capture_initial_energy() -> void:
@@ -128,6 +151,8 @@ func prepare_substep(delta_s: float) -> void:
 		beam.solve(nodes, delta_s)
 	for constraint in bending_constraints:
 		constraint.solve(nodes, delta_s)
+	for guard in longitudinal_guards:
+		guard.solve(nodes, delta_s)
 
 func integrate_substep(delta_s: float) -> void:
 	if delta_s <= 0.0:
@@ -269,6 +294,8 @@ func total_elastic_energy_j() -> float:
 		result += beam.elastic_energy_j(nodes)
 	for constraint in bending_constraints:
 		result += constraint.elastic_energy_j(nodes)
+	for guard in longitudinal_guards:
+		result += guard.elastic_energy_j(nodes)
 	return result
 
 func total_plastic_energy_j() -> float:
@@ -285,6 +312,8 @@ func total_damping_energy_j() -> float:
 		result += beam.damping_energy_j
 	for constraint in bending_constraints:
 		result += constraint.damping_energy_j
+	for guard in longitudinal_guards:
+		result += guard.damping_energy_j
 	return result
 
 func total_fracture_energy_j() -> float:
@@ -336,6 +365,9 @@ func bending_constraint_count(component: StringName = &"") -> int:
 		if constraint.component == component:
 			result += 1
 	return result
+
+func longitudinal_guard_count() -> int:
+	return longitudinal_guards.size()
 
 func broken_beam_count() -> int:
 	var result := 0
@@ -399,4 +431,6 @@ func state_signature() -> PackedFloat64Array:
 	for constraint in bending_constraints:
 		signature.append(constraint.rest_angle_rad)
 		signature.append(1.0 if constraint.broken else 0.0)
+	for guard in longitudinal_guards:
+		signature.append(guard.signed_span_m(nodes))
 	return signature
