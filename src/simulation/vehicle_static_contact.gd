@@ -45,10 +45,6 @@ func configure(
 	damping_ratio = damping_ratio_for_restitution(restitution)
 
 static func damping_ratio_for_restitution(coefficient: float) -> float:
-	# Kelvin-Voigt contact uses the standard under-damped oscillator mapping
-	# between coefficient of restitution and damping ratio. Near-zero requested
-	# restitution intentionally approaches critical damping instead of leaving
-	# the provisional M11 contact highly elastic.
 	var e := clampf(coefficient, 0.0001, 0.9999)
 	var log_e := log(e)
 	return clampf(-log_e / sqrt(PI * PI + log_e * log_e), 0.0, 1.0)
@@ -67,9 +63,6 @@ func apply_forces(model: StructuralModel, delta_s: float, elapsed_s: float) -> v
 		_apply_node_force(node, contact_data["normal"], float(contact_data["penetration"]), delta_s, elapsed_s)
 
 func resolve_model(model: StructuralModel, elapsed_s: float) -> void:
-	# Compatibility entry point for older callers. Production M11 simulation
-	# uses apply_forces() between StructuralModel.prepare_substep() and
-	# integrate_substep().
 	apply_forces(model, 1.0 / 240.0, elapsed_s)
 
 func _contact_for_point(point_m: Vector3) -> Dictionary:
@@ -123,10 +116,14 @@ func _apply_node_force(node: StructuralNode, normal: Vector3, penetration_m: flo
 	var critical_damping := 2.0 * sqrt(maxf(normal_stiffness_n_m * node.mass_kg, 0.0))
 	var damping_coefficient := critical_damping * clampf(damping_ratio, 0.0, 1.0)
 	var damping_force := damping_coefficient * closing_speed
-	var normal_force := minf(spring_force + damping_force, maximum_force_per_node_n)
+	var requested_force := spring_force + damping_force
+	var normal_force := minf(requested_force, maximum_force_per_node_n)
+	var force_scale := normal_force / maxf(requested_force, 0.000001)
+	var applied_spring_force := spring_force * force_scale
+	var applied_damping_force := damping_force * force_scale
 	node.add_force(n * normal_force)
-	current_contact_energy_j += 0.5 * normal_stiffness_n_m * penetration_m * penetration_m
-	accumulated_dissipation_j += damping_force * closing_speed * delta_s
+	current_contact_energy_j += 0.5 * applied_spring_force * penetration_m
+	accumulated_dissipation_j += applied_damping_force * closing_speed * delta_s
 
 	var tangent_velocity := node.velocity_ms - n * node.velocity_ms.dot(n)
 	var tangent_speed := tangent_velocity.length()
@@ -137,8 +134,6 @@ func _apply_node_force(node: StructuralNode, normal: Vector3, penetration_m: flo
 		node.add_force(-tangent_direction * friction_force)
 		accumulated_dissipation_j += friction_force * tangent_speed * delta_s
 
-	# Emergency stabilization is deliberately tiny and only engages after deep
-	# numerical penetration. It is not the normal contact response.
 	if penetration_m > emergency_penetration_m:
 		var correction := (penetration_m - emergency_penetration_m) * clampf(emergency_position_fraction, 0.0, 0.05)
 		node.position_m += n * correction
