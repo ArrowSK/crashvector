@@ -85,8 +85,12 @@ func apply_collision_demand(energy_j: float, impact_direction_world: Vector3) ->
 		var torque_cap := 250.0
 		var torque_fraction := 0.10
 		if obstacle_type == ScenarioConfig.TARGET_TREE:
-			torque_cap = 900.0
-			torque_fraction = 0.25
+			# The tree has a much larger transverse inertia than the generic pole.
+			# Give a failed root/base enough rotational impulse to produce visible
+			# toppling, while keeping the translational impulse deliberately small
+			# so target failure cannot become an artificial car launch mechanism.
+			torque_cap = 4000.0
+			torque_fraction = 1.50
 		var torque_impulse := minf(impulse_ns * torque_fraction, torque_cap)
 		yield_body.apply_torque_impulse(bend_axis * torque_impulse)
 
@@ -136,7 +140,7 @@ func _build_yielding_body() -> void:
 	yield_body.can_sleep = false
 	yield_body.continuous_cd = true
 	yield_body.linear_damp = 0.04
-	yield_body.angular_damp = 0.18
+	yield_body.angular_damp = 0.08 if obstacle_type == ScenarioConfig.TARGET_TREE else 0.18
 	yield_body.contact_monitor = true
 	yield_body.max_contacts_reported = 16
 	var material := PhysicsMaterial.new()
