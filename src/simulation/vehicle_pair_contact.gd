@@ -89,27 +89,31 @@ func _apply_pair_force(a: StructuralNode, b: StructuralNode, normal: Vector3, de
 		return
 	var effective_mass := 1.0 / inverse_mass_sum
 	var relative_velocity := a.velocity_ms - b.velocity_ms
-	var closing_speed := maxf(relative_velocity.dot(normal), 0.0)
+	var relative_normal_speed := relative_velocity.dot(normal)
 	var spring_force := normal_stiffness_n_m * penetration
 	var critical_damping := 2.0 * sqrt(maxf(normal_stiffness_n_m * effective_mass, 0.0))
 	var damping_coefficient := critical_damping * clampf(damping_ratio, 0.0, 1.0)
-	var damping_force := damping_coefficient * closing_speed
-	var requested_force := spring_force + damping_force
-	var normal_force := minf(requested_force, maximum_force_per_pair_n)
-	var force_scale := normal_force / maxf(requested_force, 0.000001)
+	# Positive relative normal speed is closing and adds damping. Negative speed
+	# is separation and reduces the spring release. The clamp prevents tensile
+	# contact after the surfaces are ready to separate.
+	var damping_force_signed := damping_coefficient * relative_normal_speed
+	var requested_force := spring_force + damping_force_signed
+	var normal_force := clampf(requested_force, 0.0, maximum_force_per_pair_n)
+	var force_scale := 0.0
+	if requested_force > 0.000001:
+		force_scale = normal_force / requested_force
 	var applied_spring_force := spring_force * force_scale
-	var applied_damping_force := damping_force * force_scale
 
 	a.add_force(-normal * normal_force)
 	b.add_force(normal * normal_force)
 	current_contact_energy_j += 0.5 * applied_spring_force * penetration
-	accumulated_dissipation_j += applied_damping_force * closing_speed * delta_s
+	accumulated_dissipation_j += damping_coefficient * relative_normal_speed * relative_normal_speed * force_scale * delta_s
 	active_contacts += 1
 	contact_events += 1
 	if first_contact_time_s < 0.0:
 		first_contact_time_s = elapsed_s
 
-	var tangent_velocity := relative_velocity - normal * relative_velocity.dot(normal)
+	var tangent_velocity := relative_velocity - normal * relative_normal_speed
 	var tangent_speed := tangent_velocity.length()
 	if tangent_speed > 0.000001 and friction_coefficient > 0.0:
 		var tangent_direction := tangent_velocity / tangent_speed
