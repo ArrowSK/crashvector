@@ -49,7 +49,7 @@ func configure(
 func _ready() -> void:
 	mass = maxf(target_mass_kg, 1.0)
 	gravity_scale = 1.0
-	continuous_cd = RigidBody3D.CCD_MODE_CAST_SHAPE
+	continuous_cd = true
 	can_sleep = false
 	contact_monitor = true
 	max_contacts_reported = 16
