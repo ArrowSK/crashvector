@@ -22,12 +22,16 @@ func _run() -> void:
 
 	for size in SIZES:
 		root.size = size
+		# Headless Godot applies SceneTree root-size changes on the next frame.
+		# Wait for that propagation before asking the M10 shell to lay itself out.
+		await process_frame
 		instance.call("_layout_m10")
 		await process_frame
 		if not _validate_scenario_layout(instance, size):
 			return
 
 	root.size = Vector2i(1280, 720)
+	await process_frame
 	instance.call("_toggle_replay_drawer")
 	instance.call("_layout_m10")
 	await process_frame
