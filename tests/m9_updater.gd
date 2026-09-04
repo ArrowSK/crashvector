@@ -22,7 +22,7 @@ func _initialize() -> void:
 
 func _test_canonical_version() -> void:
 	var version := String(ProjectSettings.get_setting("application/config/version", ""))
-	_expect(version == "0.5.0-beta.1", "Canonical application version should be 0.5.0-beta.1")
+	_expect(version == "0.6.0-beta.1", "Canonical application version should be 0.6.0-beta.1")
 	_expect(SemanticVersion.parse(version).valid, "Canonical application version must be valid semantic version")
 
 func _test_semantic_versions() -> void:
