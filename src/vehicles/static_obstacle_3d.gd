@@ -8,6 +8,7 @@ extends Node3D
 var obstacle_type: StringName = ScenarioConfig.TARGET_WALL
 var surface_position_m := Vector3.ZERO
 var heading_deg := 0.0
+var physics_body: StaticBody3D
 
 func configure(type_id: StringName, position_m: Vector3, yaw_deg: float) -> void:
 	obstacle_type = type_id
@@ -23,6 +24,7 @@ func set_editor_transform(position_m: Vector3, yaw_deg: float) -> void:
 func _build_visuals() -> void:
 	for child in get_children():
 		child.queue_free()
+	physics_body = null
 	match obstacle_type:
 		ScenarioConfig.TARGET_BARRIER:
 			_build_concrete_barrier()
@@ -32,6 +34,7 @@ func _build_visuals() -> void:
 			_build_tree()
 		_:
 			_build_rigid_wall()
+	_build_physics_body()
 	_apply_visual_transform()
 
 func _build_rigid_wall() -> void:
@@ -47,8 +50,6 @@ func _build_rigid_wall() -> void:
 func _build_concrete_barrier() -> void:
 	var concrete := _material(Color(0.58, 0.59, 0.58), 0.0, 0.94)
 	var seam := _material(Color(0.33, 0.34, 0.34), 0.0, 0.96)
-	# A layered Jersey-style silhouette. Physics still uses the original flat
-	# target surface; these meshes are presentation only.
 	_add_box("BarrierBase", Vector3(0.58, 0.24, 4.1), concrete, Vector3(0.08, 0.12, 0.0))
 	_add_box("BarrierLower", Vector3(0.48, 0.34, 4.05), concrete, Vector3(0.03, 0.39, 0.0))
 	_add_box("BarrierUpper", Vector3(0.32, 0.43, 4.0), concrete, Vector3(-0.04, 0.775, 0.0))
@@ -72,6 +73,43 @@ func _build_tree() -> void:
 	_add_sphere("TreeCrownA", 1.18, leaves_a, Vector3(0.0, 3.95, 0.0))
 	_add_sphere("TreeCrownB", 0.88, leaves_b, Vector3(0.42, 4.42, 0.36))
 	_add_sphere("TreeCrownC", 0.84, leaves_a, Vector3(-0.38, 4.35, -0.32))
+
+func _build_physics_body() -> void:
+	physics_body = StaticBody3D.new()
+	physics_body.name = "StaticTargetPhysics"
+	var material := PhysicsMaterial.new()
+	material.friction = 0.85
+	material.bounce = 0.0
+	physics_body.physics_material_override = material
+	add_child(physics_body)
+	match obstacle_type:
+		ScenarioConfig.TARGET_BARRIER:
+			_add_box_collision(Vector3(0.42, 0.96, 4.10), Vector3(0.0, 0.48, 0.0))
+		ScenarioConfig.TARGET_POLE:
+			_add_cylinder_collision(0.18, 2.90, Vector3(0.0, 1.45, 0.0))
+		ScenarioConfig.TARGET_TREE:
+			_add_cylinder_collision(0.32, 3.50, Vector3(0.0, 1.75, 0.0))
+		_:
+			_add_box_collision(Vector3(0.45, 3.25, 9.0), Vector3(0.0, 1.625, 0.0))
+
+func _add_box_collision(size_m: Vector3, local_position_m: Vector3) -> void:
+	var shape := BoxShape3D.new()
+	shape.size = size_m
+	var collision := CollisionShape3D.new()
+	collision.name = "ObstacleCollision"
+	collision.shape = shape
+	collision.position = local_position_m
+	physics_body.add_child(collision)
+
+func _add_cylinder_collision(radius_m: float, height_m: float, local_position_m: Vector3) -> void:
+	var shape := CylinderShape3D.new()
+	shape.radius = radius_m
+	shape.height = height_m
+	var collision := CollisionShape3D.new()
+	collision.name = "ObstacleCollision"
+	collision.shape = shape
+	collision.position = local_position_m
+	physics_body.add_child(collision)
 
 func _material(color: Color, metallic: float, roughness: float) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
