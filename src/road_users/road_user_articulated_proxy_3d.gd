@@ -54,21 +54,22 @@ func _build_pedestrian_rig() -> void:
 		_add_capsule_visual(leg, "LowerLeg", 0.072 * scale, 0.36 * scale, Color(0.08, 0.10, 0.14))
 
 	# ConeTwist's twist axis is local X. Torso/neck/ball joints orient X along the
-	# standing vertical axis. Elbow/knee constraints orient X laterally and use a
-	# narrow swing span with a large twist span, approximating a hinge without
-	# relying on a second physics implementation.
+	# standing vertical axis while elbow/knee joints orient it laterally. Godot's
+	# own ragdoll guidance recommends conservative cone spans (roughly 20-90°
+	# swing and 20-45° twist); keeping every twist span at or below 45° avoids the
+	# solver instability produced by the earlier near-PI elbow/knee spans.
 	var vertical_axis := Basis(Vector3.FORWARD, deg_to_rad(90.0))
 	var lateral_axis := Basis(Vector3.UP, deg_to_rad(-90.0))
-	_add_bounded_joint("SpineJoint", self, _pedestrian_torso, Vector3(0.0, 1.00 * scale, 0.0), vertical_axis, 32.0, 24.0)
-	_add_bounded_joint("NeckJoint", _pedestrian_torso, head, Vector3(0.0, 1.50 * scale, 0.0), vertical_axis, 42.0, 34.0)
-	_add_bounded_joint("LeftShoulderJoint", _pedestrian_torso, left_upper_arm, Vector3(0.0, 1.35 * scale, -0.24 * scale), vertical_axis, 82.0, 62.0)
-	_add_bounded_joint("RightShoulderJoint", _pedestrian_torso, right_upper_arm, Vector3(0.0, 1.35 * scale, 0.24 * scale), vertical_axis, 82.0, 62.0)
-	_add_bounded_joint("LeftElbowJoint", left_upper_arm, left_lower_arm, Vector3(0.0, 1.03 * scale, -0.28 * scale), lateral_axis, 10.0, 138.0)
-	_add_bounded_joint("RightElbowJoint", right_upper_arm, right_lower_arm, Vector3(0.0, 1.03 * scale, 0.28 * scale), lateral_axis, 10.0, 138.0)
-	_add_bounded_joint("LeftHipJoint", self, left_upper_leg, Vector3(0.0, 0.80 * scale, -0.09 * scale), vertical_axis, 60.0, 44.0)
-	_add_bounded_joint("RightHipJoint", self, right_upper_leg, Vector3(0.0, 0.80 * scale, 0.09 * scale), vertical_axis, 60.0, 44.0)
-	_add_bounded_joint("LeftKneeJoint", left_upper_leg, left_lower_leg, Vector3(0.0, 0.44 * scale, -0.09 * scale), lateral_axis, 8.0, 128.0)
-	_add_bounded_joint("RightKneeJoint", right_upper_leg, right_lower_leg, Vector3(0.0, 0.44 * scale, 0.09 * scale), lateral_axis, 8.0, 128.0)
+	_add_bounded_joint("SpineJoint", self, _pedestrian_torso, Vector3(0.0, 1.00 * scale, 0.0), vertical_axis, 28.0, 20.0)
+	_add_bounded_joint("NeckJoint", _pedestrian_torso, head, Vector3(0.0, 1.50 * scale, 0.0), vertical_axis, 38.0, 28.0)
+	_add_bounded_joint("LeftShoulderJoint", _pedestrian_torso, left_upper_arm, Vector3(0.0, 1.35 * scale, -0.24 * scale), vertical_axis, 72.0, 42.0)
+	_add_bounded_joint("RightShoulderJoint", _pedestrian_torso, right_upper_arm, Vector3(0.0, 1.35 * scale, 0.24 * scale), vertical_axis, 72.0, 42.0)
+	_add_bounded_joint("LeftElbowJoint", left_upper_arm, left_lower_arm, Vector3(0.0, 1.03 * scale, -0.28 * scale), lateral_axis, 12.0, 45.0)
+	_add_bounded_joint("RightElbowJoint", right_upper_arm, right_lower_arm, Vector3(0.0, 1.03 * scale, 0.28 * scale), lateral_axis, 12.0, 45.0)
+	_add_bounded_joint("LeftHipJoint", self, left_upper_leg, Vector3(0.0, 0.80 * scale, -0.09 * scale), vertical_axis, 52.0, 36.0)
+	_add_bounded_joint("RightHipJoint", self, right_upper_leg, Vector3(0.0, 0.80 * scale, 0.09 * scale), vertical_axis, 52.0, 36.0)
+	_add_bounded_joint("LeftKneeJoint", left_upper_leg, left_lower_leg, Vector3(0.0, 0.44 * scale, -0.09 * scale), lateral_axis, 10.0, 45.0)
+	_add_bounded_joint("RightKneeJoint", right_upper_leg, right_lower_leg, Vector3(0.0, 0.44 * scale, 0.09 * scale), lateral_axis, 10.0, 45.0)
 
 func _add_bounded_joint(
 	node_name: String,
@@ -83,6 +84,9 @@ func _add_bounded_joint(
 	joint.name = node_name
 	joint.swing_span = deg_to_rad(swing_deg)
 	joint.twist_span = deg_to_rad(twist_deg)
+	joint.bias = 0.12
+	joint.softness = 0.90
+	joint.relaxation = 0.95
 	articulated_joints.append(joint)
 	_joint_local_anchors[joint.name] = local_anchor
 	_m15_joint_pairs[joint.name] = [body_a, body_b]
