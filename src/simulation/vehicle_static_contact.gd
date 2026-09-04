@@ -110,17 +110,26 @@ func _apply_node_force(node: StructuralNode, normal: Vector3, penetration_m: flo
 	var damping_coefficient := critical_damping * clampf(damping_ratio, 0.0, 1.0)
 	# Negative normal speed means compression and therefore adds damping force;
 	# positive speed means separation and subtracts damping from spring release.
-	# Clamping the combined force at zero prevents a tensile wall contact.
-	var damping_force_signed := -damping_coefficient * normal_speed
+	var raw_damping_force_signed := -damping_coefficient * normal_speed
+	var damping_force_signed := raw_damping_force_signed
+	if absf(normal_speed) > 0.000001:
+		var maximum_damping_force := node.mass_kg * absf(normal_speed) / delta_s
+		damping_force_signed = clampf(raw_damping_force_signed, -maximum_damping_force, maximum_damping_force)
 	var requested_force := spring_force + damping_force_signed
 	var normal_force := clampf(requested_force, 0.0, maximum_force_per_node_n)
 	var force_scale := 0.0
 	if requested_force > 0.000001:
 		force_scale = normal_force / requested_force
 	var applied_spring_force := spring_force * force_scale
+	var applied_damping_force_signed := damping_force_signed * force_scale
 	node.add_force(n * normal_force)
 	current_contact_energy_j += 0.5 * applied_spring_force * penetration_m
-	accumulated_dissipation_j += damping_coefficient * normal_speed * normal_speed * force_scale * delta_s
+	if absf(normal_speed) > 0.000001:
+		var damping_only_after_speed := normal_speed + applied_damping_force_signed / node.mass_kg * delta_s
+		accumulated_dissipation_j += maxf(
+			0.5 * node.mass_kg * (normal_speed * normal_speed - damping_only_after_speed * damping_only_after_speed),
+			0.0
+		)
 
 	var tangent_velocity := node.velocity_ms - n * normal_speed
 	var tangent_speed := tangent_velocity.length()
@@ -129,7 +138,11 @@ func _apply_node_force(node: StructuralNode, normal: Vector3, penetration_m: flo
 		var desired_friction_force := node.mass_kg * tangent_speed / maxf(delta_s, 0.000001)
 		var friction_force := minf(desired_friction_force, friction_coefficient * normal_force)
 		node.add_force(-tangent_direction * friction_force)
-		accumulated_dissipation_j += friction_force * tangent_speed * delta_s
+		var tangent_after_speed := maxf(tangent_speed - friction_force / node.mass_kg * delta_s, 0.0)
+		accumulated_dissipation_j += maxf(
+			0.5 * node.mass_kg * (tangent_speed * tangent_speed - tangent_after_speed * tangent_after_speed),
+			0.0
+		)
 
 	if penetration_m > emergency_penetration_m:
 		var correction := (penetration_m - emergency_penetration_m) * clampf(emergency_position_fraction, 0.0, 0.05)
