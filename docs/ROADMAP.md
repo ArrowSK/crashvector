@@ -173,7 +173,7 @@ M12 corrected the more fundamental problem exposed by real use of M11: the defor
 
 See `docs/M12_HYBRID_PHYSICS.md` for the detailed architecture and coverage boundaries.
 
-## M13 — Progressive whole-body structural failure — release candidate
+## M13 — Progressive whole-body structural failure — complete
 
 M13 removes the remaining high-energy discontinuity in M12. M12 deliberately protected the passenger cell from the old unstable structural solver, but that also meant an extreme frontal impact could exhaust roughly the first metre of front crush while the firewall, roof and cabin remained effectively indestructible.
 
@@ -189,7 +189,7 @@ M13 removes the remaining high-energy discontinuity in M12. M12 deliberately pro
 - A 200 km/h B-class rigid-wall severe regression records about 1,739.2 kJ demand, 0.945 m front-zone crush, 0.300 m firewall intrusion, 0.820 m passenger-cell collapse, 0.231 m rear buckle and 1.948 m combined longitudinal collapse.
 - The same 200 km/h run remains stable at about 0.015 m/s maximum reverse speed, 0.005 m chassis vertical rise and 0.89 degrees pitch, so whole-body failure does not reintroduce the old launch/jump behaviour.
 - The severe M13 condition is enforced both by the dedicated M13 workflow and by the canonical hybrid regression executed inside Core CI.
-- Target corrective prerelease is `0.5.0-beta.1`.
+- Corrective prerelease `0.5.0-beta.1` was published after PR #16, the final M10–M13 validation gates, canonical Core CI, macOS Universal 2 packaging and the Windows install/uninstall lifecycle all passed.
 
 The M13 capacity and collapse values are phenomenological generic CrashVector parameters. They are not manufacturer body-in-white data, finite-element predictions, injury estimates or regulatory crash corridors.
 
