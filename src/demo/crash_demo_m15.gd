@@ -38,9 +38,25 @@ func _configure_articulated_collision_channels() -> void:
 	for body in road_user_proxy.articulated_bodies:
 		if body != null and is_instance_valid(body):
 			_set_road_user_body_channels(body)
+	_rebind_articulated_joints()
 	if car != null and car.rigid_chassis != null and car.rigid_chassis.front_crush_probe != null:
 		car.rigid_chassis.front_crush_probe.collision_mask = ROAD_USER_LAYER
 
 func _set_road_user_body_channels(body: PhysicsBody3D) -> void:
 	body.collision_layer = ROAD_USER_LAYER
 	body.collision_mask = ROAD_USER_GROUND_LAYER
+
+func _rebind_articulated_joints() -> void:
+	# The rig is assembled before its sibling bodies are moved to their configured
+	# preview offsets. Rebinding after set_preview_pose() makes Godot derive each
+	# local pivot from the final body/joint transforms and avoids a large initial
+	# constraint correction when the bodies are unfrozen.
+	for joint in road_user_proxy.articulated_joints:
+		if joint == null or not is_instance_valid(joint):
+			continue
+		var body_a_path := joint.node_a
+		var body_b_path := joint.node_b
+		joint.node_a = NodePath()
+		joint.node_b = NodePath()
+		joint.node_a = body_a_path
+		joint.node_b = body_b_path
