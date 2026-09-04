@@ -18,6 +18,17 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.1.0-beta.1/CrashVector-0.1.0-beta.1-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.1.0-beta.1/CrashVector-0.1.0-beta.1-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.1.0-beta.1">Release notes & checksums</a>
+  ·
+  <a href="docs/DISTRIBUTION.md">Installation & updates</a>
+</p>
+
+<p align="center">
   <img alt="Godot 4.4.1+" src="https://img.shields.io/badge/Godot-4.4.1%2B-478cbf">
   <img alt="MPL 2.0" src="https://img.shields.io/badge/license-MPL--2.0-6c7a89">
   <img alt="Generic models" src="https://img.shields.io/badge/models-generic%20classes-19b5a5">
@@ -31,6 +42,27 @@ Set up a vehicle and target, press **Simulate**, scrub the recorded crash, compa
 > **Current state:** **M9 is complete on `main`**. The first packaged desktop beta, **0.1.0-beta.1**, is published for macOS Universal 2 and Windows x64 with native installers, SHA-256 sidecars, a machine-readable update manifest and the built-in updater layer. M0–M8 simulation, replay, comparison, calibration and cinematic-export behaviour is retained.
 
 > **Scope:** CrashVector is an educational physics visualisation tool. It is **not** certified accident reconstruction, homologation, manufacturer crash-performance prediction, biomechanics, medical/injury prediction or a safety-rating system.
+
+## Download and install
+
+No Git, Godot, Python, Terminal or PowerShell is required for the packaged desktop beta.
+
+| Platform | Download | Install |
+| --- | --- | --- |
+| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.1.0-beta.1/CrashVector-0.1.0-beta.1-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
+| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.1.0-beta.1/CrashVector-0.1.0-beta.1-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
+
+The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.1.0-beta.1 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.1.0-beta.1)**.
+
+The first beta is ad-hoc signed on macOS and unsigned on Windows when paid signing credentials are not configured, so Gatekeeper or SmartScreen may warn about an unknown developer/publisher. Use only the files attached to the official `ArrowSK/crashvector` release.
+
+**GitHub Packages is not used for the desktop installers.** The repository's Packages sidebar can therefore correctly show no packages. CrashVector's distributable DMG and Setup EXE are **GitHub Release assets**, which is the appropriate distribution location for these desktop binaries.
+
+To uninstall on macOS, quit CrashVector and move it from Applications to Trash. On Windows, use **Settings → Apps → Installed apps → CrashVector → Uninstall**.
+
+CrashVector also includes **Updates → Check for updates**. It can optionally check once per day; an update is downloaded and SHA-256 verified first, and installation is always explicitly handed to the normal operating-system installer.
+
+See **[Desktop distribution and updates](docs/DISTRIBUTION.md)** for detailed installation, removal, update, checksum and signing information.
 
 ## The normal workflow
 
@@ -234,19 +266,6 @@ CrashVector intentionally rejects some scenarios instead of making a visually pl
 - CI validates deterministic logic and editor runtime paths, but does not perform a real 4K GPU render or invoke the machine's FFmpeg binary.
 
 For deeper physics assumptions, see [Physics notes](docs/PHYSICS.md).
-
-## Install the packaged beta
-
-The current public prerelease is **0.1.0-beta.1**:
-
-- macOS: `CrashVector-0.1.0-beta.1-macOS-universal.dmg` — Universal 2 for Apple Silicon and Intel; open the DMG and drag CrashVector to Applications.
-- Windows: `CrashVector-0.1.0-beta.1-Windows-x64-Setup.exe` — standard graphical installer with a normal uninstaller.
-
-Download installers only from the official [CrashVector 0.1.0-beta.1 GitHub Release](https://github.com/ArrowSK/crashvector/releases/tag/v0.1.0-beta.1). SHA-256 sidecars are published next to both packages. The first beta is ad-hoc signed on macOS and unsigned on Windows unless signing credentials are configured, so Gatekeeper or SmartScreen may display an unknown-developer warning.
-
-CrashVector includes **Updates → Check for updates**. It can also perform an optional once-daily background check, but installation is never silent: the downloaded package is verified before CrashVector hands it to the operating system installer.
-
-See [Desktop distribution and updates](docs/DISTRIBUTION.md) for installation, removal, update, signing and release-process details.
 
 ## Run from source
 
