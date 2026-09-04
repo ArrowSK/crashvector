@@ -75,9 +75,10 @@ func make_scenario() -> ScenarioConfig:
 	# coarse structure to 44 nodes with substantially stiffer protected-cell
 	# members. Keep the same stored physical scenario and evidence corridors,
 	# but integrate this deliberately narrow reference at a converged timestep.
-	# The 8->16 step comparison reduced the numerical energy residual by more
-	# than an order of magnitude; 32 substeps is the reference-quality setting.
-	config.solver_substeps = 32
+	# The 16->32 step comparison reduced the remaining explicit-integration
+	# energy residual by more than fourfold; 64 substeps completes that public
+	# convergence step without changing any physical or acceptance parameter.
+	config.solver_substeps = 64
 	config.contact_friction = 0.55
 	config.restitution = 0.03
 	return config
