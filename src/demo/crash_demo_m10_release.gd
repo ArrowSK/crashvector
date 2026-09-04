@@ -10,6 +10,7 @@ extends "res://src/demo/crash_demo_m10.gd"
 func _ready() -> void:
 	super._ready()
 	_harden_m10_scenario_rail()
+	_harden_m10_replay_drawer()
 	_layout_m10()
 
 func _layout_m10() -> void:
@@ -78,6 +79,33 @@ func _harden_m10_scenario_rail() -> void:
 	m10_left_panel.add_child(scroll)
 	(existing as Control).size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(existing)
+
+func _harden_m10_replay_drawer() -> void:
+	# The M5 analysis labels and graphs can legitimately become much taller than
+	# the M10 drawer. Keep those proven controls and their signals unchanged, but
+	# contain the M10-owned analysis stack in a vertical scroll viewport so its
+	# intrinsic content height cannot force the whole desktop layout taller.
+	if m10_replay_content == null:
+		return
+	var parent := m10_replay_content.get_parent()
+	if parent == null or parent is ScrollContainer:
+		return
+	if not parent is Container:
+		return
+	var content_index := m10_replay_content.get_index()
+	parent.remove_child(m10_replay_content)
+	var scroll := ScrollContainer.new()
+	scroll.name = "M10ReplayAnalysisScroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.follow_focus = true
+	parent.add_child(scroll)
+	parent.move_child(scroll, content_index)
+	m10_replay_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	m10_replay_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(m10_replay_content)
 
 func _adopt_legacy_panels() -> void:
 	# M10 must never move proven M0-M9 controls out of their existing ownership
