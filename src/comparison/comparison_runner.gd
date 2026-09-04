@@ -6,186 +6,178 @@ class_name ComparisonRunner
 extends RefCounted
 
 const DT: float = 1.0 / 240.0
-const DEFAULT_SPEEDS := [50.0, 90.0, 140.0]
-const DEFAULT_CLASS_IDS := [
-	PassengerCarCatalog.B_SEGMENT_HATCHBACK,
-	PassengerCarCatalog.C_SEGMENT_COMPACT,
-	PassengerCarCatalog.D_SEGMENT_MIDSIZE,
-]
-const DEFAULT_TARGET_IDS := [
-	ScenarioConfig.TARGET_WALL,
-	ScenarioConfig.TARGET_TRUCK,
-	ScenarioConfig.TARGET_PASSENGER_CAR,
-]
+const REPLAY_INTERVAL: float = 1.0 / 120.0
+const MATRIX_CAR_CLASSES: StringName = &"car_classes"
+const MATRIX_TARGET_TYPES: StringName = &"target_types"
+const MATRIX_BODY_PRESETS: StringName = &"body_presets"
 
-static func run_speed_sweep(
-	base_scenario: ScenarioConfig,
-	speeds_kmh: Array[float] = DEFAULT_SPEEDS,
-	paint_ids: Array[StringName] = []
-) -> Array[Dictionary]:
+static func run_speed_sweep(base_scenario: ScenarioConfig, speeds_kmh: Array[float] = [50.0, 90.0, 140.0]) -> Array[Dictionary]:
 	var results: Array[Dictionary] = []
-	var speeds := _normalise_speeds(speeds_kmh)
-	for index in range(speeds.size()):
+	for speed in _normalise_speeds(speeds_kmh):
 		var config := _clone_scenario(base_scenario)
-		config.car_speed_kmh = speeds[index]
-		var paint_id := CarPaintCatalog.BLUE
-		if index < paint_ids.size() and CarPaintCatalog.has_id(paint_ids[index]):
-			paint_id = paint_ids[index]
-		var result := _run_variant(config)
-		result["label"] = _speed_label(speeds[index])
-		result["sweep_value"] = speeds[index]
-		result["sweep_type"] = &"speed"
-		result["paint_id"] = paint_id
-		results.append(result)
+		config.car_speed_kmh = speed
+		results.append(_run_variant(config, _speed_label(speed), &"speed"))
 	return results
 
-static func run_class_sweep(
+static func run_vehicle_class_sweep(
 	base_scenario: ScenarioConfig,
-	class_ids: Array[StringName] = DEFAULT_CLASS_IDS,
-	paint_ids: Array[StringName] = []
+	preset_ids: Array[StringName] = [
+		PassengerCarCatalog.B_SEGMENT_HATCHBACK,
+		PassengerCarCatalog.C_SEGMENT_COMPACT,
+		PassengerCarCatalog.D_SEGMENT_MIDSIZE,
+	]
 ) -> Array[Dictionary]:
 	var results: Array[Dictionary] = []
-	var ids := _normalise_ids(class_ids, 3)
-	for index in range(ids.size()):
-		var id := ids[index]
-		if not PassengerCarCatalog.preset_ids().has(id):
+	for preset_id in _normalise_ids(preset_ids, 3):
+		if not PassengerCarCatalog.preset_ids().has(preset_id):
 			continue
 		var config := _clone_scenario(base_scenario)
-		config.car_preset_id = id
-		config.car_mass_kg = PassengerCarCatalog.default_mass_kg(id)
-		var paint_id := CarPaintCatalog.BLUE
-		if index < paint_ids.size() and CarPaintCatalog.has_id(paint_ids[index]):
-			paint_id = paint_ids[index]
-		var result := _run_variant(config)
-		result["label"] = PassengerCarCatalog.display_name(id)
-		result["sweep_value"] = id
-		result["sweep_type"] = &"class"
-		result["paint_id"] = paint_id
-		results.append(result)
-	return results
-
-static func run_target_sweep(
-	base_scenario: ScenarioConfig,
-	target_ids: Array[StringName] = DEFAULT_TARGET_IDS,
-	paint_ids: Array[StringName] = []
-) -> Array[Dictionary]:
-	var results: Array[Dictionary] = []
-	var ids := _normalise_ids(target_ids, 3)
-	for index in range(ids.size()):
-		var id := ids[index]
-		if not ScenarioConfig.target_ids().has(id):
-			continue
-		var config := _clone_scenario(base_scenario)
-		config.apply_target_defaults(id)
-		var paint_id := CarPaintCatalog.BLUE
-		if index < paint_ids.size() and CarPaintCatalog.has_id(paint_ids[index]):
-			paint_id = paint_ids[index]
-		var result := _run_variant(config)
-		result["label"] = ScenarioConfig.target_display_name(id)
-		result["sweep_value"] = id
-		result["sweep_type"] = &"target"
-		result["paint_id"] = paint_id
-		results.append(result)
+		config.car_preset_id = preset_id
+		config.car_mass_kg = PassengerCarCatalog.default_mass_kg(preset_id)
+		results.append(_run_variant(config, PassengerCarCatalog.display_name(preset_id), &"vehicle_class"))
 	return results
 
 static func run_matrix(
 	base_scenario: ScenarioConfig,
-	class_ids: Array[StringName],
-	target_ids: Array[StringName],
+	matrix_mode: StringName,
+	variant_ids: Array[StringName],
 	speeds_kmh: Array[float]
 ) -> Array[Dictionary]:
 	var results: Array[Dictionary] = []
-	var classes := _normalise_ids(class_ids, 3)
-	var targets := _normalise_ids(target_ids, 3)
 	var speeds := _normalise_speeds(speeds_kmh)
-	if classes.is_empty():
-		classes.append(base_scenario.car_preset_id)
-	if targets.is_empty():
-		targets.append(base_scenario.target_type)
-	if speeds.is_empty():
-		speeds.append(base_scenario.car_speed_kmh)
-	for class_id in classes:
-		if not PassengerCarCatalog.preset_ids().has(class_id):
-			continue
-		for target_id in targets:
-			if not ScenarioConfig.target_ids().has(target_id):
-				continue
-			for speed in speeds:
-				if results.size() >= 9:
-					return results
-				var config := _clone_scenario(base_scenario)
-				config.car_preset_id = class_id
-				config.car_mass_kg = PassengerCarCatalog.default_mass_kg(class_id)
-				config.car_speed_kmh = speed
-				config.apply_target_defaults(target_id)
-				var result := _run_variant(config)
-				result["label"] = "%s • %s • %s" % [
-					PassengerCarCatalog.display_name(class_id),
-					ScenarioConfig.target_display_name(target_id),
-					_speed_label(speed),
-				]
-				result["sweep_value"] = {
-					"class_id": class_id,
-					"target_id": target_id,
-					"speed_kmh": speed,
-				}
-				result["sweep_type"] = &"matrix"
-				result["paint_id"] = CarPaintCatalog.BLUE
-				results.append(result)
+	var variants := _normalise_ids(variant_ids, 3)
+	if speeds.is_empty() or variants.is_empty():
+		return results
+	for variant_id in variants:
+		for speed in speeds:
+			var config := _clone_scenario(base_scenario)
+			var variant_label := ""
+			match matrix_mode:
+				MATRIX_CAR_CLASSES:
+					if not PassengerCarCatalog.preset_ids().has(variant_id):
+						continue
+					config.car_preset_id = variant_id
+					config.car_mass_kg = PassengerCarCatalog.default_mass_kg(variant_id)
+					variant_label = PassengerCarCatalog.display_name(variant_id)
+				MATRIX_TARGET_TYPES:
+					if not ScenarioConfig.target_ids().has(variant_id):
+						continue
+					config.apply_target_defaults(variant_id)
+					variant_label = ScenarioConfig.target_display_name(variant_id)
+				MATRIX_BODY_PRESETS:
+					if RoadUserCatalog.is_pedestrian_id(variant_id):
+						config.apply_target_defaults(ScenarioConfig.TARGET_PEDESTRIAN)
+						config.target_preset_id = variant_id
+						config.target_mass_kg = RoadUserCatalog.default_mass_kg(variant_id)
+					elif RoadUserCatalog.is_bicycle_id(variant_id):
+						config.apply_target_defaults(ScenarioConfig.TARGET_BICYCLE)
+						config.target_preset_id = variant_id
+						config.target_mass_kg = RoadUserCatalog.default_mass_kg(variant_id)
+					else:
+						continue
+					variant_label = RoadUserCatalog.display_name(variant_id)
+				_:
+					continue
+			config.car_speed_kmh = speed
+			results.append(_run_variant(config, "%s • %s" % [variant_label, _speed_label(speed)], &"matrix"))
 	return results
 
-static func _run_variant(config: ScenarioConfig) -> Dictionary:
+static func _run_variant(config: ScenarioConfig, label: String, sweep_type: StringName) -> Dictionary:
 	var errors := config.validation_errors()
 	if not errors.is_empty():
-		return {"error": " • ".join(errors)}
+		return {
+			"label": label,
+			"sweep_type": sweep_type,
+			"scenario": config,
+			"error": "; ".join(errors),
+		}
 
-	var primary := PassengerCarBuilder.build(config.car_preset_id, config.car_mass_kg, config.car_speed_kmh, 100.0, config.car_position_m)
+	var primary := PassengerCarBuilder.build(
+		config.car_preset_id,
+		config.car_mass_kg,
+		config.car_speed_kmh,
+		1000.0,
+		config.car_position_m
+	)
 	primary.rotate_y_about(config.car_position_m, deg_to_rad(config.car_heading_deg), true)
-	var target: StructuralModel
-	var pair_simulation: VehiclePairSimulation
-	var static_simulation: VehicleStaticSimulation
-	match config.target_type:
-		ScenarioConfig.TARGET_PASSENGER_CAR:
-			target = PassengerCarBuilder.build(config.target_car_preset_id, config.target_mass_kg, config.target_speed_kmh, 100.0, config.target_position_m)
-			target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
-			pair_simulation = _pair(primary, _front_contact_nodes(), target, _front_contact_nodes() if config.target_car_uses_front_contact() else _rear_contact_nodes(), config)
-		ScenarioConfig.TARGET_TRUCK:
-			target = HeavyTruckBuilder.build(config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
-			target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
-			pair_simulation = _pair(primary, _front_contact_nodes(), target, HeavyTruckBuilder.rear_contact_nodes(), config)
-		ScenarioConfig.TARGET_LORRY:
-			target = RigidLorryBuilder.build(config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
-			target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
-			pair_simulation = _pair(primary, _front_contact_nodes(), target, RigidLorryBuilder.rear_contact_nodes(), config)
-		ScenarioConfig.TARGET_MOTORCYCLE:
-			target = MotorcycleBuilder.build(config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
-			target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
-			pair_simulation = _pair(primary, _front_contact_nodes(), target, MotorcycleBuilder.front_contact_nodes() if config.target_vehicle_uses_front_contact() else MotorcycleBuilder.rear_contact_nodes(), config)
-		ScenarioConfig.TARGET_BICYCLE:
-			target = BicycleBuilder.build(config.target_preset_id, config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
-			target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
-			pair_simulation = _pair(primary, _front_contact_nodes(), target, BicycleBuilder.contact_nodes(config.target_vehicle_uses_front_contact()), config)
-		ScenarioConfig.TARGET_PEDESTRIAN:
-			target = PedestrianBuilder.build(config.target_preset_id, config.target_mass_kg, config.target_position_m)
-			target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), false)
-			pair_simulation = _pair(primary, _front_contact_nodes(), target, PedestrianBuilder.contact_nodes(), config)
-		_:
-			static_simulation = VehicleStaticSimulation.new()
-			static_simulation.configure(primary, config.target_type, config.target_position_m, config.target_heading_deg, config.contact_friction, config.restitution)
+	primary.barrier_enabled = false
+
+	var target: StructuralModel = null
+	var pair_simulation: VehiclePairSimulation = null
+	var static_simulation: VehicleStaticSimulation = null
+	var pedestrian_target := false
+
+	if config.target_type == ScenarioConfig.TARGET_PASSENGER_CAR:
+		target = PassengerCarBuilder.build(
+			config.target_car_preset_id,
+			config.target_mass_kg,
+			config.target_speed_kmh,
+			1000.0,
+			config.target_position_m
+		)
+		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
+		target.barrier_enabled = false
+		pair_simulation = _pair(primary, _front_contact_nodes(), target, _front_contact_nodes() if config.target_vehicle_uses_front_contact() else _rear_contact_nodes(), config)
+	elif config.target_type == ScenarioConfig.TARGET_TRUCK:
+		target = HeavyTruckBuilder.build(config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
+		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
+		pair_simulation = _pair(primary, _front_contact_nodes(), target, HeavyTruckBuilder.rear_contact_nodes(), config)
+	elif config.target_type == ScenarioConfig.TARGET_LORRY:
+		target = RigidLorryBuilder.build(config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
+		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
+		pair_simulation = _pair(primary, _front_contact_nodes(), target, RigidLorryBuilder.rear_contact_nodes(), config)
+	elif config.target_type == ScenarioConfig.TARGET_MOTORCYCLE:
+		target = MotorcycleBuilder.build(config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
+		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
+		pair_simulation = _pair(primary, _front_contact_nodes(), target, MotorcycleBuilder.front_contact_nodes() if config.target_vehicle_uses_front_contact() else MotorcycleBuilder.rear_contact_nodes(), config)
+	elif config.target_type == ScenarioConfig.TARGET_BICYCLE:
+		target = BicycleBuilder.build(config.target_preset_id, config.target_mass_kg, config.target_speed_kmh, config.target_position_m)
+		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
+		pair_simulation = _pair(primary, _front_contact_nodes(), target, BicycleBuilder.front_contact_nodes() if config.target_vehicle_uses_front_contact() else BicycleBuilder.rear_contact_nodes(), config)
+	elif config.target_type == ScenarioConfig.TARGET_PEDESTRIAN:
+		target = PedestrianBuilder.build(config.target_preset_id, config.target_mass_kg, config.target_position_m)
+		target.rotate_y_about(config.target_position_m, deg_to_rad(config.target_heading_deg), true)
+		pair_simulation = _pair(primary, _front_contact_nodes(), target, PedestrianBuilder.contact_nodes(), config)
+		pedestrian_target = true
+	else:
+		static_simulation = VehicleStaticSimulation.new()
+		static_simulation.configure(
+			primary,
+			config.target_type,
+			config.target_position_m,
+			config.target_heading_deg,
+			config.contact_friction,
+			config.restitution
+		)
 
 	var recorder := ReplayRecorder.new()
-	var time_s := 0.0
-	_capture(recorder, time_s, primary, target, config, pair_simulation, static_simulation, true)
-	while time_s < config.duration_s - 0.000001:
+	recorder.begin(REPLAY_INTERVAL)
+	_capture(recorder, 0.0, primary, target, config, pair_simulation, static_simulation, true)
+
+	var elapsed_s := 0.0
+	while elapsed_s < config.duration_s - 0.0000001:
+		var step_s := minf(DT, config.duration_s - elapsed_s)
 		if pair_simulation != null:
-			pair_simulation.step(DT, config.solver_substeps)
+			pair_simulation.step(step_s, config.solver_substeps)
+			if pedestrian_target and pair_simulation.contact.contact_events > 0 and not PedestrianBuilder.stance_released(target):
+				PedestrianBuilder.release_stance(target)
 		else:
-			static_simulation.step(DT, config.solver_substeps)
-		time_s += DT
-		_capture(recorder, time_s, primary, target, config, pair_simulation, static_simulation, false)
-	recorder.finish(time_s, primary, target, _primary_metrics(primary), _target_metrics(target, config.target_type), _context(pair_simulation, static_simulation))
-	var analysis := CrashAnalysis.analyse(recorder.recording)
+			static_simulation.step(step_s, config.solver_substeps)
+		elapsed_s += step_s
+		_capture(recorder, elapsed_s, primary, target, config, pair_simulation, static_simulation, false)
+
+	recorder.force_final(
+		elapsed_s,
+		primary,
+		target,
+		_primary_metrics(primary),
+		_target_metrics(target, config.target_type),
+		_context(pair_simulation, static_simulation)
+	)
+	var analysis := CrashAnalysis.analyze(recorder.recording)
 	return {
+		"label": label,
+		"sweep_type": sweep_type,
 		"scenario": config,
 		"recording": recorder.recording,
 		"analysis": analysis,
