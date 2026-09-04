@@ -195,6 +195,25 @@ The M13 capacity and collapse values are phenomenological generic CrashVector pa
 
 See `docs/M13_PROGRESSIVE_FAILURE.md` for the detailed staged-failure architecture and limitations.
 
-## Beyond M13
+## M14 — Vulnerable road users and yielding narrow obstacles — complete
 
-The next physics work should port rigid lorry, motorcycle, bicycle/pedestrian contact and the comparison recorder to the rigid-body world architecture before those paths are re-enabled. Additional independent public/licensed crash references should then be added before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references remain explicit future work rather than implied by M8–M13 completion.
+M14 closes the two remaining production gaps exposed after M13 without changing the stable passenger-car M12/M13 rigid-body and staged-failure architecture.
+
+- Pedestrian and riderless-bicycle targets now run through `RoadUserRigidProxy3D`, a real Godot `RigidBody3D` world-motion path with gravity, CCD, friction, collision geometry and post-impact translation/rotation.
+- Their existing `Pedestrian` and `Bicycle` structural objects remain presentation/contact proxies inside the rigid body; they are not biomechanical, injury or rider models.
+- The passenger-car front probe transfers a reduced-mass contact impulse to a vulnerable target while the existing phenomenological nose-crush resistance remains on the car side.
+- Generic pole and tree targets can now yield into permanent motion when collision demand exceeds their generic phenomenological capacity; wall and concrete barrier remain rigid.
+- The Calibration / evidence-scope modal keeps its existing content and callbacks but its historical CanvasLayer is raised above the M10 desktop UI so labels such as **Extrapolated** open a usable modal whose **Close** control receives input.
+- A production regression opens the evidence-scope control, verifies the normal UI remains present and the modal is on top, closes it, and verifies the normal UI remains intact.
+- The stale pre-M14 road-user editor smoke expectation was updated to the `RoadUserRigidProxy3D` production route without changing application physics.
+- Dedicated M14 regression covers pedestrian/bicycle post-contact trajectory, pole/tree permanent yielding, wall/barrier non-yielding behaviour, production routing and bounded passenger-car rebound/vertical motion.
+- M10, M11, M12, M13, M14, canonical Core CI, macOS Universal 2 packaging and the Windows x64 install/uninstall lifecycle were green for the final M14 head.
+- Corrective prerelease `0.6.0-beta.1` was published from merge commit `00667ccf78b582772b42adbad9b2718ce431cb68` with the Universal 2 DMG, Windows x64 Setup EXE, both SHA-256 sidecars and `update-manifest.json`.
+
+Road-user output remains explicitly contact/trajectory visualisation only. M14 does not add injury, survivability, HIC, AIS, tissue-loading or rider modelling, and its pole/tree capacities are generic educational parameters rather than claims about a specific roadside object.
+
+See `docs/M14_ROAD_USERS_OBSTACLES.md` for the detailed architecture, scope and release gates.
+
+## Beyond M14
+
+The next physics work should port rigid lorry and motorcycle production simulation, then the comparison recorder, to the rigid-body world architecture before those paths are re-enabled. Additional independent public/licensed crash references should then be added before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references remain explicit future work rather than implied by M8–M14 completion.
