@@ -84,22 +84,29 @@ func solve(nodes: Array[StructuralNode], delta_s: float) -> void:
 		last_generalized_torque_nm = 0.0
 		return
 
-	var gradient_a := (v - u * cosine) / (len_ab * sine)
-	var gradient_c := (u - v * cosine) / (len_cb * sine)
-	var gradient_b := -(gradient_a + gradient_c)
-	var angular_rate := (
-		gradient_a.dot(a.velocity_ms)
-		+ gradient_b.dot(b.velocity_ms)
-		+ gradient_c.dot(c.velocity_ms)
+	# These vectors are the negative gradients of the A-B-C angle. Using them
+	# directly for the elastic term gives a restoring force. Their velocity
+	# projection is therefore the negative physical angular rate, so damping
+	# must subtract that projection rather than add it.
+	var negative_gradient_a := (v - u * cosine) / (len_ab * sine)
+	var negative_gradient_c := (u - v * cosine) / (len_cb * sine)
+	var negative_gradient_b := -(negative_gradient_a + negative_gradient_c)
+	var negative_angular_rate := (
+		negative_gradient_a.dot(a.velocity_ms)
+		+ negative_gradient_b.dot(b.velocity_ms)
+		+ negative_gradient_c.dot(c.velocity_ms)
 	)
 	last_angle_error_rad = angle - rest_angle_rad
-	var generalized_torque := stiffness_nm_rad * last_angle_error_rad + damping_nm_s_rad * angular_rate
+	var generalized_torque := (
+		stiffness_nm_rad * last_angle_error_rad
+		- damping_nm_s_rad * negative_angular_rate
+	)
 	last_generalized_torque_nm = generalized_torque
 
-	a.add_force(-gradient_a * generalized_torque)
-	b.add_force(-gradient_b * generalized_torque)
-	c.add_force(-gradient_c * generalized_torque)
-	damping_energy_j += damping_nm_s_rad * angular_rate * angular_rate * delta_s
+	a.add_force(negative_gradient_a * generalized_torque)
+	b.add_force(negative_gradient_b * generalized_torque)
+	c.add_force(negative_gradient_c * generalized_torque)
+	damping_energy_j += damping_nm_s_rad * negative_angular_rate * negative_angular_rate * delta_s
 	_apply_plastic_flow(angle, generalized_torque, delta_s)
 
 func _apply_plastic_flow(angle_rad: float, generalized_torque_nm: float, delta_s: float) -> void:
