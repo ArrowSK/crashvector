@@ -138,6 +138,13 @@ func _hide_legacy_ui() -> void:
 		export_launch_panel.visible = false
 	if calibration_canvas != null:
 		calibration_canvas.visible = true
+		# The M8 calibration/evidence panel lives in its original CanvasLayer.
+		# M10 itself is layer 20, so leaving calibration at layer 6 renders the
+		# modal underneath the full-screen M10 root: it can be seen through the
+		# viewport but its Close button cannot receive input. Keep ownership and
+		# callbacks unchanged; only put this modal-bearing layer above M10.
+		if m10_canvas != null:
+			calibration_canvas.layer = m10_canvas.layer + 1
 	if calibration_launch_panel != null:
 		calibration_launch_panel.visible = false
 	if comparison_lab_canvas != null:
