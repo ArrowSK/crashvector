@@ -214,6 +214,46 @@ Road-user output remains explicitly contact/trajectory visualisation only. M14 d
 
 See `docs/M14_ROAD_USERS_OBSTACLES.md` for the detailed architecture, scope and release gates.
 
-## Beyond M14
+## M15 — Articulated pedestrian and bicycle dynamics — complete
 
-The next physics work should port rigid lorry and motorcycle production simulation, then the comparison recorder, to the rigid-body world architecture before those paths are re-enabled. Additional independent public/licensed crash references should then be added before narrowing or extending any validation claim. Side-impact geometry, richer contact manifolds, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references remain explicit future work rather than implied by M8–M14 completion.
+M15 upgrades the M14 vulnerable-road-user target implementation without replacing the stable passenger-car M12–M14 production architecture.
+
+- `RoadUserRigidProxy3D` remains the compatibility root/API used by the production editor, contact routing and replay layer.
+- Pedestrian targets use an 11-body articulated rigid chain connected by 10 bounded `Generic6DOFJoint3D` constraints.
+- Riderless bicycles use a rigid frame plus two independently simulated wheel bodies joined at the hubs.
+- The passenger-car front probe recognizes contact with any owned articulated road-user body.
+- Vulnerable-target contact impulse is distributed through the articulated target instead of relying on the old fixed tumble-torque lever.
+- Replay captures/restores articulated part transforms and velocities.
+- An earlier `ConeTwistJoint3D` pedestrian topology was rejected after high-speed Godot 4.4.1 testing exposed excessive numerical energy and near-180-degree direct-joint folding.
+- Dedicated M15 regression adds topology, trajectory, direct-joint-motion, passenger-car rebound/vertical, bicycle-wheel and 22 m/s target-COM sanity gates while preserving M14 compatibility tests.
+- Final 60 km/h pedestrian regression: 11 bodies / 10 joints, 2.51 m/s final COM speed, 13.97 m maximum COM travel, 105.2° maximum direct-joint motion, 0.001 m maximum passenger-car vertical rise and no measured reverse launch.
+- Final 60 km/h riderless-city-bicycle regression: 3 bodies / 2 joints, 9.21 m/s final COM speed, 19.22 m maximum COM travel, 34.85 rad/s maximum wheel angular motion and 0.001 m maximum passenger-car vertical rise.
+
+The joint limits and regression values are numerical stability/trajectory guardrails only, not biomechanical or injury-validation data.
+
+See `docs/M15_ARTICULATED_ROAD_USERS.md`.
+
+## M16 — UX reset and class-specific vehicle visuals — complete
+
+M16 replaces the accumulated M10 desktop information architecture with a task-focused shell while preserving the finalized M15 production physics underneath it.
+
+- Normal setup is organized around Scenario builder → 3D viewport → contextual Properties → Playback dock.
+- Solver/contact controls move behind **Advanced setup** instead of competing with the normal crash-building flow.
+- File, update, calibration/evidence, replay, analysis and cinematic export functions remain available through the new hierarchy.
+- Stable M10 shell-region identifiers remain in place so historical responsive-layout tests continue to guard non-overlap and viewport minimums.
+- `M16VehicleVisualRefined` and `VehicleVisualProfileCatalog` replace the visibly scaled-hatchback passenger-car presentation with generated class-specific A/B/C/D/J/M archetypes.
+- SUV, MPV and midsize profiles have materially different stance, roof/windscreen proportions, greenhouse extent, wheel packages and class details rather than only different scale.
+- The M16 visual reads the existing deforming structural model but does not change rigid collision geometry, mass, stiffness, structural beams, crush behaviour, contact probes or solver settings.
+- The legacy shell/wheels are hidden only while the replacement M16 presentation skin is active.
+- The M16 production regression verifies that pedestrian selection through the actual UI still instantiates the finalized `RoadUserArticulatedProxy3D` topology and isolated M15 collision channels.
+- M10–M16 dedicated workflows, canonical Core CI and both native packaging gates are required for the `0.7.0-beta.1` release.
+
+M16 broadens presentation quality and usability, not CrashVector's evidence claim. The class-specific visuals remain generic and the M15 road-user model remains contact/trajectory-only.
+
+See `docs/M16_UX_AND_VEHICLE_VISUALS.md`.
+
+## Beyond M16
+
+The next physics work should port rigid lorry and motorcycle production simulation, then the comparison recorder, to the rigid-body world architecture before those paths are re-enabled. Additional independent public/licensed crash references should then be added before narrowing or extending any validation claim.
+
+Side-impact geometry, richer contact manifolds, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references remain explicit future work rather than implied by M8–M16 completion.

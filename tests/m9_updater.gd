@@ -22,7 +22,7 @@ func _initialize() -> void:
 
 func _test_canonical_version() -> void:
 	var version := String(ProjectSettings.get_setting("application/config/version", ""))
-	_expect(version == "0.6.0-beta.1", "Canonical application version should be 0.6.0-beta.1")
+	_expect(version == "0.7.0-beta.1", "Canonical application version should be 0.7.0-beta.1")
 	_expect(SemanticVersion.parse(version).valid, "Canonical application version must be valid semantic version")
 
 func _test_semantic_versions() -> void:
@@ -32,6 +32,7 @@ func _test_semantic_versions() -> void:
 	_expect(SemanticVersion.should_offer("0.1.0-beta.1", "0.1.0-beta.2"), "beta should accept a later beta")
 	_expect(SemanticVersion.should_offer("0.1.0-beta.1", "0.1.0"), "beta should accept stable")
 	_expect(SemanticVersion.should_offer("0.4.0-beta.1", "0.5.0-beta.1"), "M12 beta should accept the M13 progressive-failure beta")
+	_expect(SemanticVersion.should_offer("0.6.0-beta.1", "0.7.0-beta.1"), "M14 beta should accept the combined M15/M16 beta")
 	_expect(not SemanticVersion.should_offer("0.1.0", "0.2.0-beta.1"), "stable channel should not silently move to prerelease")
 
 func _test_release_selection() -> void:
