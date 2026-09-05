@@ -1,6 +1,6 @@
 # M16 — UX reset and vehicle visual overhaul
 
-M16 is a presentation milestone. It changes how people build, inspect and replay a crash and replaces the old scaled passenger-car presentation skin with class-specific generated visual archetypes. It does **not** retune the M12–M14 crash physics.
+M16 is a presentation milestone. It changes how people build, inspect and replay a crash and replaces the old scaled passenger-car presentation skin with class-specific generated visual archetypes. It does **not** retune the M12–M15 crash physics.
 
 ## UX goals
 
@@ -24,7 +24,7 @@ The M10 shell-region node names remain stable so older responsive-layout regress
 
 ## Vehicle visual architecture
 
-The structural passenger-car model remains authoritative for physics. M16 attaches a presentation-only `M16VehicleVisual` to each production passenger car. It reads the current deforming structural nodes every frame and builds a denser visual skin, glazing, trim, class details and wheels around them.
+The structural passenger-car model remains authoritative for physics. M16 attaches a presentation-only `M16VehicleVisualRefined` to each production passenger car. It reads the current deforming structural nodes every frame and builds a denser visual skin, glazing, trim, class details and wheels around them.
 
 When the M16 visual is active, the legacy `DeformableBodyShell` and `SimpleWheelRig` are hidden, not deleted or repurposed. Rigid collision geometry, structural beams, mass, stiffness, crush behaviour, contact probes and solver settings are unchanged.
 
@@ -45,9 +45,15 @@ CrashVector targets a clean engineering-visualisation style rather than photorea
 
 In particular:
 
-- the SUV must have a visibly taller body, higher bonnet, larger wheel package and lower cladding;
-- the MPV must use a cab-forward, long-greenhouse silhouette rather than a scaled hatchback;
-- the D-segment car must sit visually lower and longer than the B-segment baseline.
+- the SUV has a visibly taller body, higher bonnet, larger wheel package and lower cladding;
+- the MPV uses a cab-forward, long-greenhouse silhouette rather than a scaled hatchback;
+- the D-segment car sits visually lower and longer than the B-segment baseline.
+
+## M15 integration
+
+M16 ships on top of the finalized M15 vulnerable-road-user path. Selecting a pedestrian through the production M16 UI must instantiate `RoadUserArticulatedProxy3D`, preserving the 11-body / 10-joint bounded articulated pedestrian topology and the isolated road-user collision channels. Riderless bicycles retain their rigid frame and independently simulated wheel bodies.
+
+M16 does not replace, retune or bypass that physics. Its vehicle skins and UI are presentation/controller changes only.
 
 ## Validation
 
@@ -58,6 +64,7 @@ M16 CI protects:
 - presence of the new task-focused UI regions;
 - attachment of the M16 production vehicle visual and hiding of the old scaled skin/wheels;
 - material differences between B-class, D-class, SUV and MPV visual signatures;
-- rebuilding the class-specific presentation skin when the selected vehicle class changes.
+- rebuilding the class-specific presentation skin when the selected vehicle class changes;
+- preservation of the finalized M15 articulated pedestrian topology through the actual M16 production scene.
 
 M16 does not broaden CrashVector's calibration/evidence claims. The generated class visuals are not homologation geometry and must not be described as validated manufacturer models.
