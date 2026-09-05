@@ -6,6 +6,7 @@ extends SceneTree
 
 const ROAD_USER_LAYER: int = 2
 const ROAD_USER_GROUND_LAYER: int = 4
+const MAX_TARGET_SPEED_MS: float = 22.0
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -37,6 +38,8 @@ func _test_pedestrian_articulation(failures: Array[String]) -> void:
 		failures.append("M15 pedestrian does not expose the expected articulated joints")
 	if float(result.get("speed_ms", 0.0)) < 2.0 or float(result.get("travel_m", 0.0)) < 0.35:
 		failures.append("M15 pedestrian did not acquire a material post-impact trajectory")
+	if float(result.get("speed_ms", 0.0)) > MAX_TARGET_SPEED_MS:
+		failures.append("M15 pedestrian solver created non-physical target energy")
 	if float(result.get("articulation_deg", 0.0)) < 6.0:
 		failures.append("M15 pedestrian still moves effectively as one rigid mannequin")
 	if float(result.get("articulation_deg", 0.0)) > 155.0:
@@ -61,6 +64,8 @@ func _test_bicycle_articulation(failures: Array[String]) -> void:
 		failures.append("M15 bicycle must join both wheel bodies to the frame")
 	if float(result.get("speed_ms", 0.0)) < 2.0 or float(result.get("travel_m", 0.0)) < 0.35:
 		failures.append("M15 bicycle did not acquire a material post-impact trajectory")
+	if float(result.get("speed_ms", 0.0)) > MAX_TARGET_SPEED_MS:
+		failures.append("M15 bicycle solver created non-physical target energy")
 	if float(result.get("wheel_spin_rad_s", 0.0)) < 0.25:
 		failures.append("M15 bicycle wheels never develop independent angular motion")
 	if float(result.get("car_y_rise_m", 0.0)) > 0.25:
