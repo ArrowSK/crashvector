@@ -4,9 +4,14 @@
 
 extends "res://src/demo/crash_demo_m16.gd"
 
-# The M10 responsive-layout regression and downstream extensions use these
-# region names as stable shell contracts. M16 changes the content and hierarchy,
-# not those compatibility identifiers.
+# Final M16 production shell. The M10 responsive-layout regression and
+# downstream extensions use the legacy region names as stable contracts. M16
+# changes their content/hierarchy while also carrying the finalized M15
+# articulated vulnerable-road-user production path into the release scene.
+
+const M16_ROAD_USER_LAYER: int = 2
+const M16_ROAD_USER_GROUND_LAYER: int = 4
+
 func _ready() -> void:
 	super._ready()
 	if m10_top_bar != null:
@@ -18,7 +23,77 @@ func _ready() -> void:
 	if m10_replay_drawer != null:
 		m10_replay_drawer.name = "M10ReplayDrawer"
 	_harden_m16_compact_controls()
+	_configure_m15_articulated_collision_channels()
 	_layout_m10()
+
+func _rebuild_preview() -> void:
+	super._rebuild_preview()
+	_configure_m15_articulated_collision_channels()
+
+func _replace_legacy_road_user_with_rigid_proxy() -> void:
+	# M16 inherits the stable M14 editor/physics shell, but the production scene
+	# must instantiate the finalized M15 articulated proxy rather than the M14
+	# single-root compatibility proxy.
+	if bicycle != null and is_instance_valid(bicycle) and bicycle.get_parent() == self:
+		remove_child(bicycle)
+		bicycle.queue_free()
+	if pedestrian != null and is_instance_valid(pedestrian) and pedestrian.get_parent() == self:
+		remove_child(pedestrian)
+		pedestrian.queue_free()
+	bicycle = null
+	pedestrian = null
+	pair_simulation = null
+	static_simulation = null
+	hybrid_production_active = true
+
+	road_user_proxy = RoadUserArticulatedProxy3D.new()
+	road_user_proxy.name = "RoadUserArticulatedProxy"
+	road_user_proxy.configure(
+		scenario.target_type,
+		scenario.target_preset_id,
+		scenario.target_mass_kg,
+		scenario.target_speed_kmh,
+		scenario.target_position_m,
+		scenario.target_heading_deg,
+		scenario.show_structure
+	)
+	add_child(road_user_proxy)
+	bicycle = road_user_proxy.bicycle_visual
+	pedestrian = road_user_proxy.pedestrian_visual
+	if status_label != null:
+		status_label.text = "Bounded articulated road-user preview — press Simulate"
+	_update_metrics()
+
+func _configure_m15_articulated_collision_channels() -> void:
+	if road_user_proxy == null or not is_instance_valid(road_user_proxy):
+		return
+	var road := get_node_or_null("Road") as StaticBody3D
+	if road != null:
+		road.collision_layer |= M16_ROAD_USER_GROUND_LAYER
+	_set_m15_road_user_body_channels(road_user_proxy)
+	for body in road_user_proxy.articulated_bodies:
+		if body != null and is_instance_valid(body):
+			_set_m15_road_user_body_channels(body)
+	_rebind_m15_articulated_joints()
+	if car != null and car.rigid_chassis != null and car.rigid_chassis.front_crush_probe != null:
+		car.rigid_chassis.front_crush_probe.collision_mask = M16_ROAD_USER_LAYER
+
+func _set_m15_road_user_body_channels(body: PhysicsBody3D) -> void:
+	body.collision_layer = M16_ROAD_USER_LAYER
+	body.collision_mask = M16_ROAD_USER_GROUND_LAYER
+
+func _rebind_m15_articulated_joints() -> void:
+	if road_user_proxy == null:
+		return
+	for joint in road_user_proxy.articulated_joints:
+		if joint == null or not is_instance_valid(joint):
+			continue
+		var body_a_path := joint.node_a
+		var body_b_path := joint.node_b
+		joint.node_a = NodePath()
+		joint.node_b = NodePath()
+		joint.node_a = body_a_path
+		joint.node_b = body_b_path
 
 func _sync_m10_from_scenario() -> void:
 	super._sync_m10_from_scenario()
