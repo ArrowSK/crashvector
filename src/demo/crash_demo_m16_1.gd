@@ -314,7 +314,7 @@ func _fit_m16_desktop_geometry() -> void:
 
 	var outer := 8.0
 	var gap := 8.0
-	var top_height := 56.0
+	var top_height := maxf(56.0, m10_top_bar.get_combined_minimum_size().y)
 	var top_y := outer + top_height + gap
 	_set_rect(m10_top_bar, outer, outer, size.x - outer, outer + top_height)
 
