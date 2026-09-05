@@ -4,6 +4,9 @@
 
 extends SceneTree
 
+const ROAD_USER_LAYER: int = 2
+const ROAD_USER_GROUND_LAYER: int = 4
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -75,6 +78,7 @@ func _run_road_user_case(target_type: StringName, preset_id: StringName, target_
 	target.configure(target_type, preset_id, target_mass, 0.0, Vector3.ZERO, 0.0, false)
 	root.add_child(target)
 	await physics_frame
+	_configure_road_user_channels(target, car)
 	var initial_car_y := car.rigid_chassis.global_position.y
 	var maximum_car_y_rise := 0.0
 	car.begin_simulation()
@@ -82,8 +86,10 @@ func _run_road_user_case(target_type: StringName, preset_id: StringName, target_
 	for _frame in range(420):
 		await physics_frame
 		maximum_car_y_rise = maxf(maximum_car_y_rise, car.rigid_chassis.global_position.y - initial_car_y)
-		if car.rigid_chassis.front_crush_overlap_active() and car.rigid_chassis.front_crush_collider() == target:
-			target.apply_probe_contact(car.rigid_chassis)
+		if car.rigid_chassis.front_crush_overlap_active():
+			var collider := car.rigid_chassis.front_crush_collider()
+			if target.owns_collider(collider):
+				target.apply_probe_contact(car.rigid_chassis, collider)
 	var result := {
 		"impact": target.impact_received,
 		"target_speed_ms": target.maximum_speed_ms,
@@ -100,6 +106,25 @@ func _run_road_user_case(target_type: StringName, preset_id: StringName, target_
 	road.queue_free()
 	await physics_frame
 	return result
+
+func _configure_road_user_channels(target: RoadUserRigidProxy3D, car: CompactHatchback) -> void:
+	target.collision_layer = ROAD_USER_LAYER
+	target.collision_mask = ROAD_USER_GROUND_LAYER
+	for body in target.articulated_bodies:
+		if body != null and is_instance_valid(body):
+			body.collision_layer = ROAD_USER_LAYER
+			body.collision_mask = ROAD_USER_GROUND_LAYER
+	for joint in target.articulated_joints:
+		if joint == null or not is_instance_valid(joint):
+			continue
+		var body_a_path := joint.node_a
+		var body_b_path := joint.node_b
+		joint.node_a = NodePath()
+		joint.node_b = NodePath()
+		joint.node_a = body_a_path
+		joint.node_b = body_b_path
+	if car.rigid_chassis != null and car.rigid_chassis.front_crush_probe != null:
+		car.rigid_chassis.front_crush_probe.collision_mask = ROAD_USER_LAYER
 
 func _test_200_kmh_pole_yields(failures: Array[String]) -> void:
 	var result := await _run_yielding_obstacle_case(ScenarioConfig.TARGET_POLE, 200.0)
@@ -181,6 +206,7 @@ func _road_body() -> StaticBody3D:
 	var road := StaticBody3D.new()
 	road.name = "Road"
 	road.position = Vector3(0.0, -0.25, 0.0)
+	road.collision_layer = 1 | ROAD_USER_GROUND_LAYER
 	var material := PhysicsMaterial.new()
 	material.friction = 0.90
 	material.bounce = 0.0

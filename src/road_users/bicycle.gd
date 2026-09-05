@@ -187,4 +187,10 @@ func _update_frame_segment(visual: MeshInstance3D, anchor_a: StringName, anchor_
 	var mesh := visual.mesh as BoxMesh
 	mesh.size.z = length
 	visual.position = (a + b) * 0.5
-	visual.look_at(b, _visual_basis().y)
+	var direction := delta / length
+	var safe_up := _visual_basis().y.normalized()
+	if absf(direction.dot(safe_up)) > 0.94:
+		safe_up = Vector3.FORWARD
+		if absf(direction.dot(safe_up)) > 0.94:
+			safe_up = Vector3.RIGHT
+	visual.look_at(b, safe_up)
