@@ -39,7 +39,7 @@ var wheel_groups: Array[Node3D] = []
 var wheel_tires: Array[MeshInstance3D] = []
 var wheel_rims: Array[MeshInstance3D] = []
 var wheel_hubs: Array[MeshInstance3D] = []
-var last_paint := Color.TRANSPARENT
+var last_paint := Color(0.0, 0.0, 0.0, 0.0)
 
 func configure(target: CompactHatchback) -> void:
 	vehicle = target
@@ -63,8 +63,8 @@ func _process(delta: float) -> void:
 	update_from_vehicle(delta)
 
 func _hide_legacy_visuals() -> void:
-	# M16 is presentation-only. Hiding the old generated shell/wheels leaves the
-	# M11-M14 structural model, rigid chassis and collision geometry untouched.
+	# Presentation-only: the M11-M14 structure, rigid body and collision geometry
+	# remain authoritative while their old scaled skin/wheels are hidden.
 	if vehicle.body_shell != null:
 		vehicle.body_shell.visible = false
 	if vehicle.wheel_rig != null:
@@ -110,32 +110,34 @@ func _build_surface_nodes() -> void:
 	add_child(trim_instance)
 
 func _build_details() -> void:
-	for side in [-1.0, 1.0]:
-		var head := _box_detail("M16Headlamp", Vector3(0.12, 0.16, 0.32), lamp_material)
+	for side_value in [-1.0, 1.0]:
+		var side: float = float(side_value)
+		var head: MeshInstance3D = _box_detail("M16Headlamp", Vector3(0.12, 0.16, 0.32), lamp_material)
 		head.set_meta("side", side)
 		headlamps.append(head)
-		var tail := _box_detail("M16TailLamp", Vector3(0.11, 0.18, 0.28), tail_material)
+		var tail: MeshInstance3D = _box_detail("M16TailLamp", Vector3(0.11, 0.18, 0.28), tail_material)
 		tail.set_meta("side", side)
 		tail_lamps.append(tail)
-		var mirror := _box_detail("M16Mirror", Vector3(0.16, 0.10, 0.20), dark_material)
+		var mirror: MeshInstance3D = _box_detail("M16Mirror", Vector3(0.16, 0.10, 0.20), dark_material)
 		mirror.set_meta("side", side)
 		mirrors.append(mirror)
-		var rocker := _box_detail("M16RockerCladding", Vector3(2.4, 0.10, 0.075), dark_material)
+		var rocker: MeshInstance3D = _box_detail("M16RockerCladding", Vector3(2.4, 0.10, 0.075), dark_material)
 		rocker.set_meta("side", side)
 		rocker_cladding.append(rocker)
 	grille = _box_detail("M16Grille", Vector3(0.10, 0.34, 1.08), dark_material)
 	lower_front_trim = _box_detail("M16LowerFrontTrim", Vector3(0.12, 0.16, 1.34), dark_material)
 	rear_trim = _box_detail("M16RearTrim", Vector3(0.10, 0.13, 1.22), dark_material)
 	if String(profile.get("style", "hatch")) == "suv":
-		for side in [-1.0, 1.0]:
-			var rail := _box_detail("M16RoofRail", Vector3(2.1, 0.045, 0.045), chrome_material)
+		for side_value in [-1.0, 1.0]:
+			var side: float = float(side_value)
+			var rail: MeshInstance3D = _box_detail("M16RoofRail", Vector3(2.1, 0.045, 0.045), chrome_material)
 			rail.set_meta("side", side)
 			roof_rails.append(rail)
 
 func _build_wheels() -> void:
-	var radius := float(profile.get("wheel_radius_m", 0.305))
-	var width := float(profile.get("wheel_width_m", 0.195))
-	var rim_ratio := float(profile.get("rim_ratio", 0.60))
+	var radius: float = float(profile.get("wheel_radius_m", 0.305))
+	var width: float = float(profile.get("wheel_width_m", 0.195))
+	var rim_ratio: float = float(profile.get("rim_ratio", 0.60))
 	var tire_material := StandardMaterial3D.new()
 	tire_material.albedo_color = Color(0.015, 0.017, 0.020)
 	tire_material.roughness = 0.92
@@ -197,7 +199,7 @@ func _build_wheels() -> void:
 func update_from_vehicle(delta: float) -> void:
 	if vehicle == null or vehicle.model == null:
 		return
-	var paint := CarPaintCatalog.color(vehicle.paint_id)
+	var paint: Color = CarPaintCatalog.color(vehicle.paint_id)
 	if paint != last_paint:
 		last_paint = paint
 		body_material.albedo_color = paint
@@ -210,91 +212,93 @@ func update_from_vehicle(delta: float) -> void:
 func _build_body_surface() -> void:
 	body_mesh.clear_surfaces()
 	body_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, body_material)
-	var previous := _section_at_u(0.0)
+	var previous: Dictionary = _section_at_u(0.0)
 	for i in range(1, VISUAL_SECTION_COUNT):
-		var u := float(i) / float(VISUAL_SECTION_COUNT - 1)
-		var current := _section_at_u(u)
-		_quad_on(body_mesh, previous.lower_left, current.lower_left, current.belt_left, previous.belt_left)
-		_quad_on(body_mesh, previous.lower_right, previous.belt_right, current.belt_right, current.lower_right)
-		_quad_on(body_mesh, previous.upper_left, current.upper_left, current.upper_right, previous.upper_right)
-		_quad_on(body_mesh, previous.lower_left, previous.lower_right, current.lower_right, current.lower_left)
+		var u: float = float(i) / float(VISUAL_SECTION_COUNT - 1)
+		var current: Dictionary = _section_at_u(u)
+		_quad_on(body_mesh, _v3(previous, "lower_left"), _v3(current, "lower_left"), _v3(current, "belt_left"), _v3(previous, "belt_left"))
+		_quad_on(body_mesh, _v3(previous, "lower_right"), _v3(previous, "belt_right"), _v3(current, "belt_right"), _v3(current, "lower_right"))
+		_quad_on(body_mesh, _v3(previous, "upper_left"), _v3(current, "upper_left"), _v3(current, "upper_right"), _v3(previous, "upper_right"))
+		_quad_on(body_mesh, _v3(previous, "lower_left"), _v3(previous, "lower_right"), _v3(current, "lower_right"), _v3(current, "lower_left"))
 		previous = current
-	var rear := _section_at_u(0.0)
-	var front := _section_at_u(1.0)
-	_quad_on(body_mesh, rear.lower_right, rear.lower_left, rear.upper_left, rear.upper_right)
-	_quad_on(body_mesh, front.lower_left, front.lower_right, front.upper_right, front.upper_left)
+	var rear: Dictionary = _section_at_u(0.0)
+	var front: Dictionary = _section_at_u(1.0)
+	_quad_on(body_mesh, _v3(rear, "lower_right"), _v3(rear, "lower_left"), _v3(rear, "upper_left"), _v3(rear, "upper_right"))
+	_quad_on(body_mesh, _v3(front, "lower_left"), _v3(front, "lower_right"), _v3(front, "upper_right"), _v3(front, "upper_left"))
 	body_mesh.surface_end()
 
 func _build_glass_surface() -> void:
 	glass_mesh.clear_surfaces()
 	glass_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, glass_material)
-	var glass_start := float(profile.get("glass_start_u", 0.20))
-	var glass_end := float(profile.get("glass_end_u", 0.71))
-	var previous := _section_at_u(glass_start)
-	var glass_sections := maxi(int(ceil((glass_end - glass_start) * float(VISUAL_SECTION_COUNT))), 4)
+	var glass_start: float = float(profile.get("glass_start_u", 0.20))
+	var glass_end: float = float(profile.get("glass_end_u", 0.71))
+	var previous: Dictionary = _section_at_u(glass_start)
+	var glass_sections: int = maxi(int(ceil((glass_end - glass_start) * float(VISUAL_SECTION_COUNT))), 4)
 	for i in range(1, glass_sections + 1):
-		var u := lerpf(glass_start, glass_end, float(i) / float(glass_sections))
-		var current := _section_at_u(u)
-		_quad_on(glass_mesh, previous.belt_left, current.belt_left, current.upper_left, previous.upper_left)
-		_quad_on(glass_mesh, previous.belt_right, previous.upper_right, current.upper_right, current.belt_right)
+		var u: float = lerpf(glass_start, glass_end, float(i) / float(glass_sections))
+		var current: Dictionary = _section_at_u(u)
+		_quad_on(glass_mesh, _v3(previous, "belt_left"), _v3(current, "belt_left"), _v3(current, "upper_left"), _v3(previous, "upper_left"))
+		_quad_on(glass_mesh, _v3(previous, "belt_right"), _v3(previous, "upper_right"), _v3(current, "upper_right"), _v3(current, "belt_right"))
 		previous = current
-	var rear := _section_at_u(glass_start)
-	var front := _section_at_u(glass_end)
-	_quad_on(glass_mesh, rear.belt_right, rear.belt_left, rear.upper_left, rear.upper_right)
-	_quad_on(glass_mesh, front.belt_left, front.belt_right, front.upper_right, front.upper_left)
+	var rear: Dictionary = _section_at_u(glass_start)
+	var front: Dictionary = _section_at_u(glass_end)
+	_quad_on(glass_mesh, _v3(rear, "belt_right"), _v3(rear, "belt_left"), _v3(rear, "upper_left"), _v3(rear, "upper_right"))
+	_quad_on(glass_mesh, _v3(front, "belt_left"), _v3(front, "belt_right"), _v3(front, "upper_right"), _v3(front, "upper_left"))
 	glass_mesh.surface_end()
 
 func _build_trim_surface() -> void:
 	trim_mesh.clear_surfaces()
 	trim_mesh.surface_begin(Mesh.PRIMITIVE_LINES, trim_material)
-	var glass_start := float(profile.get("glass_start_u", 0.20))
-	var glass_end := float(profile.get("glass_end_u", 0.71))
+	var glass_start: float = float(profile.get("glass_start_u", 0.20))
+	var glass_end: float = float(profile.get("glass_end_u", 0.71))
 	for side in ["left", "right"]:
-		var previous := _section_at_u(glass_start)
+		var previous: Dictionary = _section_at_u(glass_start)
 		for i in range(1, 11):
-			var current := _section_at_u(lerpf(glass_start, glass_end, float(i) / 10.0))
-			_line_on(trim_mesh, previous.get("belt_%s" % side), current.get("belt_%s" % side))
-			_line_on(trim_mesh, previous.get("upper_%s" % side), current.get("upper_%s" % side))
+			var current: Dictionary = _section_at_u(lerpf(glass_start, glass_end, float(i) / 10.0))
+			_line_on(trim_mesh, _v3(previous, "belt_%s" % side), _v3(current, "belt_%s" % side))
+			_line_on(trim_mesh, _v3(previous, "upper_%s" % side), _v3(current, "upper_%s" % side))
 			previous = current
-	for pillar_u in [glass_start, lerpf(glass_start, glass_end, 0.34), lerpf(glass_start, glass_end, 0.66), glass_end]:
-		var section := _section_at_u(pillar_u)
-		_line_on(trim_mesh, section.belt_left, section.upper_left)
-		_line_on(trim_mesh, section.belt_right, section.upper_right)
-	for door_u in [lerpf(glass_start, glass_end, 0.38), lerpf(glass_start, glass_end, 0.69)]:
-		var section := _section_at_u(door_u)
-		var left_low: Vector3 = section.lower_left.lerp(section.belt_left, 0.18)
-		var right_low: Vector3 = section.lower_right.lerp(section.belt_right, 0.18)
-		_line_on(trim_mesh, left_low, section.belt_left)
-		_line_on(trim_mesh, right_low, section.belt_right)
+	for pillar_u_value in [glass_start, lerpf(glass_start, glass_end, 0.34), lerpf(glass_start, glass_end, 0.66), glass_end]:
+		var pillar_u: float = float(pillar_u_value)
+		var section: Dictionary = _section_at_u(pillar_u)
+		_line_on(trim_mesh, _v3(section, "belt_left"), _v3(section, "upper_left"))
+		_line_on(trim_mesh, _v3(section, "belt_right"), _v3(section, "upper_right"))
+	for door_u_value in [lerpf(glass_start, glass_end, 0.38), lerpf(glass_start, glass_end, 0.69)]:
+		var door_u: float = float(door_u_value)
+		var section: Dictionary = _section_at_u(door_u)
+		var left_low: Vector3 = _v3(section, "lower_left").lerp(_v3(section, "belt_left"), 0.18)
+		var right_low: Vector3 = _v3(section, "lower_right").lerp(_v3(section, "belt_right"), 0.18)
+		_line_on(trim_mesh, left_low, _v3(section, "belt_left"))
+		_line_on(trim_mesh, right_low, _v3(section, "belt_right"))
 	trim_mesh.surface_end()
 
 func _section_at_u(u: float) -> Dictionary:
-	var station_position := clampf(u, 0.0, 1.0) * float(CompactHatchbackBuilder.STATION_X.size() - 1)
-	var a := int(floor(station_position))
-	var b := mini(a + 1, CompactHatchbackBuilder.STATION_X.size() - 1)
-	var t := station_position - float(a)
-	var lower_left := _node_position(a, 0).lerp(_node_position(b, 0), t)
-	var lower_right := _node_position(a, 1).lerp(_node_position(b, 1), t)
-	var raw_upper_left := _node_position(a, 2).lerp(_node_position(b, 2), t)
-	var raw_upper_right := _node_position(a, 3).lerp(_node_position(b, 3), t)
-	var reference := vehicle.global_reference_transform()
-	var forward := reference.basis.x.normalized()
-	var up := reference.basis.y.normalized()
-	var upper_center := (raw_upper_left + raw_upper_right) * 0.5
-	var upper_half := (raw_upper_right - raw_upper_left) * 0.5
-	var width_scale := VehicleVisualProfileCatalog.sample_station(profile, "upper_width_scale", station_position)
-	var x_offset := VehicleVisualProfileCatalog.sample_station(profile, "upper_x_offset_m", station_position)
-	var roof_offset := VehicleVisualProfileCatalog.sample_station(profile, "roof_offset_m", station_position)
-	var glass_end := float(profile.get("glass_end_u", 0.71))
+	var station_position: float = clampf(u, 0.0, 1.0) * float(CompactHatchbackBuilder.STATION_X.size() - 1)
+	var a: int = int(floor(station_position))
+	var b: int = mini(a + 1, CompactHatchbackBuilder.STATION_X.size() - 1)
+	var t: float = station_position - float(a)
+	var lower_left: Vector3 = _node_position(a, 0).lerp(_node_position(b, 0), t)
+	var lower_right: Vector3 = _node_position(a, 1).lerp(_node_position(b, 1), t)
+	var raw_upper_left: Vector3 = _node_position(a, 2).lerp(_node_position(b, 2), t)
+	var raw_upper_right: Vector3 = _node_position(a, 3).lerp(_node_position(b, 3), t)
+	var reference: Transform3D = vehicle.global_reference_transform()
+	var forward: Vector3 = reference.basis.x.normalized()
+	var up: Vector3 = reference.basis.y.normalized()
+	var upper_center: Vector3 = (raw_upper_left + raw_upper_right) * 0.5
+	var upper_half: Vector3 = (raw_upper_right - raw_upper_left) * 0.5
+	var width_scale: float = VehicleVisualProfileCatalog.sample_station(profile, "upper_width_scale", station_position)
+	var x_offset: float = VehicleVisualProfileCatalog.sample_station(profile, "upper_x_offset_m", station_position)
+	var roof_offset: float = VehicleVisualProfileCatalog.sample_station(profile, "roof_offset_m", station_position)
+	var glass_end: float = float(profile.get("glass_end_u", 0.71))
 	if u > glass_end:
-		var hood_t := smoothstep(glass_end, minf(glass_end + 0.16, 0.98), u)
+		var hood_t: float = smoothstep(glass_end, minf(glass_end + 0.16, 0.98), u)
 		roof_offset += float(profile.get("hood_raise_m", 0.0)) * hood_t
 	upper_center += forward * x_offset + up * roof_offset
-	var upper_left := upper_center - upper_half * width_scale
-	var upper_right := upper_center + upper_half * width_scale
-	var belt_ratio := float(profile.get("belt_ratio", 0.58))
-	var belt_left := lower_left.lerp(upper_left, belt_ratio)
-	var belt_right := lower_right.lerp(upper_right, belt_ratio)
+	var upper_left: Vector3 = upper_center - upper_half * width_scale
+	var upper_right: Vector3 = upper_center + upper_half * width_scale
+	var belt_ratio: float = float(profile.get("belt_ratio", 0.58))
+	var belt_left: Vector3 = lower_left.lerp(upper_left, belt_ratio)
+	var belt_right: Vector3 = lower_right.lerp(upper_right, belt_ratio)
 	return {
 		"lower_left": lower_left,
 		"lower_right": lower_right,
@@ -305,31 +309,31 @@ func _section_at_u(u: float) -> Dictionary:
 	}
 
 func _node_position(station: int, corner: int) -> Vector3:
-	var index := CompactHatchbackBuilder.node_index(station, corner)
+	var index: int = CompactHatchbackBuilder.node_index(station, corner)
 	if index < 0 or index >= vehicle.model.nodes.size():
 		return Vector3.ZERO
 	return vehicle.model.nodes[index].position_m
 
 func _update_details() -> void:
-	var reference := vehicle.global_reference_transform()
-	var forward := reference.basis.x.normalized()
-	var up := reference.basis.y.normalized()
-	var right := reference.basis.z.normalized()
-	var front := _section_at_u(0.985)
-	var rear := _section_at_u(0.015)
-	var front_center := (front.belt_left + front.belt_right) * 0.5
-	var rear_center := (rear.belt_left + rear.belt_right) * 0.5
-	var front_half_width := front.belt_left.distance_to(front.belt_right) * 0.5
-	var rear_half_width := rear.belt_left.distance_to(rear.belt_right) * 0.5
+	var reference: Transform3D = vehicle.global_reference_transform()
+	var forward: Vector3 = reference.basis.x.normalized()
+	var up: Vector3 = reference.basis.y.normalized()
+	var right: Vector3 = reference.basis.z.normalized()
+	var front: Dictionary = _section_at_u(0.985)
+	var rear: Dictionary = _section_at_u(0.015)
+	var front_center: Vector3 = (_v3(front, "belt_left") + _v3(front, "belt_right")) * 0.5
+	var rear_center: Vector3 = (_v3(rear, "belt_left") + _v3(rear, "belt_right")) * 0.5
+	var front_half_width: float = _v3(front, "belt_left").distance_to(_v3(front, "belt_right")) * 0.5
+	var rear_half_width: float = _v3(rear, "belt_left").distance_to(_v3(rear, "belt_right")) * 0.5
 	for i in range(2):
-		var side := float(headlamps[i].get_meta("side"))
+		var side: float = float(headlamps[i].get_meta("side"))
 		headlamps[i].position = front_center + forward * 0.075 + right * side * front_half_width * 0.58 + up * 0.02
 		headlamps[i].basis = reference.basis
 		tail_lamps[i].position = rear_center - forward * 0.055 + right * side * rear_half_width * 0.62 + up * 0.04
 		tail_lamps[i].basis = reference.basis
 
-	var grille_height := 0.46 if String(profile.get("style", "hatch")) in ["suv", "mpv"] else 0.34
-	var grille_mesh := grille.mesh as BoxMesh
+	var grille_height: float = 0.46 if String(profile.get("style", "hatch")) in ["suv", "mpv"] else 0.34
+	var grille_mesh: BoxMesh = grille.mesh as BoxMesh
 	grille_mesh.size.y = grille_height
 	grille.position = front_center + forward * 0.082 - up * 0.16
 	grille.basis = reference.basis
@@ -338,70 +342,77 @@ func _update_details() -> void:
 	rear_trim.position = rear_center - forward * 0.050 - up * 0.32
 	rear_trim.basis = reference.basis
 
-	var mirror_u := maxf(float(profile.get("glass_end_u", 0.71)) - 0.09, 0.45)
-	var mirror_section := _section_at_u(mirror_u)
+	var mirror_u: float = maxf(float(profile.get("glass_end_u", 0.71)) - 0.09, 0.45)
+	var mirror_section: Dictionary = _section_at_u(mirror_u)
 	for mirror in mirrors:
-		var side := float(mirror.get_meta("side"))
-		var edge: Vector3 = mirror_section.belt_left if side < 0.0 else mirror_section.belt_right
+		var side: float = float(mirror.get_meta("side"))
+		var edge: Vector3 = _v3(mirror_section, "belt_left") if side < 0.0 else _v3(mirror_section, "belt_right")
 		mirror.position = edge + right * side * 0.12 + up * 0.10
 		mirror.basis = reference.basis
 
-	var cladding_height := float(profile.get("cladding_height_m", 0.0))
-	var rocker_rear := _section_at_u(0.20)
-	var rocker_front := _section_at_u(0.78)
-	var rocker_center := ((rocker_rear.lower_left + rocker_rear.lower_right) + (rocker_front.lower_left + rocker_front.lower_right)) * 0.25
-	var rocker_length := ((rocker_front.lower_left + rocker_front.lower_right) * 0.5 - (rocker_rear.lower_left + rocker_rear.lower_right) * 0.5).length()
+	var cladding_height: float = float(profile.get("cladding_height_m", 0.0))
+	var rocker_rear: Dictionary = _section_at_u(0.20)
+	var rocker_front: Dictionary = _section_at_u(0.78)
+	var rocker_rear_center: Vector3 = (_v3(rocker_rear, "lower_left") + _v3(rocker_rear, "lower_right")) * 0.5
+	var rocker_front_center: Vector3 = (_v3(rocker_front, "lower_left") + _v3(rocker_front, "lower_right")) * 0.5
+	var rocker_center: Vector3 = (rocker_rear_center + rocker_front_center) * 0.5
+	var rocker_length: float = rocker_front_center.distance_to(rocker_rear_center)
 	for rocker in rocker_cladding:
-		var side := float(rocker.get_meta("side"))
-		var mesh := rocker.mesh as BoxMesh
-		mesh.size.x = maxf(rocker_length, 0.8)
-		mesh.size.y = 0.10 + cladding_height
-		var half_width := rocker_rear.lower_left.distance_to(rocker_rear.lower_right) * 0.5
+		var side: float = float(rocker.get_meta("side"))
+		var rocker_mesh: BoxMesh = rocker.mesh as BoxMesh
+		rocker_mesh.size.x = maxf(rocker_length, 0.8)
+		rocker_mesh.size.y = 0.10 + cladding_height
+		var half_width: float = _v3(rocker_rear, "lower_left").distance_to(_v3(rocker_rear, "lower_right")) * 0.5
 		rocker.position = rocker_center + right * side * (half_width + 0.025) - up * (0.22 - cladding_height * 0.25)
 		rocker.basis = reference.basis
 
 	if not roof_rails.is_empty():
-		var rail_rear := _section_at_u(0.28)
-		var rail_front := _section_at_u(0.66)
-		var rail_rear_center := (rail_rear.upper_left + rail_rear.upper_right) * 0.5
-		var rail_front_center := (rail_front.upper_left + rail_front.upper_right) * 0.5
-		var rail_length := rail_rear_center.distance_to(rail_front_center)
+		var rail_rear: Dictionary = _section_at_u(0.28)
+		var rail_front: Dictionary = _section_at_u(0.66)
+		var rail_rear_center: Vector3 = (_v3(rail_rear, "upper_left") + _v3(rail_rear, "upper_right")) * 0.5
+		var rail_front_center: Vector3 = (_v3(rail_front, "upper_left") + _v3(rail_front, "upper_right")) * 0.5
+		var rail_length: float = rail_rear_center.distance_to(rail_front_center)
 		for rail in roof_rails:
-			var side := float(rail.get_meta("side"))
-			var mesh := rail.mesh as BoxMesh
-			mesh.size.x = maxf(rail_length, 0.8)
-			var half_width := rail_rear.upper_left.distance_to(rail_rear.upper_right) * 0.5
+			var side: float = float(rail.get_meta("side"))
+			var rail_mesh: BoxMesh = rail.mesh as BoxMesh
+			rail_mesh.size.x = maxf(rail_length, 0.8)
+			var half_width: float = _v3(rail_rear, "upper_left").distance_to(_v3(rail_rear, "upper_right")) * 0.5
 			rail.position = (rail_rear_center + rail_front_center) * 0.5 + right * side * half_width * 0.78 + up * 0.06
 			rail.basis = reference.basis
 
 func _update_wheels(delta: float) -> void:
-	var anchors := CompactHatchbackBuilder.wheel_anchor_indices()
+	var anchors: PackedInt32Array = CompactHatchbackBuilder.wheel_anchor_indices()
 	if anchors.size() != wheel_groups.size():
 		return
-	var reference := vehicle.global_reference_transform()
-	var up := reference.basis.y.normalized()
-	var right := reference.basis.z.normalized()
-	var radius := float(profile.get("wheel_radius_m", 0.305))
-	var width := float(profile.get("wheel_width_m", 0.195))
-	var side_offset := width * 0.52
+	var reference: Transform3D = vehicle.global_reference_transform()
+	var up: Vector3 = reference.basis.y.normalized()
+	var right: Vector3 = reference.basis.z.normalized()
+	var forward: Vector3 = reference.basis.x.normalized()
+	var radius: float = float(profile.get("wheel_radius_m", 0.305))
+	var width: float = float(profile.get("wheel_width_m", 0.195))
+	var side_offset: float = width * 0.52
 	var center := Vector3.ZERO
 	for index in anchors:
 		center += vehicle.model.nodes[index].position_m
 	center /= float(anchors.size())
 	for i in range(anchors.size()):
-		var node = vehicle.model.nodes[anchors[i]]
-		var side := -1.0 if (node.position_m - center).dot(right) < 0.0 else 1.0
-		var position := node.position_m - up * (radius + 0.10) + right * side * side_offset
+		var node: StructuralNode = vehicle.model.nodes[anchors[i]]
+		var side: float = -1.0 if (node.position_m - center).dot(right) < 0.0 else 1.0
+		var position: Vector3 = node.position_m - up * (radius + 0.10) + right * side * side_offset
 		if position.y < radius:
 			position.y = radius
 		wheel_groups[i].position = position
 		wheel_groups[i].basis = reference.basis
 		if delta > 0.0:
-			var forward_speed := node.velocity_ms.dot(reference.basis.x.normalized())
-			var spin := forward_speed / maxf(radius, 0.01) * delta
+			var forward_speed: float = node.velocity_ms.dot(forward)
+			var spin: float = forward_speed / maxf(radius, 0.01) * delta
 			wheel_tires[i].rotation.z -= spin
 			wheel_rims[i].rotation.z -= spin
 			wheel_hubs[i].rotation.z -= spin
+
+func _v3(section: Dictionary, key: String) -> Vector3:
+	var value: Variant = section.get(key, Vector3.ZERO)
+	return value if value is Vector3 else Vector3.ZERO
 
 func _box_detail(node_name: String, size: Vector3, material: Material) -> MeshInstance3D:
 	var mesh := BoxMesh.new()
@@ -418,7 +429,7 @@ func _quad_on(mesh: ImmediateMesh, a: Vector3, b: Vector3, c: Vector3, d: Vector
 	_triangle_on(mesh, a, c, d)
 
 func _triangle_on(mesh: ImmediateMesh, a: Vector3, b: Vector3, c: Vector3) -> void:
-	var normal := (b - a).cross(c - a).normalized()
+	var normal: Vector3 = (b - a).cross(c - a).normalized()
 	if normal.is_zero_approx():
 		normal = Vector3.UP
 	for vertex in [a, b, c]:
