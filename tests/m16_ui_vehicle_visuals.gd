@@ -93,9 +93,33 @@ func _run() -> void:
 		_fail("M16 did not rebuild the class-specific visual when the vehicle class changed")
 		return
 
+	# M16 is the production successor to M15. Selecting a pedestrian must still
+	# instantiate the finalized articulated proxy rather than falling back to the
+	# M14 compatibility target while the UI/vehicle presentation changes around it.
+	var target_selector := _find_named(instance, "M16TargetSelector") as OptionButton
+	var pedestrian_index := _metadata_index(target_selector, ScenarioConfig.TARGET_PEDESTRIAN)
+	if pedestrian_index < 0:
+		_fail("M16 target selector does not expose the pedestrian target")
+		return
+	target_selector.select(pedestrian_index)
+	target_selector.item_selected.emit(pedestrian_index)
+	for _frame in range(8):
+		await process_frame
+	var road_user_proxy: Variant = instance.get("road_user_proxy")
+	if not road_user_proxy is RoadUserArticulatedProxy3D:
+		_fail("M16 production scene did not preserve the finalized M15 articulated road-user path")
+		return
+	var articulated := road_user_proxy as RoadUserArticulatedProxy3D
+	if articulated.articulated_body_count() < 10 or articulated.articulated_joint_count() < 9:
+		_fail("M16 production pedestrian lost the M15 articulated topology")
+		return
+	if articulated.collision_layer != 2 or articulated.collision_mask != 4:
+		_fail("M16 production pedestrian lost the isolated M15 collision channels")
+		return
+
 	instance.queue_free()
 	await process_frame
-	print("CrashVector M16 UX and vehicle-visual regression test passed.")
+	print("CrashVector M16 UX, vehicle-visual and M15 integration regression test passed.")
 	quit(0)
 
 func _metadata_index(option: OptionButton, wanted: StringName) -> int:
