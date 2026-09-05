@@ -65,9 +65,12 @@ func _section_at_u(u: float) -> Dictionary:
 			pass
 
 	for key in ["lower_left", "lower_right"]:
-		section[key] = (section[key] as Vector3) + up * body_lift
+		var lower_point: Vector3 = section[key]
+		section[key] = lower_point + up * body_lift
 	for key in ["belt_left", "belt_right"]:
-		section[key] = (section[key] as Vector3) + up * (body_lift + belt_extra) + forward * upper_forward_extra * 0.45
+		var belt_point: Vector3 = section[key]
+		section[key] = belt_point + up * (body_lift + belt_extra) + forward * upper_forward_extra * 0.45
 	for key in ["upper_left", "upper_right"]:
-		section[key] = (section[key] as Vector3) + up * (body_lift + roof_extra) + forward * upper_forward_extra
+		var upper_point: Vector3 = section[key]
+		section[key] = upper_point + up * (body_lift + roof_extra) + forward * upper_forward_extra
 	return section
