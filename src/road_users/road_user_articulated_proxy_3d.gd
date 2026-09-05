@@ -6,10 +6,11 @@ class_name RoadUserArticulatedProxy3D
 extends RoadUserRigidProxy3D
 
 # M15 production refinement on top of the M14-compatible proxy API.
-# Pedestrian joints are bounded generic ConeTwistJoint3D constraints rather
-# than unconstrained pins. The limits are intentionally broad and generic:
-# they prevent implausible 180-degree crumpling but are not biomechanical ROM
-# data and must not be used for injury prediction.
+# Pedestrian segments are connected with bounded Generic6DOFJoint3D
+# constraints. The limits are deliberately generic stability envelopes, not
+# biomechanical range-of-motion data and not suitable for injury prediction.
+# Generic6DOF is used instead of ConeTwist because the latter injected large
+# amounts of energy in the Godot 4.4.1 runtime under high-speed impact loads.
 
 var _m15_joint_pairs: Dictionary = {}
 var _m15_joint_local_bases: Dictionary = {}
@@ -53,23 +54,20 @@ func _build_pedestrian_rig() -> void:
 		_add_capsule_collision(leg, "LowerLegCollision", 0.072 * scale, 0.36 * scale, Vector3.ZERO)
 		_add_capsule_visual(leg, "LowerLeg", 0.072 * scale, 0.36 * scale, Color(0.08, 0.10, 0.14))
 
-	# ConeTwist's twist axis is local X. Torso/neck/ball joints orient X along the
-	# standing vertical axis while elbow/knee joints orient it laterally. Godot's
-	# own ragdoll guidance recommends conservative cone spans (roughly 20-90°
-	# swing and 20-45° twist); keeping every twist span at or below 45° avoids the
-	# solver instability produced by the earlier near-PI elbow/knee spans.
+	# Joint-local X is the primary twist/hinge axis. Y/Z form the bounded swing
+	# envelope. These conservative angles are generic numerical limits only.
 	var vertical_axis := Basis(Vector3.FORWARD, deg_to_rad(90.0))
 	var lateral_axis := Basis(Vector3.UP, deg_to_rad(-90.0))
-	_add_bounded_joint("SpineJoint", self, _pedestrian_torso, Vector3(0.0, 1.00 * scale, 0.0), vertical_axis, 28.0, 20.0)
-	_add_bounded_joint("NeckJoint", _pedestrian_torso, head, Vector3(0.0, 1.50 * scale, 0.0), vertical_axis, 38.0, 28.0)
-	_add_bounded_joint("LeftShoulderJoint", _pedestrian_torso, left_upper_arm, Vector3(0.0, 1.35 * scale, -0.24 * scale), vertical_axis, 72.0, 42.0)
-	_add_bounded_joint("RightShoulderJoint", _pedestrian_torso, right_upper_arm, Vector3(0.0, 1.35 * scale, 0.24 * scale), vertical_axis, 72.0, 42.0)
-	_add_bounded_joint("LeftElbowJoint", left_upper_arm, left_lower_arm, Vector3(0.0, 1.03 * scale, -0.28 * scale), lateral_axis, 12.0, 45.0)
-	_add_bounded_joint("RightElbowJoint", right_upper_arm, right_lower_arm, Vector3(0.0, 1.03 * scale, 0.28 * scale), lateral_axis, 12.0, 45.0)
-	_add_bounded_joint("LeftHipJoint", self, left_upper_leg, Vector3(0.0, 0.80 * scale, -0.09 * scale), vertical_axis, 52.0, 36.0)
-	_add_bounded_joint("RightHipJoint", self, right_upper_leg, Vector3(0.0, 0.80 * scale, 0.09 * scale), vertical_axis, 52.0, 36.0)
-	_add_bounded_joint("LeftKneeJoint", left_upper_leg, left_lower_leg, Vector3(0.0, 0.44 * scale, -0.09 * scale), lateral_axis, 10.0, 45.0)
-	_add_bounded_joint("RightKneeJoint", right_upper_leg, right_lower_leg, Vector3(0.0, 0.44 * scale, 0.09 * scale), lateral_axis, 10.0, 45.0)
+	_add_bounded_joint("SpineJoint", self, _pedestrian_torso, Vector3(0.0, 1.00 * scale, 0.0), vertical_axis, 20.0, 28.0)
+	_add_bounded_joint("NeckJoint", _pedestrian_torso, head, Vector3(0.0, 1.50 * scale, 0.0), vertical_axis, 28.0, 38.0)
+	_add_bounded_joint("LeftShoulderJoint", _pedestrian_torso, left_upper_arm, Vector3(0.0, 1.35 * scale, -0.24 * scale), vertical_axis, 42.0, 72.0)
+	_add_bounded_joint("RightShoulderJoint", _pedestrian_torso, right_upper_arm, Vector3(0.0, 1.35 * scale, 0.24 * scale), vertical_axis, 42.0, 72.0)
+	_add_bounded_joint("LeftElbowJoint", left_upper_arm, left_lower_arm, Vector3(0.0, 1.03 * scale, -0.28 * scale), lateral_axis, 45.0, 12.0)
+	_add_bounded_joint("RightElbowJoint", right_upper_arm, right_lower_arm, Vector3(0.0, 1.03 * scale, 0.28 * scale), lateral_axis, 45.0, 12.0)
+	_add_bounded_joint("LeftHipJoint", self, left_upper_leg, Vector3(0.0, 0.80 * scale, -0.09 * scale), vertical_axis, 36.0, 52.0)
+	_add_bounded_joint("RightHipJoint", self, right_upper_leg, Vector3(0.0, 0.80 * scale, 0.09 * scale), vertical_axis, 36.0, 52.0)
+	_add_bounded_joint("LeftKneeJoint", left_upper_leg, left_lower_leg, Vector3(0.0, 0.44 * scale, -0.09 * scale), lateral_axis, 45.0, 10.0)
+	_add_bounded_joint("RightKneeJoint", right_upper_leg, right_lower_leg, Vector3(0.0, 0.44 * scale, 0.09 * scale), lateral_axis, 45.0, 10.0)
 
 func _add_bounded_joint(
 	node_name: String,
@@ -77,23 +75,58 @@ func _add_bounded_joint(
 	body_b: PhysicsBody3D,
 	local_anchor: Vector3,
 	local_basis: Basis,
-	swing_deg: float,
-	twist_deg: float
+	twist_deg: float,
+	swing_deg: float
 ) -> void:
-	var joint := ConeTwistJoint3D.new()
+	var joint := Generic6DOFJoint3D.new()
 	joint.name = node_name
-	joint.swing_span = deg_to_rad(swing_deg)
-	joint.twist_span = deg_to_rad(twist_deg)
-	joint.bias = 0.12
-	joint.softness = 0.90
-	joint.relaxation = 0.95
 	articulated_joints.append(joint)
 	_joint_local_anchors[joint.name] = local_anchor
 	_m15_joint_pairs[joint.name] = [body_a, body_b]
 	_m15_joint_local_bases[joint.name] = local_basis
 	get_parent().add_child(joint)
+	_configure_6dof_axis(joint, 0, twist_deg)
+	_configure_6dof_axis(joint, 1, swing_deg)
+	_configure_6dof_axis(joint, 2, swing_deg)
 	joint.node_a = joint.get_path_to(body_a)
 	joint.node_b = joint.get_path_to(body_b)
+
+func _configure_6dof_axis(joint: Generic6DOFJoint3D, axis: int, angular_limit_deg: float) -> void:
+	var angular_limit := deg_to_rad(maxf(angular_limit_deg, 1.0))
+	match axis:
+		0:
+			joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_LINEAR_LIMIT, true)
+			joint.set_flag_x(Generic6DOFJoint3D.FLAG_ENABLE_ANGULAR_LIMIT, true)
+			joint.set_param_x(Generic6DOFJoint3D.PARAM_LINEAR_LOWER_LIMIT, 0.0)
+			joint.set_param_x(Generic6DOFJoint3D.PARAM_LINEAR_UPPER_LIMIT, 0.0)
+			joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_LOWER_LIMIT, -angular_limit)
+			joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_UPPER_LIMIT, angular_limit)
+			joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_LIMIT_SOFTNESS, 0.55)
+			joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_DAMPING, 0.78)
+			joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_RESTITUTION, 0.0)
+			joint.set_param_x(Generic6DOFJoint3D.PARAM_ANGULAR_ERP, 0.22)
+		1:
+			joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_LINEAR_LIMIT, true)
+			joint.set_flag_y(Generic6DOFJoint3D.FLAG_ENABLE_ANGULAR_LIMIT, true)
+			joint.set_param_y(Generic6DOFJoint3D.PARAM_LINEAR_LOWER_LIMIT, 0.0)
+			joint.set_param_y(Generic6DOFJoint3D.PARAM_LINEAR_UPPER_LIMIT, 0.0)
+			joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_LOWER_LIMIT, -angular_limit)
+			joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_UPPER_LIMIT, angular_limit)
+			joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_LIMIT_SOFTNESS, 0.55)
+			joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_DAMPING, 0.78)
+			joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_RESTITUTION, 0.0)
+			joint.set_param_y(Generic6DOFJoint3D.PARAM_ANGULAR_ERP, 0.22)
+		2:
+			joint.set_flag_z(Generic6DOFJoint3D.FLAG_ENABLE_LINEAR_LIMIT, true)
+			joint.set_flag_z(Generic6DOFJoint3D.FLAG_ENABLE_ANGULAR_LIMIT, true)
+			joint.set_param_z(Generic6DOFJoint3D.PARAM_LINEAR_LOWER_LIMIT, 0.0)
+			joint.set_param_z(Generic6DOFJoint3D.PARAM_LINEAR_UPPER_LIMIT, 0.0)
+			joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_LOWER_LIMIT, -angular_limit)
+			joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_UPPER_LIMIT, angular_limit)
+			joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_LIMIT_SOFTNESS, 0.55)
+			joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_DAMPING, 0.78)
+			joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_RESTITUTION, 0.0)
+			joint.set_param_z(Generic6DOFJoint3D.PARAM_ANGULAR_ERP, 0.22)
 
 func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
 	super.set_preview_pose(position_m, yaw_deg)
