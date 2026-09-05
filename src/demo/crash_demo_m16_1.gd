@@ -40,8 +40,10 @@ func _ensure_m16_vehicle_visual(vehicle_node: CompactHatchback, node_name: Strin
 	if existing != null:
 		if existing is M161VehicleVisual:
 			return
+		vehicle_node.remove_child(existing)
 		existing.queue_free()
 	var visual := M161VehicleVisual.new()
+	visual.name = node_name
 	vehicle_node.add_child(visual)
 	visual.configure(vehicle_node)
 	visual.name = node_name
@@ -220,7 +222,7 @@ func _m161_target_center() -> Vector3:
 func _m161_target_half_length() -> float:
 	match scenario.target_type:
 		ScenarioConfig.TARGET_PASSENGER_CAR:
-			return float(PassengerCarCatalog.data(scenario.target_preset_id).get("representative_length_m", 4.1)) * 0.5
+			return float(PassengerCarCatalog.data(scenario.target_car_preset_id).get("representative_length_m", 4.1)) * 0.5
 		ScenarioConfig.TARGET_TRUCK:
 			return 4.8
 		ScenarioConfig.TARGET_LORRY:
@@ -243,7 +245,9 @@ func _m161_polish_ui() -> void:
 		m16_more_menu.text = "More"
 	if m16_action_slot != null:
 		m16_action_slot.custom_minimum_size.x = 168.0
-	var brand := m10_root.find_child("M16Brand", true, false) as Label if m10_root != null else null
+	var brand: Label = null
+	if m10_root != null:
+		brand = m10_root.find_child("M16Brand", true, false) as Label
 	if brand != null:
 		brand.custom_minimum_size.x = 132.0
 		brand.add_theme_font_size_override("font_size", 19)
@@ -263,7 +267,6 @@ func _m161_polish_ui() -> void:
 	_m161_set_panel_padding(m10_replay_drawer, 8, 4)
 	_m161_set_panel_padding(m16_viewport_toolbar, 5, 3)
 	if m16_viewport_toolbar != null:
-		var toolbar_row := m16_viewport_toolbar.find_child("", true, false)
 		for child in m16_viewport_toolbar.get_children():
 			if child is MarginContainer:
 				for nested in child.get_children():
