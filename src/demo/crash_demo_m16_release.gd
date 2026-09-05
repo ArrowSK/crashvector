@@ -32,7 +32,7 @@ func _sync_m10_from_scenario() -> void:
 
 func _layout_m10() -> void:
 	super._layout_m10()
-	_fit_m16_scenario_geometry()
+	_fit_m16_desktop_geometry()
 
 func _harden_m16_compact_controls() -> void:
 	for option in [m10_primary_option, m10_target_option, m10_primary_class, m10_target_preset, m10_primary_paint, m10_target_paint]:
@@ -47,11 +47,23 @@ func _harden_m16_compact_controls() -> void:
 		if spin != null:
 			spin.custom_minimum_size.x = minf(spin.custom_minimum_size.x, 116.0)
 
-func _fit_m16_scenario_geometry() -> void:
-	if m10_root == null or m10_mode == MODE_COMPARE or comparison_active:
+func _fit_m16_desktop_geometry() -> void:
+	if m10_root == null or m10_top_bar == null:
 		return
 	var size := get_viewport().get_visible_rect().size
-	var top_y := 70.0
+	var top_height := maxf(50.0, m10_top_bar.get_combined_minimum_size().y)
+	var top_bottom := 10.0 + top_height
+	var top_y := top_bottom + 10.0
+	_set_rect(m10_top_bar, 12.0, 10.0, size.x - 12.0, top_bottom)
+
+	if m10_mode == MODE_COMPARE or comparison_active:
+		_set_rect(m10_viewport_frame, 12.0, top_y, size.x - 12.0, size.y - 12.0)
+		if m10_compare_header != null:
+			_set_rect(m10_compare_header, 22.0, top_y + 10.0, size.x - 22.0, top_y + 68.0)
+		if comparison_active and m10_compare_results != null:
+			_set_rect(m10_compare_results, 22.0, size.y - 238.0, size.x - 22.0, size.y - 18.0)
+		return
+
 	var gap := 12.0
 	var bottom_margin := 12.0
 	var requested_bottom := 250.0 if m10_replay_expanded else 66.0
