@@ -1,0 +1,35 @@
+name: M16 validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crashvector-m16-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  m16-ux-vehicle-visuals:
+    name: M16 UX and vehicle visuals
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Architecture audit
+        run: sh tools/check_no_monkey_patching.sh
+      - name: Import and parse project
+        run: |
+          tools/ci_godot_checked.sh godot --headless --path . --editor --quit
+          tools/ci_godot_checked.sh godot --headless --path . --script res://tests/project_parse.gd
+      - name: Preserve M10 responsive shell contract
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m10_layout.gd
+      - name: M16 task-focused UX and vehicle visual regression
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_ui_vehicle_visuals.gd
