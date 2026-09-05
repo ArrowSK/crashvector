@@ -30,6 +30,16 @@ func _sync_m10_from_scenario() -> void:
 	if m16_target_button != null:
 		m16_target_button.text = "Target"
 
+func _ensure_m16_vehicle_visual(vehicle_node: CompactHatchback, node_name: String) -> void:
+	if vehicle_node == null or not is_instance_valid(vehicle_node):
+		return
+	if vehicle_node.get_node_or_null(node_name) != null:
+		return
+	var visual := M16VehicleVisualRefined.new()
+	vehicle_node.add_child(visual)
+	visual.configure(vehicle_node)
+	visual.name = node_name
+
 func _layout_m10() -> void:
 	super._layout_m10()
 	_fit_m16_desktop_geometry()
