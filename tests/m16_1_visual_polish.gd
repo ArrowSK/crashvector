@@ -52,8 +52,8 @@ func _run() -> void:
 	if more == null or more.text != "More":
 		_fail("M16.1 did not remove the broken More-menu ellipsis glyph")
 		return
-	var scenario_button := _find_named(instance, "M16ScenarioMode") as Button
-	if scenario_button != null and scenario_button.disabled:
+	var scenario_button: Button = instance.get("m10_scenario_button")
+	if scenario_button == null or scenario_button.disabled:
 		_fail("M16.1 still represents the active Scenario workspace as disabled")
 		return
 
