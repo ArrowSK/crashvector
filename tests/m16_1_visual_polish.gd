@@ -30,7 +30,7 @@ func _run() -> void:
 	var right := _find_named(instance, "M10Inspector") as Control
 	var viewport := _find_named(instance, "M10ViewportFrame") as Control
 	var replay := _find_named(instance, "M10ReplayDrawer") as Control
-	var status := _find_named(instance, "M10StatusChip") as Control
+	var status: Control = instance.get("m10_status_chip")
 	var toolbar := _find_named(instance, "M16ViewportToolbar") as Control
 	if left == null or right == null or viewport == null or replay == null or status == null or toolbar == null:
 		_fail("M16.1 major UI regions could not be resolved")
