@@ -31,3 +31,5 @@ jobs:
           tools/ci_godot_checked.sh godot --headless --path . --script res://tests/project_parse.gd
       - name: M17 reciprocal-impact, long-road and production-comparison regression
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m17_production_integration.gd
+      - name: Reported runtime presentation and stability regressions
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/runtime_presentation_stability.gd

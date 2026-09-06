@@ -13,6 +13,7 @@ extends M16VehicleVisual
 var accent_mesh := ImmediateMesh.new()
 var accent_instance := MeshInstance3D.new()
 var spoke_roots: Array[Node3D] = []
+var wheel_spin_angles: Array[float] = []
 
 func _build_surface_nodes() -> void:
 	super._build_surface_nodes()
@@ -56,6 +57,8 @@ func _build_body_surface() -> void:
 func _build_wheels() -> void:
 	super._build_wheels()
 	spoke_roots.clear()
+	wheel_spin_angles.clear()
+	wheel_spin_angles.resize(wheel_groups.size())
 	var radius: float = float(profile.get("wheel_radius_m", 0.305))
 	var width: float = float(profile.get("wheel_width_m", 0.195))
 	var rim_ratio: float = float(profile.get("rim_ratio", 0.60))
@@ -64,6 +67,7 @@ func _build_wheels() -> void:
 	var spoke_count := 6 if style in ["suv", "mpv"] else 5
 
 	for i in range(wheel_groups.size()):
+		wheel_spin_angles[i] = 0.0
 		# A dark inner barrel behind brighter spokes reads much more naturally than
 		# the original solid metallic cylinder while staying cheap to regenerate.
 		var rim_mesh := wheel_rims[i].mesh as CylinderMesh
@@ -127,6 +131,21 @@ func _build_arch_accents() -> void:
 	accent_mesh.surface_end()
 
 func _update_wheels(delta: float) -> void:
+	# The inherited visual calculates wheel position and the rolling increment.
+	# Its historical child-Euler spin is immediately converted into a single
+	# wheel-root rotation about the vehicle-local lateral axle. This prevents the
+	# 90-degree cylinder setup rotation from combining with incremental Z Euler
+	# edits into impossible pitch/camber/tumbling after many frames.
 	super._update_wheels(delta)
-	for i in range(mini(spoke_roots.size(), wheel_rims.size())):
-		spoke_roots[i].rotation.z = wheel_rims[i].rotation.z
+	if vehicle == null or wheel_spin_angles.size() != wheel_groups.size():
+		return
+	var reference_basis := vehicle.global_reference_transform().basis.orthonormalized()
+	for i in range(wheel_groups.size()):
+		var frame_spin := wheel_rims[i].rotation.z
+		wheel_spin_angles[i] = wrapf(wheel_spin_angles[i] + frame_spin, -PI, PI)
+		wheel_tires[i].rotation = Vector3(PI * 0.5, 0.0, 0.0)
+		wheel_rims[i].rotation = Vector3(PI * 0.5, 0.0, 0.0)
+		wheel_hubs[i].rotation = Vector3(PI * 0.5, 0.0, 0.0)
+		if i < spoke_roots.size():
+			spoke_roots[i].rotation = Vector3.ZERO
+		wheel_groups[i].basis = reference_basis * Basis(Vector3(0.0, 0.0, 1.0), wheel_spin_angles[i])
