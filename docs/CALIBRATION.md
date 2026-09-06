@@ -1,6 +1,6 @@
 # Calibration and validation scope
 
-CrashVector is an educational structural-collision simulator. M8 introduced a deliberately narrow correlation envelope instead of implying that every available scenario is validated. Later M12–M16 production physics and presentation work do not broaden that evidence envelope.
+CrashVector is an educational structural-collision simulator. M8 introduced a deliberately narrow correlation envelope instead of implying that every available scenario is validated. Later M12–M18 production physics, comparison and presentation work do not broaden that evidence envelope.
 
 ## First external structural reference
 
@@ -46,15 +46,15 @@ CrashVector assigns one of four evidence-scope labels to a configured scenario.
 
 **Class-scaled** means another generic passenger-car class uses the shared structural architecture and class scaling near the moderate-speed wall condition without a direct published reference for that class.
 
-**Extrapolated** covers the rest. This includes high-speed comparisons such as 130 vs 140 km/h, vehicle-to-vehicle impacts, heavy-vehicle cases, riderless-motorcycle cases, all pedestrian/bicycle cases, yielding narrow targets and other conditions outside the current reference envelope.
+**Extrapolated** covers the rest. This includes high-speed comparisons such as 130 vs 140 km/h, vehicle-to-vehicle impacts, M17 reciprocal rear impacts, M18 passenger-car side impacts, heavy-vehicle cases, riderless-motorcycle cases, all pedestrian/bicycle cases, yielding narrow targets and other conditions outside the current reference envelope.
 
 The label is a statement about evidence coverage, not a safety rating.
 
 ## Expanded generic classes and targets
 
-A/B/C/D/J/M passenger-car presets remain generic representative classes. The current production passenger-car structure uses the M11 44-node local graph on the M12+ rigid chassis; the historical M8 correlation runner remains a separate reduced-order reference path. Neither the later 44-node production graph nor the M16 class-specific presentation profiles inherit direct experimental validation merely because they share the same generic class labels.
+A/B/C/D/J/M passenger-car presets remain generic representative classes. The current production passenger-car structure uses the M11 44-node local graph on the M12+ rigid chassis; the historical M8 correlation runner remains a separate reduced-order reference path. Neither the later production graph, M16 class-specific presentation profiles, M17 rear-deformation path nor M18 lateral-deformation path inherit direct experimental validation merely because they share the same generic class labels.
 
-The heavy articulated truck, rigid lorry / box truck and riderless motorcycle are separate generic structural approximations. The motorcycle model contains no rider and must not be used to infer rider trajectory, helmet performance or injury.
+The heavy articulated truck, rigid lorry / box truck and riderless motorcycle are separate generic structural approximations. M17 ports rigid-lorry and riderless-motorcycle world motion to the production Godot rigid-body path, but that does not experimentally validate those models or provide them with detailed crush structures. The motorcycle model contains no rider and must not be used to infer rider trajectory, helmet performance or injury.
 
 Pedestrian and riderless-bicycle targets are also extrapolated. M15 articulation is a numerical contact/trajectory model, not a validated human or cyclist biomechanics model.
 
@@ -62,15 +62,17 @@ The full-frontal rigid wall is a normal selectable simulation target and is also
 
 ## High-speed and comparison scope
 
-Historical Visual Compare may run arbitrary user-entered speeds in its legacy regression path, for example **130 and 140 km/h**. Such a comparison is useful for showing the nonlinear `v²` kinetic-energy relationship, but it remains extrapolated until appropriate high-speed reference evidence is added.
+Comparison workflows may run arbitrary user-entered speeds, for example **130 and 140 km/h**. Such a comparison is useful for showing the nonlinear `v²` kinetic-energy relationship, but it remains extrapolated until appropriate high-speed reference evidence is added.
 
-The desktop production Compare workflows are currently disabled until their historical synchronous runner is ported to the rigid-body world architecture. This implementation limitation does not change the evidence classification.
+Since M17, desktop Visual Compare and Comparison Lab execute each requested variant through the current production scene and Godot rigid-body path rather than presenting the historical reduced-order synchronous runner as current physics. This implementation improvement does not change the evidence classification: a production-routed comparison is still extrapolated unless its scenario lies within a separately supported correlation envelope.
 
 A successful 56.5 km/h rigid-wall reference check does not validate 90, 130, 140, 200 km/h or any other high-speed result.
 
 ## What M8 does not validate
 
 M8 does not validate occupant/rider injury risk, airbags, seat belts, dummies, helmets, star ratings, exact production-model deformation, broadside impacts, complex oblique impacts, truck-underride injury outcomes, pedestrian/cyclist biomechanics, articulated-target joint behaviour or forensic crash reconstruction.
+
+M18 implementing a passenger-car broadside model does **not** change that sentence: M8 provides no side-impact correlation for it.
 
 The NHTSA research uses detailed finite-element models and laboratory measurements. CrashVector's reduced-order node/beam and rigid-body representations are intentionally far simpler, so their claims must remain correspondingly narrower.
 
@@ -80,7 +82,9 @@ In particular, M8 does **not** validate:
 - M13 staged whole-body collapse;
 - M14 pole/tree yielding or vulnerable-target rigid-body trajectory;
 - M15 articulated pedestrian/bicycle dynamics;
-- M16 class-specific generated vehicle presentation.
+- M16 class-specific generated vehicle presentation;
+- M17 reciprocal-impact deformation, rigid-lorry/motorcycle production routing or production Comparison;
+- M18 passenger-car side-impact contact classification, lateral stiffness or intrusion.
 
 ## Adding future references
 
