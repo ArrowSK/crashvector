@@ -39,7 +39,7 @@ func _replace_legacy_road_user_with_rigid_proxy() -> void:
 	static_simulation = null
 	hybrid_production_active = true
 
-	road_user_proxy = RoadUserArticulatedProxy3D.new()
+	road_user_proxy = RoadUserArticulatedStableProxy3D.new()
 	road_user_proxy.name = "RoadUserArticulatedProxy"
 	road_user_proxy.configure(
 		scenario.target_type,
