@@ -35,3 +35,5 @@ jobs:
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_ui_vehicle_visuals.gd
       - name: M16.1 visual polish, camera and UI regression
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_1_visual_polish.gd
+      - name: D-segment 200 km/h concrete-barrier packaged case
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_1_d_segment_200_barrier.gd
