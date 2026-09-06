@@ -32,24 +32,27 @@ func _run() -> void:
 		_expect(editor.car.rigid_chassis.continuous_cd, "M12 production passenger car must enable continuous collision detection")
 		_expect(editor.car.rigid_chassis.suspension_points.size() == 4, "M12 passenger car must have four suspension contacts")
 
-	# An unported target may remain editable, but pressing Simulate must not fall
-	# back to the old world-motion solver.
+	# M17 is allowed to extend the M12 production world with targets that were
+	# intentionally blocked in the original M12 beta. The invariant this gate
+	# preserves is that a newly supported target must use Godot world motion and
+	# must never fall back to the historical reduced-order pair/static solvers.
 	editor.scenario.apply_target_defaults(ScenarioConfig.TARGET_LORRY)
 	editor._rebuild_preview()
 	await process_frame
-	_expect(not bool(editor.hybrid_production_active), "Unported rigid-lorry target must be marked non-hybrid")
-	editor._on_simulate_pressed()
-	_expect(not bool(editor.simulation_running), "Unported target must be blocked instead of using legacy production physics")
+	await physics_frame
+	_expect(bool(editor.hybrid_production_active), "Current production rigid-lorry target must use hybrid world physics")
+	_expect(editor.pair_simulation == null and editor.static_simulation == null, "Rigid-lorry port must not re-enable a legacy production solver")
+	var lorry: Variant = editor.get("m17_lorry")
+	_expect(lorry is M17RigidLorry, "Current production rigid-lorry target must use the M17 RigidBody3D wrapper")
+	if lorry is M17RigidLorry:
+		_expect((lorry as M17RigidLorry).rigid_chassis is RigidBody3D, "M17 rigid lorry must own a Godot rigid chassis")
 
-	# M6/M8 batch comparison still uses ComparisonRunner's historical reduced-
-	# order solver. M12 must refuse that production path until it is ported.
-	editor.comparison_results.clear()
-	editor.comparison_results.append({"sentinel": true})
-	editor._on_run_comparison_pressed()
-	_expect(editor.comparison_results.is_empty(), "M12 Compare must not execute/retain legacy comparison results")
-	editor.comparison_results.append({"sentinel": true})
-	editor._on_run_matrix_comparison()
-	_expect(editor.comparison_results.is_empty(), "M12 Comparison Lab must not execute/retain legacy matrix results")
+	# M12 originally disabled Compare because M6/M8 ComparisonRunner used the old
+	# reduced-order solver. A descendant may re-enable Compare only through the
+	# isolated current-production SceneTree route. Do not execute the relatively
+	# expensive comparison here; the M17 gate owns that end-to-end regression.
+	_expect(editor.has_method("_m17_run_production_comparison"), "Current production Compare must be provided by the M17 rigid-body comparison route")
+	_expect(editor.has_method("_m17_create_comparison_context"), "M17 Compare must create isolated production physics worlds")
 
 	editor.queue_free()
 	await process_frame
@@ -66,7 +69,7 @@ func _finish() -> void:
 		return
 	finished = true
 	if failures.is_empty():
-		print("CrashVector M12 production-path tests passed.")
+		print("CrashVector M12 production-path compatibility tests passed.")
 		quit(0)
 		return
 	for failure in failures:
