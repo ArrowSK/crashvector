@@ -209,7 +209,16 @@ func _m162_apply_aftermath_camera() -> void:
 	var car_weight := 0.40
 	var anchor_weight := 1.0 - target_weight - car_weight
 	var focus_point := anchor * anchor_weight + car_subject * car_weight + target_subject * target_weight
-	focus_point.y = 1.02 if scenario.target_type == ScenarioConfig.TARGET_TRUCK else 0.88
+	if scenario.target_type in [ScenarioConfig.TARGET_PEDESTRIAN, ScenarioConfig.TARGET_BICYCLE]:
+		# A vulnerable road user can be lifted above bonnet/roof height within the
+		# first impact frames. Follow some of that vertical motion so the connected
+		# figure remains inside the viewport instead of disappearing behind the
+		# viewport toolbar.
+		focus_point.y = clampf(car_subject.y * 0.30 + target_subject.y * 0.35 + 0.35, 0.95, 1.60)
+	elif scenario.target_type == ScenarioConfig.TARGET_TRUCK:
+		focus_point.y = 1.02
+	else:
+		focus_point.y = 0.88
 
 	var primary_half := float(PassengerCarCatalog.data(scenario.car_preset_id).get("representative_length_m", 4.1)) * 0.5
 	var car_projection := (car_subject - anchor).dot(forward)
@@ -229,6 +238,8 @@ func _m162_apply_aftermath_camera() -> void:
 	var horizontal_fov := 2.0 * atan(tan(vertical_fov * 0.5) * aspect)
 	var distance := (span * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.70, 0.10)
 	distance = clampf(distance, 5.4, 12.8)
+	if scenario.target_type in [ScenarioConfig.TARGET_PEDESTRIAN, ScenarioConfig.TARGET_BICYCLE]:
+		distance = maxf(distance, 6.2)
 
 	camera.global_position = focus_point - forward * distance * 0.08 + Vector3.UP * clampf(distance * 0.21, 2.10, 3.5) + lateral * distance
 	camera.look_at(focus_point, Vector3.UP)
