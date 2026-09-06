@@ -252,8 +252,45 @@ M16 broadens presentation quality and usability, not CrashVector's evidence clai
 
 See `docs/M16_UX_AND_VEHICLE_VISUALS.md`.
 
-## Beyond M16
+## M17 — Reciprocal impacts, production comparison and long proving road — complete
 
-The next physics work should port rigid lorry and motorcycle production simulation, then the comparison recorder, to the rigid-body world architecture before those paths are re-enabled. Additional independent public/licensed crash references should then be added before narrowing or extending any validation claim.
+M17 completes the production-integration work that remained after M16.2 without replacing the M12–M16 rigid-body architecture.
 
-Side-impact geometry, richer contact manifolds, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional structural/biomechanical references remain explicit future work rather than implied by M8–M16 completion.
+- Visual Compare and Comparison Lab no longer present the historical reduced-order `ComparisonRunner` as current physics. Each comparison variant runs in an isolated `SubViewport` / `World3D` using the current production scene and Godot rigid-body path, then replays the recorded production result in synchronized lanes.
+- Supported dynamic targets may start ahead of or behind the passenger car; impact direction follows position, heading and velocity rather than the UI labels “primary” and “target”.
+- Passenger cars gain bounded direct rear-impact deformation driven by real Godot contact demand while the established M12/M13 front-crush and staged whole-body failure paths remain intact.
+- The heavy articulated truck gains bounded local front and rear collapse with corresponding rigid collision-face retreat. It remains a single rigid world assembly rather than a tractor/fifth-wheel/trailer articulation model.
+- Generic rigid lorry / box truck and riderless motorcycle are ported to Godot `RigidBody3D` production world motion instead of remaining blocked or falling back to the historical solver. Their structural graphs remain rigid presentation/reference structures in M17 rather than detailed crush models.
+- The production road is extended to approximately 4 km × 20 m, with presentation ground and editor ranges widened to match high-speed runs.
+- The final reciprocal-impact correction retains real Godot contact impulse through `J² / (2μ)` alongside reduced-mass relative-velocity energy so post-solve velocity changes do not suppress legitimate deformation demand.
+- Dedicated M17 production regression covers truck→car rear impact with deformation on both actors, rigid-lorry/motorcycle production routing, the long road and a real two-variant production Comparison run.
+- Exact M17 PR head `bb870532373aa9baf419d8bb86510393392a2470` passed M10–M17 dedicated validation, canonical Core CI, macOS Universal 2 packaging and Windows export/install packaging before merge.
+
+M17 does not add manufacturer-specific vehicle stiffness, detailed lorry/motorcycle crush, articulated fifth-wheel truck dynamics, injury prediction or forensic reconstruction. M8 calibration does not validate the M12–M17 production stack.
+
+See `docs/M17_RECIPROCAL_IMPACTS_COMPARISON.md`.
+
+## M18 — Passenger-car side impacts — complete
+
+M18 adds the first production broadside vehicle-pair path while preserving M17 reciprocal impacts and the established longitudinal deformation architecture.
+
+- Passenger-car vs passenger-car scenarios may use arbitrary relative headings, including perpendicular T-bone layouts.
+- Godot `RigidBody3D` remains authoritative for whole-vehicle mass, inertia, translation, rotation, gravity, suspension and contact response.
+- Real contact samples on the protected-cell lateral faces drive a bounded generic side-deformation envelope.
+- The physical protected-cell collision face retreats laterally with commanded intrusion, so lateral deformation is not presentation-only.
+- Struck-side structural nodes move inward/downward through the existing deformable presentation graph and replay preserves independent left/right lateral crush state.
+- Production metrics expose lateral intrusion when side-impact state is present.
+- Passenger-car broadside support does not extend to heavy truck, rigid lorry, motorcycle or bicycle broadside cases; those remain rejected until corresponding lateral/contact models exist.
+- The final perpendicular C-segment/B-segment regression at 55 km/h records about 0.058 m bounded lateral intrusion on the struck passenger car, about 10 kJ generic side-contact demand, 0.305 m front deformation on the striking passenger car and real non-ground Godot contacts on both actors.
+- M18 also fixed a compatibility regression by restoring M17 rear structural-node deformation and tightening lateral-contact classification so a wide heavy truck behind a car is not misclassified as a side impact.
+- Exact M18 PR head `ef1b6e400badf7e1720b3ed5eb58cc193330f71b` passed M10–M18 dedicated validation, canonical Core CI and both native packaging gates before merge. The merged `main` commit `77fae8d6058724c54de1e9003020fccfddaa63b7` subsequently passed the M17 and M18 dedicated checks again together with Core CI and native packaging.
+
+M18 side stiffness and intrusion are generic phenomenological CrashVector parameters. They are not manufacturer body-in-white data, regulatory side-impact correlation, occupant modelling, injury prediction or a safety rating. M8 calibration does not validate the M12–M18 production stack.
+
+See `docs/M18_SIDE_IMPACTS.md`.
+
+## Beyond M18
+
+The next physics work should focus on richer contact manifolds and the remaining target-specific modelling gaps rather than reviving historical production solvers. Likely candidates include broadside/oblique models for heavy vehicles and motorcycles, articulated truck fifth-wheel dynamics, cyclist coupling, moving pedestrians and additional independent public/licensed crash references.
+
+Additional validation references should be added before narrowing or extending evidence claims. M17/M18 production regressions demonstrate numerical/architectural behaviour, not manufacturer or regulatory correlation.
