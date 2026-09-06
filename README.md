@@ -13,17 +13,17 @@
 </p>
 
 <p align="center">
-  <img alt="M16 UX and vehicle visuals" src="https://img.shields.io/badge/milestone-M16%20UX%20%2B%20vehicle%20visuals-ff4d1f?style=for-the-badge">
+  <img alt="M16.1 visual polish" src="https://img.shields.io/badge/milestone-M16.1%20visual%20polish-ff4d1f?style=for-the-badge">
   <a href="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml/badge.svg?branch=main"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.7.0-beta.1/CrashVector-0.7.0-beta.1-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.7.0-beta.1/CrashVector-0.7.0-beta.1-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.7.0-beta.2/CrashVector-0.7.0-beta.2-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.7.0-beta.2/CrashVector-0.7.0-beta.2-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.7.0-beta.1">Release notes & checksums</a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.7.0-beta.2">Release notes & checksums</a>
   ·
   <a href="docs/DISTRIBUTION.md">Installation & updates</a>
 </p>
@@ -37,9 +37,9 @@
 
 CrashVector is an open-source desktop crash-simulation sandbox for people who want to **see what speed, mass and impact configuration change** without turning the exercise into specialist engineering software.
 
-The current M12–M16 production architecture separates whole-object world motion, permanent structural deformation and presentation. Godot `RigidBody3D` owns supported vehicle/target world motion; CrashVector's passenger-car structural graph remains local deformation relative to the rigid chassis. M13 extends severe passenger-car failure beyond the nose, M14 adds rigid vulnerable-target trajectories and yielding pole/tree targets, M15 adds articulated pedestrian and bicycle dynamics, and M16 reorganises the desktop workflow and replaces the scaled passenger-car skin with class-specific generic visual profiles.
+The current M12–M16.1 production architecture separates whole-object world motion, permanent structural deformation and presentation. Godot `RigidBody3D` owns supported vehicle/target world motion; CrashVector's passenger-car structural graph remains local deformation relative to the rigid chassis. M13 extends severe passenger-car failure beyond the nose, M14 adds rigid vulnerable-target trajectories and yielding pole/tree targets, M15 adds articulated pedestrian and bicycle dynamics, M16 reorganises the desktop workflow and replaces the scaled passenger-car skin with class-specific generic visual profiles, and M16.1 corrects the packaged UI/camera presentation while strengthening the visual class distinctions.
 
-> **Current state:** **M16 is the current desktop beta, `0.7.0-beta.1`.** Supported production scenarios include passenger-car impacts with rigid wall, concrete barrier, yielding generic pole/tree targets, another passenger car, the heavy articulated truck, articulated pedestrian contact/trajectory targets and riderless bicycles. The desktop UI, replay, analysis, cinematic export, native installers, updater and scenario-file format remain integrated.
+> **Current state:** **M16.1 is the current desktop beta, `0.7.0-beta.2`.** Supported production scenarios include passenger-car impacts with rigid wall, concrete barrier, yielding generic pole/tree targets, another passenger car, the heavy articulated truck, articulated pedestrian contact/trajectory targets and riderless bicycles. The desktop UI, replay, analysis, cinematic export, native installers, updater and scenario-file format remain integrated.
 
 > **Important boundary:** rigid lorry and motorcycle production simulation remain temporarily blocked until those targets are ported to the same rigid-body world architecture. Visual Compare and Comparison Lab also remain unavailable because their historical synchronous runner still uses the reduced-order world solver. CrashVector does not silently substitute that old solver for a current production result.
 
@@ -51,10 +51,10 @@ No Git, Godot, Python, Terminal or PowerShell is required for the packaged deskt
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.7.0-beta.1/CrashVector-0.7.0-beta.1-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
-| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.7.0-beta.1/CrashVector-0.7.0-beta.1-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
+| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.7.0-beta.2/CrashVector-0.7.0-beta.2-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
+| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.7.0-beta.2/CrashVector-0.7.0-beta.2-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
 
-The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.7.0-beta.1 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.7.0-beta.1)**.
+The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.7.0-beta.2 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.7.0-beta.2)**.
 
 This beta is ad-hoc signed on macOS and unsigned on Windows when paid signing credentials are not configured, so Gatekeeper or SmartScreen may warn about an unknown developer/publisher. Use only the files attached to the official `ArrowSK/crashvector` release.
 
@@ -93,7 +93,7 @@ Defaults exist for normal scenarios, so mass and solver parameters are not manda
 
 | Area | What you get |
 | --- | --- |
-| Scenario editor | Task-focused M16 desktop workflow with contextual Properties and Advanced setup |
+| Scenario editor | Task-focused M16/M16.1 desktop workflow with contextual Properties and Advanced setup |
 | Passenger cars | Generic A / B / C / D / J / M classes with representative default masses and a refined 44-node local structural model |
 | Vehicle presentation | Class-specific generated city-car, hatchback, compact, midsize, SUV and MPV visual archetypes driven by the deforming structural model |
 | Whole-vehicle dynamics | Godot `RigidBody3D`, gravity, CCD and raycast suspension for the supported production path |
@@ -124,13 +124,13 @@ CrashVector uses **generic classes rather than production models**. There are no
 
 The default mass is only a starting point. You can override it directly in the scenario.
 
-M16 changes the **presentation** of these classes so they are no longer just scaled versions of one hatchback silhouette. The underlying physics remains the generic class-based CrashVector model.
+M16 introduced the class-specific **presentation** profiles, and M16.1 strengthens their silhouettes further so the D-segment, SUV and MPV no longer read like lightly rescaled versions of the B-segment hatchback. The underlying physics remains the generic class-based CrashVector model.
 
 ## M12 — rigid-body correction
 
 M12 moved supported whole-vehicle world motion away from the historical deformable point-mass graph and into Godot `RigidBody3D`. Passenger cars use real gravity, CCD and road suspension while the 44-node structural graph remains local deformation relative to the rigid chassis.
 
-The passenger-car rigid collision volume ends around the protected cell/subframe. A forward probe measures available crush travel and drives the phenomenological nose-resistance path. The established 50 km/h wall and 90 km/h passenger-car-versus-truck engine regressions remain active gates in M16.
+The passenger-car rigid collision volume ends around the protected cell/subframe. A forward probe measures available crush travel and drives the phenomenological nose-resistance path. The established 50 km/h wall and 90 km/h passenger-car-versus-truck engine regressions remain active gates in M16.1.
 
 See [M12 hybrid physics](docs/M12_HYBRID_PHYSICS.md).
 
@@ -178,6 +178,14 @@ M16's production regression also verifies that selecting a pedestrian through th
 
 See [M16 UX and vehicle visuals](docs/M16_UX_AND_VEHICLE_VISUALS.md).
 
+## M16.1 — packaged visual and UX correction
+
+M16.1 is a presentation-only correction based on review of the packaged `0.7.0-beta.1` application. It keeps the M12–M15 production physics path intact while fixing stale automatic scenario names, misleading selected-workspace styling, duplicate helper text, the oversized completed-run selection oval and excessively wide camera framing.
+
+The setup and aftermath cameras now frame the current vehicle/target bounds rather than enforcing the old 18 m minimum offset. D-segment, SUV and MPV archetypes receive stronger class-specific silhouettes while remaining generated from the same deforming structural anchors. A dedicated regression runs the D-segment midsize / concrete barrier / 200 km/h case through the real production controls and verifies completion, replay creation, final presentation synchronization and aftermath camera composition.
+
+See [0.7.0-beta.2 release notes](docs/releases/0.7.0-beta.2.md).
+
 ## Replay, analysis and cinematic export
 
 CrashVector records supported production simulation at **120 Hz**. Replay stores rigid-body state plus local structural/articulated presentation state, so scrubbing and video export do not re-run the crash.
@@ -204,7 +212,7 @@ The historical M8 reduced-order reference uses the NHTSA NCAP full-frontal rigid
 
 The application retains the labels **Reference-correlated**, **Near reference**, **Class-scaled** and **Extrapolated**.
 
-The M8 calibration runner remains a historical regression/correlation path. It does **not** validate the M12–M16 rigid-body, staged-collapse, articulated-road-user or class-specific presentation path, and current project regression numbers are not manufacturer or regulatory corridors.
+The M8 calibration runner remains a historical regression/correlation path. It does **not** validate the M12–M16.1 rigid-body, staged-collapse, articulated-road-user or class-specific presentation path, and current project regression numbers are not manufacturer or regulatory corridors.
 
 See [Calibration and validation scope](docs/CALIBRATION.md) and [Physics notes](docs/PHYSICS.md).
 
@@ -216,7 +224,7 @@ CrashVector intentionally rejects or blocks scenarios instead of making a visual
 - Rigid lorry and motorcycle production simulation is blocked pending rigid-body port.
 - Pedestrian and bicycle output is contact/trajectory visualisation only; no biomechanical or injury prediction is performed, and the bicycle target is riderless.
 - Visual Compare and Comparison Lab are blocked pending a scene-based rigid-body recorder.
-- Generic vehicle classes and M16 visual profiles are not production-car crash models.
+- Generic vehicle classes and M16/M16.1 visual profiles are not production-car crash models.
 - M13 staged collapse and M14 narrow-target yielding are phenomenological reduced-order models, not finite-element structural analysis or manufacturer body-in-white/target data.
 - M15 joint limits are numerical stability envelopes, not human biomechanical ranges.
 - Target geometry remains simplified.
@@ -257,9 +265,9 @@ Or open `project.godot` directly in Godot and run the project.
 
 ## Development status
 
-**M16 is the current release milestone.** Canonical Core CI retains the historical M0–M12 regression suite, while dedicated M10, M11, M12, M13, M14, M15 and M16 workflows independently guard responsive UI, crush dynamics, rigid-body production motion, progressive failure, vulnerable-target/yielding-target physics, articulated road users and the M16 production presentation path. Independent packaging gates build the macOS Universal 2 DMG and Windows x64 installer, including a real Windows Program Files install/uninstall lifecycle.
+**M16.1 is the current release milestone.** Canonical Core CI retains the historical M0–M12 regression suite, while dedicated M10, M11, M12, M13, M14, M15, M16 and M16.1 workflows independently guard responsive UI, crush dynamics, rigid-body production motion, progressive failure, vulnerable-target/yielding-target physics, articulated road users, the M16 production presentation path and the M16.1 packaged presentation correction. Independent packaging gates build the macOS Universal 2 DMG and Windows x64 installer, including a real Windows Program Files install/uninstall lifecycle.
 
-`v0.7.0-beta.1` packages M15 and M16 together. Release automation verifies both package checksum sidecars, generates `update-manifest.json`, and refuses to replace an already-published release under the same version.
+`v0.7.0-beta.2` is the corrective M16.1 beta. Release automation verifies both package checksum sidecars, generates `update-manifest.json`, and refuses to replace an already-published release under the same version.
 
 The next physics work is to port rigid lorry, motorcycle and the comparison recorder to the rigid-body world architecture, then add additional independent public/licensed references before extending validation claims.
 
