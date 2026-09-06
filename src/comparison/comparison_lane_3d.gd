@@ -77,7 +77,7 @@ func _apply_car_frame(vehicle: CompactHatchback, state: Variant, visual_state: V
 		return
 	StructuralSnapshot.apply(vehicle.model, state)
 	vehicle.model.translate_all_nodes(lane_offset_m)
-	var replay_visual := visual_state.duplicate(true) if visual_state is Dictionary else {}
+	var replay_visual: Dictionary = visual_state.duplicate(true) if visual_state is Dictionary else {}
 	if replay_visual.has("rigid_transform") and replay_visual["rigid_transform"] is Transform3D:
 		var transform: Transform3D = replay_visual["rigid_transform"]
 		transform.origin += lane_offset_m
