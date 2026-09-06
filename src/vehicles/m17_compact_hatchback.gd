@@ -142,7 +142,38 @@ func _m18_side_energy_limited_crush_m(collision_energy_j: float, resistance_scal
 
 func _enforce_hybrid_crush_shape(delta: float) -> void:
 	super._enforce_hybrid_crush_shape(delta)
+	_m17_enforce_rear_crush(delta)
 	_m18_enforce_side_crush(delta)
+
+func _m17_enforce_rear_crush(delta: float) -> void:
+	if hybrid_rear_impact_crush_m <= 0.0001 or rigid_chassis == null:
+		return
+	if hybrid_reference_local_positions.size() != model.nodes.size():
+		return
+	var alpha := clampf(1.0 - exp(-24.0 * maxf(delta, 0.0)), 0.0, 1.0)
+	var station_weights := {
+		CompactHatchbackBuilder.REAR_STATION: 1.00,
+		CompactHatchbackBuilder.REAR_AXLE_STATION: 0.46,
+		2: 0.14,
+	}
+	for station_variant in station_weights.keys():
+		var station := int(station_variant)
+		var weight := float(station_weights[station_variant])
+		for corner in range(4):
+			var index := CompactHatchbackBuilder.node_index(station, corner)
+			if index < 0 or index >= model.nodes.size():
+				continue
+			var target_local := hybrid_reference_local_positions[index]
+			target_local.x += hybrid_rear_impact_crush_m * weight
+			if corner >= 2:
+				target_local.y -= hybrid_rear_impact_crush_m * weight * 0.16
+				target_local.z *= 1.0 - 0.055 * weight
+			else:
+				target_local.y += hybrid_rear_impact_crush_m * weight * 0.018
+			var target_world := rigid_chassis.to_global(target_local)
+			model.nodes[index].position_m = model.nodes[index].position_m.lerp(target_world, alpha)
+			model.nodes[index].velocity_ms = Vector3.ZERO
+	_m17_update_rear_collision_shape()
 
 func _m18_enforce_side_crush(delta: float) -> void:
 	var maximum_side_crush := side_impact_deformation_m()
