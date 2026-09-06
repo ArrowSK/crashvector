@@ -58,33 +58,41 @@ func _consume_real_contact_impulses() -> void:
 			other_mass = maxf(other.mass, 1.0)
 		var reduced_mass := rigid_chassis.mass * other_mass / maxf(rigid_chassis.mass + other_mass, 1.0)
 		var impulse_energy := impulse.length_squared() / maxf(2.0 * reduced_mass, 1.0)
+		var collider_local_center := local_position
+		var has_collider_center := false
+		if collider is Node3D:
+			collider_local_center = rigid_chassis.to_local((collider as Node3D).global_position)
+			has_collider_center = true
 
-		# M18 broadside classifier. PhysicsDirectBodyState gives the contact point
-		# in the chassis-local frame, which is the stable signal needed to
-		# distinguish a door/rocker contact from the existing front/rear paths.
-		# Restrict the side region to the protected-cell longitudinal span so a
-		# glancing bumper corner does not command full cabin side intrusion.
+		# M18 broadside classifier. The contact point must lie on a protected-cell
+		# side face, and when the other actor exposes a centre transform its centre
+		# must also approach predominantly from the lateral direction. The second
+		# condition is important for preserving M17 rear impacts: a wide truck can
+		# touch a side edge of the rear collision box even though its centre is
+		# directly behind the car.
 		var half_width := maxf(safety_cell_base_size_m.z * 0.5, 0.45)
 		var half_length := maxf(safety_cell_base_size_m.x * 0.5, 0.70)
 		var side_region := absf(local_position.z) >= half_width * 0.58
 		side_region = side_region and absf(local_position.x - safety_cell_base_position_m.x) <= half_length * 0.92
+		if side_region and has_collider_center:
+			var centre_longitudinal := collider_local_center.x - safety_cell_base_position_m.x
+			side_region = absf(collider_local_center.z) >= half_width * 0.35
+			side_region = side_region and absf(collider_local_center.z) > absf(centre_longitudinal) * 0.60
 		if side_region:
 			var lateral_speed := absf((other_velocity - rigid_chassis.linear_velocity).dot(lateral))
-			var velocity_energy := 0.5 * reduced_mass * lateral_speed * lateral_speed
-			var side_energy := maxf(velocity_energy, impulse_energy)
+			var lateral_velocity_energy := 0.5 * reduced_mass * lateral_speed * lateral_speed
+			var side_energy := maxf(lateral_velocity_energy, impulse_energy)
 			if local_position.z < 0.0:
 				hybrid_side_negative_z_energy_j = maxf(hybrid_side_negative_z_energy_j, side_energy)
 			else:
 				hybrid_side_positive_z_energy_j = maxf(hybrid_side_positive_z_energy_j, side_energy)
 			continue
 
-		var contact_side_x := local_position.x
 		# PhysicsDirectBodyState contact points are useful for shape-local detail,
 		# but actor-to-actor centre position is a more stable front/rear classifier
 		# after a high-speed solver step. This also works when the other vehicle's
 		# collision volume is already partly overlapping the protected cell.
-		if collider is Node3D:
-			contact_side_x = rigid_chassis.to_local((collider as Node3D).global_position).x
+		var contact_side_x := collider_local_center.x if has_collider_center else local_position.x
 		# The protected-cell rigid volume spans the middle of the car. A collider
 		# whose centre is materially behind the car is a direct rear-impact source;
 		# forward impacts remain governed by the established M12/M13 probe path.
