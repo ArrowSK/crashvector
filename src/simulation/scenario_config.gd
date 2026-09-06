@@ -166,9 +166,10 @@ func validation_errors() -> Array[String]:
 			errors.append("Target passenger-car mass must be between 500 and 5,000 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 300.0:
 			errors.append("Target passenger-car speed must be between 0 and 300 km/h")
-		var car_delta := heading_delta_deg()
-		if car_delta > 25.0 and car_delta < 155.0:
-			errors.append("Passenger-car contact supports near-collinear rear-end or head-on layouts; broadside deformation is not modelled yet")
+		# M18: passenger-car pairs use Godot rigid-body contact for arbitrary
+		# heading deltas. Bounded local lateral crush handles broadside contact;
+		# this is still a generic educational deformation envelope, not a
+		# manufacturer-specific side-impact crash model.
 	elif target_type == TARGET_TRUCK:
 		if target_mass_kg < 3500.0 or target_mass_kg > 60000.0:
 			errors.append("Heavy-truck mass must be between 3,500 and 60,000 kg")
