@@ -82,10 +82,80 @@ func _m162_restore_scenario_definition() -> void:
 	if m10_title_edit != null:
 		m10_title_edit.tooltip_text = scenario.title
 
+func _m161_primary_center() -> Vector3:
+	# Replay snapshots drive the visible result. Use their structural center here
+	# instead of the live rigid chassis, which remains at the simulation's final
+	# 4 s transform after a replay frame has been applied.
+	if car != null and is_instance_valid(car) and car.model != null:
+		return car.model.center_of_mass_m()
+	return super._m161_primary_center()
+
+func _m161_target_center() -> Vector3:
+	if target_car != null and is_instance_valid(target_car) and target_car.model != null:
+		return target_car.model.center_of_mass_m()
+	if truck != null and is_instance_valid(truck) and truck.model != null:
+		# HeavyTruckBuilder's origin is the trailer rear rather than the assembly
+		# centre. The model COM therefore fixes both preview and replay framing.
+		return truck.model.center_of_mass_m()
+	if road_user_proxy != null and is_instance_valid(road_user_proxy):
+		return road_user_proxy.center_of_mass_position()
+	return super._m161_target_center()
+
 func _m161_frame_aftermath() -> void:
 	if not _m161_has_replay():
 		return
+	# The end of a four-second simulation is often several car lengths after the
+	# collision. Present the first near-maximum-damage replay frame instead. The
+	# full 0..duration replay remains available on the timeline.
+	var result_time := _m162_result_time_s()
+	if result_time >= 0.0:
+		_apply_replay_time(result_time, true)
 	_m162_apply_aftermath_camera()
+	if m10_status_label != null:
+		m10_status_label.text = "Complete • impact result"
+
+func _m162_result_time_s() -> float:
+	if replay_recorder == null or replay_recorder.recording == null or not replay_recorder.recording.has_frames():
+		return -1.0
+	var recording := replay_recorder.recording
+	var first_contact := recording.marker_time(&"first_contact")
+	var peak_loading := recording.marker_time(&"peak_loading")
+	var separation := recording.marker_time(&"separation")
+
+	var max_front_crush := 0.0
+	for frame in recording.frames:
+		var primary: Variant = frame.get("primary_metrics", {})
+		if primary is Dictionary:
+			max_front_crush = maxf(max_front_crush, float(primary.get("front_crush_m", 0.0)))
+
+	var damage_time := -1.0
+	if max_front_crush >= 0.015:
+		var threshold := max_front_crush * 0.92
+		for frame in recording.frames:
+			var time_s := float(frame.get("time_s", 0.0))
+			if first_contact >= 0.0 and time_s + 0.0001 < first_contact:
+				continue
+			var primary: Variant = frame.get("primary_metrics", {})
+			if primary is Dictionary and float(primary.get("front_crush_m", 0.0)) >= threshold:
+				damage_time = time_s
+				break
+
+	var result_time := damage_time
+	if result_time < 0.0 and peak_loading >= 0.0:
+		result_time = peak_loading + 0.10
+	if result_time < 0.0 and first_contact >= 0.0:
+		result_time = first_contact + 0.16
+	if result_time < 0.0:
+		result_time = minf(recording.duration_s, 0.60)
+
+	if damage_time >= 0.0:
+		result_time += 0.035
+	if separation >= 0.0:
+		result_time = minf(result_time, separation)
+	if first_contact >= 0.0:
+		# Never let the default result shot drift into the long post-impact coast.
+		result_time = minf(result_time, first_contact + 0.85)
+	return clampf(result_time, 0.0, recording.duration_s)
 
 func _m162_apply_aftermath_camera() -> void:
 	if camera == null or scenario == null:
@@ -101,18 +171,18 @@ func _m162_apply_aftermath_camera() -> void:
 	var target_center := _m161_target_center()
 
 	# Major bodies influence the shot, but they cannot drag the camera arbitrarily
-	# far from the collision site during a long 4 s coast/rebound. Detached bumper
-	# pieces and other small debris are deliberately not camera subjects at all.
-	var car_subject := anchor + _m162_limit_vector(car_center - anchor, 6.5)
-	var target_limit := 8.5 if scenario.target_type in [ScenarioConfig.TARGET_PEDESTRIAN, ScenarioConfig.TARGET_BICYCLE] else 5.5
+	# far from the collision site. Detached bumper pieces and other small debris
+	# are deliberately not camera subjects at all.
+	var car_subject := anchor + _m162_limit_vector(car_center - anchor, 5.8)
+	var target_limit := 5.0 if scenario.target_type in [ScenarioConfig.TARGET_PEDESTRIAN, ScenarioConfig.TARGET_BICYCLE] else 4.0
 	if scenario.target_type == ScenarioConfig.TARGET_TRUCK:
-		target_limit = 3.2
+		target_limit = 3.0
 	elif scenario.target_type in [ScenarioConfig.TARGET_WALL, ScenarioConfig.TARGET_BARRIER, ScenarioConfig.TARGET_POLE, ScenarioConfig.TARGET_TREE]:
-		target_limit = 1.2
+		target_limit = 1.0
 	var target_subject := anchor + _m162_limit_vector(target_center - anchor, target_limit)
 
-	var target_weight := 0.34 if scenario.target_type in [ScenarioConfig.TARGET_PEDESTRIAN, ScenarioConfig.TARGET_BICYCLE] else 0.20
-	var car_weight := 0.34
+	var target_weight := 0.32 if scenario.target_type in [ScenarioConfig.TARGET_PEDESTRIAN, ScenarioConfig.TARGET_BICYCLE] else 0.22
+	var car_weight := 0.40
 	var anchor_weight := 1.0 - target_weight - car_weight
 	var focus_point := anchor * anchor_weight + car_subject * car_weight + target_subject * target_weight
 	focus_point.y = 1.02 if scenario.target_type == ScenarioConfig.TARGET_TRUCK else 0.88
@@ -121,11 +191,11 @@ func _m162_apply_aftermath_camera() -> void:
 	var car_projection := (car_subject - anchor).dot(forward)
 	var target_projection := (target_subject - anchor).dot(forward)
 	var target_extent := _m162_aftermath_target_extent()
-	var min_projection := minf(-2.1, minf(car_projection - primary_half * 0.72, target_projection - target_extent))
-	var max_projection := maxf(2.1, maxf(car_projection + primary_half * 0.72, target_projection + target_extent))
-	var span := clampf(max_projection - min_projection, 4.6, 10.5)
+	var min_projection := minf(-2.0, minf(car_projection - primary_half * 0.78, target_projection - target_extent))
+	var max_projection := maxf(2.0, maxf(car_projection + primary_half * 0.78, target_projection + target_extent))
+	var span := clampf(max_projection - min_projection, 4.5, 9.4)
 	if scenario.target_type == ScenarioConfig.TARGET_TRUCK:
-		span = minf(span, 8.6)
+		span = minf(span, 8.2)
 
 	camera.fov = 50.0
 	var aspect := 1.55
@@ -133,10 +203,10 @@ func _m162_apply_aftermath_camera() -> void:
 		aspect = maxf(m10_viewport_frame.size.x / m10_viewport_frame.size.y, 1.0)
 	var vertical_fov := deg_to_rad(camera.fov)
 	var horizontal_fov := 2.0 * atan(tan(vertical_fov * 0.5) * aspect)
-	var distance := (span * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.76, 0.10)
-	distance = clampf(distance, 5.0, 13.5)
+	var distance := (span * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.70, 0.10)
+	distance = clampf(distance, 5.4, 12.5)
 
-	camera.global_position = focus_point - forward * distance * 0.10 + Vector3.UP * clampf(distance * 0.22, 2.05, 3.6) + lateral * distance
+	camera.global_position = focus_point - forward * distance * 0.08 + Vector3.UP * clampf(distance * 0.21, 2.10, 3.5) + lateral * distance
 	camera.look_at(focus_point, Vector3.UP)
 
 func _m162_impact_anchor() -> Vector3:
@@ -158,10 +228,9 @@ func _m162_impact_anchor() -> Vector3:
 func _m162_aftermath_target_extent() -> float:
 	match scenario.target_type:
 		ScenarioConfig.TARGET_TRUCK:
-			# The contact is at the trailer rear. Showing the whole 9.5 m assembly in
-			# the aftermath recreates the beta.2 dead-space problem; the impact end
-			# and adjacent trailer structure are the relevant crash subjects.
-			return 2.2
+			# The contact is at the trailer rear. The nearby trailer structure is the
+			# relevant result subject; the distant cab remains available in preview.
+			return 2.1
 		ScenarioConfig.TARGET_PASSENGER_CAR:
 			return float(PassengerCarCatalog.data(scenario.target_car_preset_id).get("representative_length_m", 4.1)) * 0.42
 		ScenarioConfig.TARGET_PEDESTRIAN:
