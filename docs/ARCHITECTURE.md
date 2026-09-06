@@ -181,7 +181,7 @@ Network or verification failure therefore cannot modify the installed applicatio
 
 ### Desktop distribution layer
 
-M9 packaging is generated from repository sources rather than manually maintained native projects, and later milestones reuse the same distribution architecture. The latest published prerelease remains `0.7.0-beta.2`; M17/M18 did not change the application version.
+M9 packaging is generated from repository sources rather than manually maintained native projects, and later milestones reuse the same distribution architecture. The current canonical prerelease is `0.8.0-beta.1`, which packages the completed M17/M18 source line.
 
 - `project.godot` contains the one canonical CrashVector Semantic Version.
 - `tools/prepare_packaging.py` derives Godot export presets and native numeric version resources from that version.
@@ -190,7 +190,7 @@ M9 packaging is generated from repository sources rather than manually maintaine
 - Windows CI produces the x64 application, applies/validates product metadata and icon resources, builds an Inno Setup installer and performs a real install/uninstall validation; Authenticode hooks are present when signing credentials exist.
 - `tools/build_update_manifest.py` creates the release manifest from the two already-validated packages.
 
-Core CI, dedicated milestone validation and native packaging continue to guard the source line. M17 and M18 both passed their dedicated production gates and native packaging checks before merge; the merged M18 `main` state passed M17/M18 and packaging again. No new public installer version was assigned by these milestones.
+Core CI, dedicated milestone validation and native packaging guard the source and release line. M17 and M18 passed their dedicated production gates and native packaging checks before merge; `0.8.0-beta.1` was then built through the canonical macOS/Windows packaging pipeline and published with checksum sidecars and `update-manifest.json`.
 
 ### Architecture hardening
 
@@ -200,7 +200,7 @@ Production code must use normal inheritance, composition, services and signals. 
 
 Identical scenario inputs, engine version and solver configuration are expected to produce identical state within regression tolerance. CI covers structural determinism, historical paired-contact momentum conservation, scenario serialisation invariants, replay independence, M8 reference correlation, M9 version/update logic, M10 responsive presentation invariants, M11/M12/M13 passenger-car crush and rigid-body stability, M14 vulnerable-target/yielding-target production behaviour, M15 articulated road-user stability, M16 production UI/presentation integration, M17 reciprocal-impact/production-comparison integration and M18 passenger-car broadside physics.
 
-The packaging pipeline additionally proves that the canonical source can build into a macOS Universal 2 DMG and Windows x64 installer. M17/M18 do not turn those successful package checks into a new public release version by themselves.
+The packaging pipeline additionally proves that the canonical source builds into a macOS Universal 2 DMG and Windows x64 installer before publication. The current `0.8.0-beta.1` release packages the M17/M18 source line without expanding its evidence claims.
 
 ## Units
 
