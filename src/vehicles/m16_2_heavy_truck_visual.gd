@@ -139,18 +139,30 @@ func _build_cab_mesh() -> void:
 	cab_mesh.surface_end()
 
 func _update_pose() -> void:
-	# The structural model is synchronized to the rigid chassis during live
-	# simulation and is also the object restored by replay snapshots. Deriving the
-	# presentation transform from that model therefore keeps the truck body and
-	# its existing wheel groups together both live and while scrubbing replay.
+	# The M16.2 skin is authored in the same local coordinate frame as the truck
+	# structural stations and rigid collision shapes. VehicleKinematics uses the
+	# structural centre of mass as its transform origin, which is useful for
+	# analysis but wrong for this skin: applying that COM as the visual root adds
+	# a second longitudinal/vertical offset and makes the cab/trailer float above
+	# the chassis. Reconstruct the structural local origin from the undeformed rear
+	# station instead. This works both for live rigid-chassis synchronization and
+	# replay-restored structural snapshots.
 	if truck.model != null:
-		global_transform = VehicleKinematics.reference_transform(
+		var reference := VehicleKinematics.reference_transform(
 			truck.model,
 			HeavyTruckBuilder.rear_reference_nodes(),
 			HeavyTruckBuilder.front_reference_nodes(),
 			HeavyTruckBuilder.left_reference_nodes(),
 			HeavyTruckBuilder.right_reference_nodes()
 		)
+		var basis := reference.basis.orthonormalized()
+		var rear_world := truck.model.average_position_for_nodes(HeavyTruckBuilder.station_nodes(HeavyTruckBuilder.REAR_STATION))
+		var rear_local := Vector3(
+			HeavyTruckBuilder.STATION_X[HeavyTruckBuilder.REAR_STATION],
+			(HeavyTruckBuilder.LOWER_Y[HeavyTruckBuilder.REAR_STATION] + HeavyTruckBuilder.UPPER_Y[HeavyTruckBuilder.REAR_STATION]) * 0.5,
+			0.0
+		)
+		global_transform = Transform3D(basis, rear_world - basis * rear_local)
 	elif truck.rigid_chassis != null and is_instance_valid(truck.rigid_chassis):
 		global_transform = truck.rigid_chassis.global_transform
 	else:
