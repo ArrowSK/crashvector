@@ -139,7 +139,19 @@ func _build_cab_mesh() -> void:
 	cab_mesh.surface_end()
 
 func _update_pose() -> void:
-	if truck.rigid_chassis != null and is_instance_valid(truck.rigid_chassis):
+	# The structural model is synchronized to the rigid chassis during live
+	# simulation and is also the object restored by replay snapshots. Deriving the
+	# presentation transform from that model therefore keeps the truck body and
+	# its existing wheel groups together both live and while scrubbing replay.
+	if truck.model != null:
+		global_transform = VehicleKinematics.reference_transform(
+			truck.model,
+			HeavyTruckBuilder.rear_reference_nodes(),
+			HeavyTruckBuilder.front_reference_nodes(),
+			HeavyTruckBuilder.left_reference_nodes(),
+			HeavyTruckBuilder.right_reference_nodes()
+		)
+	elif truck.rigid_chassis != null and is_instance_valid(truck.rigid_chassis):
 		global_transform = truck.rigid_chassis.global_transform
 	else:
 		global_transform = Transform3D(Basis(Vector3.UP, deg_to_rad(truck.heading_deg)), truck.origin_offset_m)
