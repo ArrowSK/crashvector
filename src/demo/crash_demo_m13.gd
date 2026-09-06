@@ -20,3 +20,15 @@ func _update_metrics() -> void:
 	metrics_label.text += "\nM13 structure: demand %.0f kJ • firewall %.0f mm • cabin %.0f mm • rear %.0f mm • total collapse %.0f mm" % [
 		demand_kj, firewall_mm, cabin_mm, rear_mm, total_mm,
 	]
+
+	# M18 extends the existing M17 passenger-car compatibility class with
+	# bounded lateral crush. Keep this presentation hook capability-based so the
+	# older M13–M17 paths remain unchanged when side-impact state is absent.
+	if car.has_method("side_impact_deformation_m"):
+		var primary_side_mm := float(car.call("side_impact_deformation_m")) * 1000.0
+		if primary_side_mm > 0.5:
+			metrics_label.text += "\nM18 side impact: primary lateral intrusion %.0f mm" % primary_side_mm
+	if target_car != null and target_car.has_method("side_impact_deformation_m"):
+		var target_side_mm := float(target_car.call("side_impact_deformation_m")) * 1000.0
+		if target_side_mm > 0.5:
+			metrics_label.text += " • target lateral intrusion %.0f mm" % target_side_mm
