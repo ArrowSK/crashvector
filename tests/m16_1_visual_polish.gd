@@ -18,7 +18,7 @@ func _run() -> void:
 		await process_frame
 
 	var production_script: String = String(instance.get_script().resource_path)
-	if not (production_script.ends_with("crash_demo_m16_1.gd") or production_script.ends_with("crash_demo_m16_2.gd")):
+	if not (production_script.ends_with("crash_demo_m16_1.gd") or production_script.ends_with("crash_demo_m16_2.gd") or production_script.ends_with("crash_demo_m17.gd")):
 		_fail("Production scene is not routed through the M16.1 presentation lineage")
 		return
 
