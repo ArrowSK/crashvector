@@ -17,8 +17,9 @@ func _run() -> void:
 	for _frame in range(8):
 		await process_frame
 
-	if not instance.get_script().resource_path.ends_with("crash_demo_m16_1.gd"):
-		_fail("Production scene is not routed through the M16.1 presentation layer")
+	var production_script := instance.get_script().resource_path
+	if not (production_script.ends_with("crash_demo_m16_1.gd") or production_script.ends_with("crash_demo_m16_2.gd")):
+		_fail("Production scene is not routed through the M16.1 presentation lineage")
 		return
 
 	root.size = Vector2i(1280, 720)
