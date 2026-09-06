@@ -41,3 +41,5 @@ jobs:
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_2_presentation_corrections.gd
       - name: M16.2 packaged screenshot acceptance cases
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_2_packaged_cases.gd
+      - name: M16.2 light-target crush-energy guard
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_2_light_target_crush.gd
