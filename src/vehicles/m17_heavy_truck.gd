@@ -90,8 +90,14 @@ func _m17_consume_contacts() -> void:
 		var collider_name: StringName = sample.get("collider_name", StringName(""))
 		if collider_name == &"Road" or collider_name == &"Ground" or collider_name == &"ProvingGround":
 			continue
-		var local_position: Vector3 = sample.get("position_local", sample.get("position_world", Vector3.ZERO))
 		var collider: Object = sample.get("collider", null)
+		var contact_side_x := float((sample.get("position_local", Vector3.ZERO) as Vector3).x)
+		# The truck origin is at the trailer rear. For near-collinear vehicle
+		# impacts, the other actor's centre relative to the truck gives a stable
+		# front/rear classification even after the contact solver has corrected
+		# penetration and contact-point coordinates have shifted between shapes.
+		if collider is Node3D:
+			contact_side_x = rigid_chassis.to_local((collider as Node3D).global_position).x
 		var other_velocity := Vector3.ZERO
 		var other_mass := rigid_chassis.mass
 		if collider is RigidBody3D:
@@ -100,10 +106,17 @@ func _m17_consume_contacts() -> void:
 			other_mass = maxf(other.mass, 1.0)
 		var longitudinal_relative := absf((rigid_chassis.linear_velocity - other_velocity).dot(forward))
 		var reduced_mass := rigid_chassis.mass * other_mass / maxf(rigid_chassis.mass + other_mass, 1.0)
-		var energy := 0.5 * reduced_mass * longitudinal_relative * longitudinal_relative
-		if local_position.x <= 1.15:
+		var velocity_energy := 0.5 * reduced_mass * longitudinal_relative * longitudinal_relative
+		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
+		# Contact callbacks expose post-solve velocities. Preserve the collision
+		# demand represented by Godot's actual normal impulse so a striker does not
+		# appear perfectly rigid merely because both actors have already converged
+		# to similar velocities by the time this presentation/deformation layer runs.
+		var impulse_energy := impulse.length_squared() / maxf(2.0 * reduced_mass, 1.0)
+		var energy := maxf(velocity_energy, impulse_energy)
+		if contact_side_x < 4.2:
 			hybrid_rear_collision_energy_j = maxf(hybrid_rear_collision_energy_j, energy)
-		elif local_position.x >= 7.00:
+		else:
 			hybrid_front_collision_energy_j = maxf(hybrid_front_collision_energy_j, energy)
 
 	hybrid_rear_crush_m = maxf(hybrid_rear_crush_m, minf(_m17_energy_to_crush(hybrid_rear_collision_energy_j, 190000.0, 520000.0), 0.90))
