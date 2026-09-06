@@ -84,9 +84,12 @@ func _test_preflight_rules(failures: Array[String]) -> void:
 	var scenario := ScenarioConfig.new()
 	scenario.target_type = ScenarioConfig.TARGET_PASSENGER_CAR
 	scenario.target_mass_kg = PassengerCarCatalog.default_mass_kg(scenario.target_car_preset_id)
+	# M18 deliberately extends passenger-car production contact to broadside
+	# layouts. Keep this historical preflight test aligned with the current
+	# ScenarioConfig contract instead of preserving an obsolete rejection.
 	scenario.target_heading_deg = 90.0
-	if scenario.validation_errors().is_empty():
-		failures.append("M4 preflight did not reject unsupported broadside car-vs-car contact")
+	if not scenario.validation_errors().is_empty():
+		failures.append("M4/M18 preflight rejected supported broadside car-vs-car contact")
 	scenario.target_heading_deg = 180.0
 	if not scenario.validation_errors().is_empty():
 		failures.append("M4 preflight rejected supported head-on car-vs-car layout")
