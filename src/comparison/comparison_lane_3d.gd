@@ -8,12 +8,15 @@ extends Node3D
 var result: Dictionary = {}
 var lane_offset_m := Vector3.ZERO
 var primary: CompactHatchback
+var primary_visual: M162VehicleVisual
 var target_car: CompactHatchback
+var target_car_visual: M162VehicleVisual
 var truck: HeavyTruck
+var truck_visual: M17HeavyTruckVisual
 var lorry: RigidLorry
 var motorcycle: Motorcycle
-var bicycle: Bicycle
-var pedestrian: Pedestrian
+var road_user_proxy: RoadUserArticulatedProxy3D
+var road_user_skin: RoadUserPresentationSkin3D
 var obstacle: StaticObstacle3D
 var lane_label: Label3D
 var live_label: Label3D
@@ -34,10 +37,11 @@ func apply_time(time_s: float) -> void:
 	var frame := recording.frame_at_time(time_s)
 	if frame.is_empty():
 		return
-	_apply_car_frame(primary, frame.get("primary_state", {}))
+	_apply_car_frame(primary, frame.get("primary_state", {}), frame.get("primary_visual_state", {}))
 	var target_state: Variant = frame.get("target_state", {})
+	var target_visual_state: Variant = frame.get("target_visual_state", {})
 	if target_car != null:
-		_apply_car_frame(target_car, target_state)
+		_apply_car_frame(target_car, target_state, target_visual_state)
 	elif truck != null:
 		_apply_structural_frame(truck.model, target_state)
 		truck.step_external(0.0)
@@ -47,12 +51,8 @@ func apply_time(time_s: float) -> void:
 	elif motorcycle != null:
 		_apply_structural_frame(motorcycle.model, target_state)
 		motorcycle.step_external(0.0)
-	elif bicycle != null:
-		_apply_structural_frame(bicycle.model, target_state)
-		bicycle.step_external(0.0)
-	elif pedestrian != null:
-		_apply_structural_frame(pedestrian.model, target_state)
-		pedestrian.step_external(0.0)
+	elif road_user_proxy != null and target_visual_state is Dictionary:
+		road_user_proxy.apply_replay_visual_state(_offset_road_user_visual_state(target_visual_state))
 	_update_live_label(frame)
 
 func set_primary_paint_id(value: StringName) -> void:
@@ -71,17 +71,20 @@ func set_structure_debug(enabled: bool) -> void:
 		lorry.set_structure_debug(enabled)
 	if motorcycle != null:
 		motorcycle.set_structure_debug(enabled)
-	if bicycle != null:
-		bicycle.set_structure_debug(enabled)
-	if pedestrian != null:
-		pedestrian.set_structure_debug(enabled)
 
-func _apply_car_frame(vehicle: CompactHatchback, state: Variant) -> void:
+func _apply_car_frame(vehicle: CompactHatchback, state: Variant, visual_state: Variant) -> void:
 	if vehicle == null or vehicle.model == null or not (state is Dictionary):
 		return
 	StructuralSnapshot.apply(vehicle.model, state)
 	vehicle.model.translate_all_nodes(lane_offset_m)
-	vehicle.apply_replay_visual_state({})
+	var replay_visual := visual_state.duplicate(true) if visual_state is Dictionary else {}
+	if replay_visual.has("rigid_transform") and replay_visual["rigid_transform"] is Transform3D:
+		var transform: Transform3D = replay_visual["rigid_transform"]
+		transform.origin += lane_offset_m
+		replay_visual["rigid_transform"] = transform
+	if replay_visual.has("front_bumper_position_m") and replay_visual["front_bumper_position_m"] is Vector3:
+		replay_visual["front_bumper_position_m"] = (replay_visual["front_bumper_position_m"] as Vector3) + lane_offset_m
+	vehicle.apply_replay_visual_state(replay_visual)
 
 func _apply_structural_frame(model: StructuralModel, state: Variant) -> void:
 	if model == null or not (state is Dictionary):
@@ -89,12 +92,27 @@ func _apply_structural_frame(model: StructuralModel, state: Variant) -> void:
 	StructuralSnapshot.apply(model, state)
 	model.translate_all_nodes(lane_offset_m)
 
+func _offset_road_user_visual_state(state: Dictionary) -> Dictionary:
+	var shifted := state.duplicate(true)
+	if shifted.has("rigid_transform") and shifted["rigid_transform"] is Transform3D:
+		var root_transform: Transform3D = shifted["rigid_transform"]
+		root_transform.origin += lane_offset_m
+		shifted["rigid_transform"] = root_transform
+	var parts: Variant = shifted.get("part_states", [])
+	if parts is Array:
+		for raw_part in parts:
+			if raw_part is Dictionary and raw_part.has("rigid_transform") and raw_part["rigid_transform"] is Transform3D:
+				var part_transform: Transform3D = raw_part["rigid_transform"]
+				part_transform.origin += lane_offset_m
+				raw_part["rigid_transform"] = part_transform
+	return shifted
+
 func _build_lane() -> void:
 	var config := result.get("scenario") as ScenarioConfig
 	if config == null:
 		return
 	_build_road(config)
-	primary = CompactHatchback.new()
+	primary = M17CompactHatchback.new()
 	primary.name = "ComparisonPrimary"
 	primary.vehicle_preset_id = config.car_preset_id
 	primary.paint_id = primary_paint_id
@@ -105,10 +123,14 @@ func _build_lane() -> void:
 	primary.auto_step = false
 	primary.show_structure = false
 	add_child(primary)
+	primary_visual = M162VehicleVisual.new()
+	primary_visual.name = "ComparisonPrimaryVisual"
+	primary.add_child(primary_visual)
+	primary_visual.configure(primary)
 
 	match config.target_type:
 		ScenarioConfig.TARGET_PASSENGER_CAR:
-			target_car = CompactHatchback.new()
+			target_car = M17CompactHatchback.new()
 			target_car.name = "ComparisonTargetCar"
 			target_car.vehicle_preset_id = config.target_car_preset_id
 			target_car.paint_id = CarPaintCatalog.SILVER
@@ -119,8 +141,12 @@ func _build_lane() -> void:
 			target_car.auto_step = false
 			target_car.show_structure = false
 			add_child(target_car)
+			target_car_visual = M162VehicleVisual.new()
+			target_car_visual.name = "ComparisonTargetVisual"
+			target_car.add_child(target_car_visual)
+			target_car_visual.configure(target_car)
 		ScenarioConfig.TARGET_TRUCK:
-			truck = HeavyTruck.new()
+			truck = M17HeavyTruck.new()
 			truck.name = "ComparisonTruck"
 			truck.total_mass_kg = config.target_mass_kg
 			truck.initial_speed_kmh = config.target_speed_kmh
@@ -129,8 +155,11 @@ func _build_lane() -> void:
 			truck.auto_step = false
 			truck.show_structure = false
 			add_child(truck)
+			truck_visual = M17HeavyTruckVisual.new()
+			truck.add_child(truck_visual)
+			truck_visual.configure(truck)
 		ScenarioConfig.TARGET_LORRY:
-			lorry = RigidLorry.new()
+			lorry = M17RigidLorry.new()
 			lorry.name = "ComparisonLorry"
 			lorry.total_mass_kg = config.target_mass_kg
 			lorry.initial_speed_kmh = config.target_speed_kmh
@@ -140,7 +169,7 @@ func _build_lane() -> void:
 			lorry.show_structure = false
 			add_child(lorry)
 		ScenarioConfig.TARGET_MOTORCYCLE:
-			motorcycle = Motorcycle.new()
+			motorcycle = M17Motorcycle.new()
 			motorcycle.name = "ComparisonMotorcycle"
 			motorcycle.total_mass_kg = config.target_mass_kg
 			motorcycle.initial_speed_kmh = config.target_speed_kmh
@@ -149,27 +178,14 @@ func _build_lane() -> void:
 			motorcycle.auto_step = false
 			motorcycle.show_structure = false
 			add_child(motorcycle)
-		ScenarioConfig.TARGET_BICYCLE:
-			bicycle = Bicycle.new()
-			bicycle.name = "ComparisonBicycle"
-			bicycle.bicycle_preset_id = config.target_preset_id
-			bicycle.total_mass_kg = config.target_mass_kg
-			bicycle.initial_speed_kmh = config.target_speed_kmh
-			bicycle.origin_offset_m = config.target_position_m + lane_offset_m
-			bicycle.heading_deg = config.target_heading_deg
-			bicycle.auto_step = false
-			bicycle.show_structure = false
-			add_child(bicycle)
-		ScenarioConfig.TARGET_PEDESTRIAN:
-			pedestrian = Pedestrian.new()
-			pedestrian.name = "ComparisonPedestrian"
-			pedestrian.body_preset_id = config.target_preset_id
-			pedestrian.total_mass_kg = config.target_mass_kg
-			pedestrian.origin_offset_m = config.target_position_m + lane_offset_m
-			pedestrian.heading_deg = config.target_heading_deg
-			pedestrian.auto_step = false
-			pedestrian.show_structure = false
-			add_child(pedestrian)
+		ScenarioConfig.TARGET_BICYCLE, ScenarioConfig.TARGET_PEDESTRIAN:
+			road_user_proxy = RoadUserArticulatedProxy3D.new()
+			road_user_proxy.name = "ComparisonRoadUser"
+			road_user_proxy.configure(config.target_type, config.target_preset_id, config.target_mass_kg, config.target_speed_kmh, config.target_position_m + lane_offset_m, config.target_heading_deg, false)
+			add_child(road_user_proxy)
+			road_user_skin = RoadUserPresentationSkin3D.new()
+			add_child(road_user_skin)
+			road_user_skin.configure(road_user_proxy)
 		_:
 			obstacle = StaticObstacle3D.new()
 			obstacle.name = "ComparisonObstacle"
@@ -197,9 +213,11 @@ func _build_road(config: ScenarioConfig) -> void:
 	road_mesh = MeshInstance3D.new()
 	road_mesh.name = "ComparisonRoad"
 	var separation := absf(config.target_position_m.x - config.car_position_m.x)
-	var length_m := maxf(18.0, separation + 14.0)
+	var max_speed := maxf(config.car_speed_kmh, config.target_speed_kmh)
+	var travel := PhysicsMetrics.kmh_to_ms(max_speed) * config.duration_s
+	var length_m := clampf(maxf(120.0, separation + travel + 40.0), 120.0, 800.0)
 	var mesh := BoxMesh.new()
-	mesh.size = Vector3(length_m, 0.04, 6.5)
+	mesh.size = Vector3(length_m, 0.04, 7.5)
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color(0.085, 0.09, 0.105)
 	material.roughness = 0.96
@@ -214,7 +232,7 @@ func _build_road(config: ScenarioConfig) -> void:
 
 	var center_line := MeshInstance3D.new()
 	var line_mesh := BoxMesh.new()
-	line_mesh.size = Vector3(length_m * 0.78, 0.025, 0.07)
+	line_mesh.size = Vector3(length_m * 0.92, 0.025, 0.07)
 	var line_material := StandardMaterial3D.new()
 	line_material.albedo_color = Color(0.78, 0.78, 0.72)
 	line_material.roughness = 0.85
