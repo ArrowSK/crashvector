@@ -81,14 +81,17 @@ func _run() -> void:
 			if editor.obstacle.yield_body != null:
 				_expect(editor.obstacle.yield_body.freeze, "%s must begin anchored/frozen before impact" % ScenarioConfig.target_display_name(target_type))
 
-	# M14 must not accidentally re-enable another unported target while adding
-	# road users. Rigid lorry remains explicitly blocked pending its own port.
+	# M17 separately ports the rigid lorry. That extension must preserve M14's
+	# central invariant: no target may silently fall back to the legacy world-
+	# motion solvers merely because it was added after M14.
 	editor.scenario.apply_target_defaults(ScenarioConfig.TARGET_LORRY)
 	editor._rebuild_preview()
 	await process_frame
-	_expect(not bool(editor.hybrid_production_active), "Rigid lorry must remain blocked until separately ported")
-	editor._on_simulate_pressed()
-	_expect(not bool(editor.simulation_running), "Blocked rigid-lorry target must not fall back to legacy production physics")
+	await physics_frame
+	_expect(bool(editor.hybrid_production_active), "Separately ported rigid lorry must use hybrid production physics")
+	_expect(editor.pair_simulation == null and editor.static_simulation == null, "Rigid-lorry port must not re-enable legacy world motion")
+	var lorry: Variant = editor.get("m17_lorry")
+	_expect(lorry is M17RigidLorry, "Current production rigid-lorry target must use the M17 RigidBody3D wrapper")
 
 	editor.queue_free()
 	await process_frame
@@ -116,7 +119,7 @@ func _finish() -> void:
 		return
 	finished = true
 	if failures.is_empty():
-		print("CrashVector M14 production-path tests passed.")
+		print("CrashVector M14 production-path compatibility tests passed.")
 		quit(0)
 		return
 	for failure in failures:
