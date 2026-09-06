@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img alt="M16.1 visual polish" src="https://img.shields.io/badge/milestone-M16.1%20visual%20polish-ff4d1f?style=for-the-badge">
+  <img alt="M18 passenger-car side impacts" src="https://img.shields.io/badge/milestone-M18%20side%20impacts-ff4d1f?style=for-the-badge">
   <a href="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ArrowSK/crashvector/actions/workflows/ci.yml/badge.svg?branch=main"></a>
 </p>
 
@@ -37,11 +37,13 @@
 
 CrashVector is an open-source desktop crash-simulation sandbox for people who want to **see what speed, mass and impact configuration change** without turning the exercise into specialist engineering software.
 
-The current M12–M16.1 production architecture separates whole-object world motion, permanent structural deformation and presentation. Godot `RigidBody3D` owns supported vehicle/target world motion; CrashVector's passenger-car structural graph remains local deformation relative to the rigid chassis. M13 extends severe passenger-car failure beyond the nose, M14 adds rigid vulnerable-target trajectories and yielding pole/tree targets, M15 adds articulated pedestrian and bicycle dynamics, M16 reorganises the desktop workflow and replaces the scaled passenger-car skin with class-specific generic visual profiles, and M16.1 corrects the packaged UI/camera presentation while strengthening the visual class distinctions.
+The current M12–M18 production architecture separates whole-object world motion, permanent structural deformation and presentation. Godot `RigidBody3D` owns supported vehicle/target world motion; CrashVector's passenger-car structural graph remains local deformation relative to the rigid chassis. M13 extends severe passenger-car failure beyond the nose, M14 adds rigid vulnerable-target trajectories and yielding pole/tree targets, M15 adds articulated pedestrian and bicycle dynamics, M16 reorganises the desktop workflow and adds class-specific generic visual profiles, M17 restores Comparison on the production rigid-body scene while adding reciprocal impact direction, passenger-car rear crush, rigid-lorry/motorcycle production routing and a long proving road, and M18 adds bounded passenger-car broadside deformation.
 
-> **Current state:** **M16.1 is the current desktop beta, `0.7.0-beta.2`.** Supported production scenarios include passenger-car impacts with rigid wall, concrete barrier, yielding generic pole/tree targets, another passenger car, the heavy articulated truck, articulated pedestrian contact/trajectory targets and riderless bicycles. The desktop UI, replay, analysis, cinematic export, native installers, updater and scenario-file format remain integrated.
+> **Current source state:** `main` is complete through **M18**. Supported production scenarios now include passenger-car impacts with rigid wall, concrete barrier, yielding generic pole/tree targets, another passenger car including broadside passenger-car layouts, the heavy articulated truck, rigid lorry, riderless motorcycle, articulated pedestrian contact/trajectory targets and riderless bicycles. Visual Compare and Comparison Lab run each variant through the current production scene rather than the historical reduced-order world solver.
 
-> **Important boundary:** rigid lorry and motorcycle production simulation remain temporarily blocked until those targets are ported to the same rigid-body world architecture. Visual Compare and Comparison Lab also remain unavailable because their historical synchronous runner still uses the reduced-order world solver. CrashVector does not silently substitute that old solver for a current production result.
+> **Packaged release:** the latest public installers remain **`0.7.0-beta.2` (M16.1)**. Those downloadable packages predate M17/M18; the M17/M18 source changes are on `main` and have not been assigned a new application version in these milestones.
+
+> **Important boundary:** M18 broadside deformation is currently limited to passenger-car pairs. Heavy-truck, rigid-lorry, motorcycle and bicycle broadside cases remain outside the implemented lateral model. Rigid-lorry and motorcycle world motion is production `RigidBody3D` in M17, but their structural graphs remain rigid presentation/reference structures rather than detailed crush models.
 
 > **Scope:** CrashVector is an educational physics visualisation tool. It is **not** certified accident reconstruction, homologation, manufacturer crash-performance prediction, biomechanics, medical/injury prediction or a safety-rating system. Pedestrian and bicycle results are contact/trajectory visualisations only; the bicycle target is riderless.
 
@@ -89,7 +91,7 @@ The desktop is organised around four jobs:
 
 Defaults exist for normal scenarios, so mass and solver parameters are not mandatory setup work.
 
-## Current production scope
+## Current `main` production scope
 
 | Area | What you get |
 | --- | --- |
@@ -98,16 +100,18 @@ Defaults exist for normal scenarios, so mass and solver parameters are not manda
 | Vehicle presentation | Class-specific generated city-car, hatchback, compact, midsize, SUV and MPV visual archetypes driven by the deforming structural model |
 | Whole-vehicle dynamics | Godot `RigidBody3D`, gravity, CCD and raycast suspension for the supported production path |
 | Progressive structural failure | Front crush followed, when demand is sufficient, by firewall/cowl intrusion, floor/rocker and A-pillar/roof deformation, passenger-cell shortening and rear-body buckling |
-| Heavy articulated truck | Rigid-body world motion, six suspension contacts and physical rear underride face |
+| Reciprocal longitudinal impacts | Supported dynamic actors may strike from ahead or behind; passenger cars have bounded direct rear deformation and the heavy articulated truck has bounded front/rear collapse |
+| Passenger-car side impacts | Passenger-car pairs support arbitrary heading deltas including perpendicular T-bone layouts, with bounded lateral protected-cell deformation and physical collision-face retreat |
+| Heavy articulated truck | Rigid-body world motion, six suspension contacts, physical rear underride face and bounded local front/rear collapse; no fifth-wheel articulation model |
 | Vulnerable road users | Articulated pedestrian targets and riderless bicycles with independent rigid-body parts; no injury or biomechanics prediction |
 | Static / narrow targets | Wall and concrete barrier remain rigid; generic pole and tree targets can yield and move permanently at severe collision demand |
-| Car vs car | Rear-end and near head-on layouts using rigid-body world motion for the passenger cars |
-| Replay & analysis | 120 Hz recorded replay, timeline scrubbing, rigid-body velocity/momentum plus structural diagnostics |
-| Comparison | Temporarily unavailable; the historical batch runner is not used for production results |
-| Other dynamic targets | Rigid lorry and motorcycle remain editable/library models but production simulation is blocked pending rigid-body port |
+| Car vs car | Rear-end, near head-on and broadside passenger-car layouts using rigid-body world motion |
+| Replay & analysis | 120 Hz recorded replay, timeline scrubbing, rigid-body velocity/momentum plus structural diagnostics and lateral-intrusion state where present |
+| Comparison | Visual Compare and Comparison Lab execute each variant through the current production scene in an isolated `SubViewport` / `World3D` and replay the resulting production recordings |
+| Other dynamic targets | Rigid lorry and riderless motorcycle use production Godot rigid-body world motion; their own detailed crush models are not implemented |
 | Video export | 1080p / 1440p / 4K offline replay rendering at 30/60 fps with external FFmpeg H.264 encoding |
-| Calibration | Historical M8 evidence labels/reference check retained separately from current production-world validation |
-| Desktop distribution | macOS Universal 2 DMG and Windows x64 Setup installer with checksums and update support |
+| Calibration | Historical M8 evidence labels/reference check retained separately from current M12–M18 production-world validation |
+| Desktop distribution | Latest published installers are the M16.1 `0.7.0-beta.2` macOS Universal 2 DMG and Windows x64 Setup package |
 
 ## Passenger-car classes
 
@@ -130,7 +134,7 @@ M16 introduced the class-specific **presentation** profiles, and M16.1 strengthe
 
 M12 moved supported whole-vehicle world motion away from the historical deformable point-mass graph and into Godot `RigidBody3D`. Passenger cars use real gravity, CCD and road suspension while the 44-node structural graph remains local deformation relative to the rigid chassis.
 
-The passenger-car rigid collision volume ends around the protected cell/subframe. A forward probe measures available crush travel and drives the phenomenological nose-resistance path. The established 50 km/h wall and 90 km/h passenger-car-versus-truck engine regressions remain active gates in M16.1.
+The passenger-car rigid collision volume ends around the protected cell/subframe. A forward probe measures available crush travel and drives the phenomenological nose-resistance path. The established 50 km/h wall and 90 km/h passenger-car-versus-truck engine regressions remain active historical preservation gates.
 
 See [M12 hybrid physics](docs/M12_HYBRID_PHYSICS.md).
 
@@ -186,6 +190,24 @@ The setup and aftermath cameras now frame the current vehicle/target bounds rath
 
 See [0.7.0-beta.2 release notes](docs/releases/0.7.0-beta.2.md).
 
+## M17 — reciprocal impacts and production comparison
+
+M17 removes the remaining direction and comparison assumptions from the production integration layer. Supported dynamic actors may approach from either direction; passenger cars gain bounded rear deformation; the heavy truck gains bounded front/rear collapse; rigid lorry and riderless motorcycle move through the production Godot rigid-body path; and the collision road is extended to approximately 4 km.
+
+Visual Compare and Comparison Lab now execute each requested variant through the actual production scene in an isolated world and use the resulting production replay/analysis state. The historical reduced-order runner remains available only for legacy regression continuity.
+
+See [M17 reciprocal impacts, production comparison and long proving road](docs/M17_RECIPROCAL_IMPACTS_COMPARISON.md).
+
+## M18 — passenger-car side impacts
+
+M18 adds bounded broadside deformation for passenger-car pairs without replacing the M12–M17 rigid-body architecture. Real Godot contact samples on a protected-cell side face drive a generic lateral intrusion envelope; the corresponding physical collision face retreats laterally and the existing deformable presentation graph follows the struck-side structural state.
+
+The dedicated perpendicular regression uses a stationary C-segment passenger car and a B-segment passenger car approaching at 55 km/h and -90 degrees. It records approximately 0.058 m lateral intrusion on the struck car and 0.305 m front deformation on the striking car. These are CrashVector regression values, not manufacturer or regulatory side-impact data.
+
+Broadside support in M18 is limited to passenger-car pairs. Heavy-vehicle, lorry, motorcycle and bicycle broadside modelling remains outside the implemented lateral envelope.
+
+See [M18 passenger-car side impacts](docs/M18_SIDE_IMPACTS.md).
+
 ## Replay, analysis and cinematic export
 
 CrashVector records supported production simulation at **120 Hz**. Replay stores rigid-body state plus local structural/articulated presentation state, so scrubbing and video export do not re-run the crash.
@@ -212,22 +234,24 @@ The historical M8 reduced-order reference uses the NHTSA NCAP full-frontal rigid
 
 The application retains the labels **Reference-correlated**, **Near reference**, **Class-scaled** and **Extrapolated**.
 
-The M8 calibration runner remains a historical regression/correlation path. It does **not** validate the M12–M16.1 rigid-body, staged-collapse, articulated-road-user or class-specific presentation path, and current project regression numbers are not manufacturer or regulatory corridors.
+The M8 calibration runner remains a historical regression/correlation path. It does **not** validate the M12–M18 rigid-body, staged-collapse, articulated-road-user, reciprocal-impact, comparison or side-impact production path, and current project regression numbers are not manufacturer or regulatory corridors.
 
 See [Calibration and validation scope](docs/CALIBRATION.md) and [Physics notes](docs/PHYSICS.md).
 
 ## Known modelling boundaries
 
-CrashVector intentionally rejects or blocks scenarios instead of making a visually plausible but unsupported claim.
+CrashVector intentionally rejects or limits scenarios instead of making a visually plausible but unsupported claim.
 
-- Current production rigid-body coverage includes wall, barrier, yielding generic pole/tree, passenger-car, heavy-articulated-truck, articulated-pedestrian and riderless-bicycle targets.
-- Rigid lorry and motorcycle production simulation is blocked pending rigid-body port.
+- Current `main` production rigid-body coverage includes wall, barrier, yielding generic pole/tree, passenger-car, heavy articulated truck, rigid lorry, riderless motorcycle, articulated pedestrian and riderless bicycle targets.
+- Passenger-car broadside contact is implemented in M18; broadside heavy-truck, rigid-lorry, motorcycle and bicycle contact is not.
+- Rigid lorry and riderless motorcycle use production world motion, but M17 does not provide their own detailed crush structures.
 - Pedestrian and bicycle output is contact/trajectory visualisation only; no biomechanical or injury prediction is performed, and the bicycle target is riderless.
-- Visual Compare and Comparison Lab are blocked pending a scene-based rigid-body recorder.
+- Visual Compare and Comparison Lab use the production scene in M17; historical reduced-order comparison code remains only for regression continuity.
 - Generic vehicle classes and M16/M16.1 visual profiles are not production-car crash models.
-- M13 staged collapse and M14 narrow-target yielding are phenomenological reduced-order models, not finite-element structural analysis or manufacturer body-in-white/target data.
+- M13 staged collapse, M14 narrow-target yielding, M17 reciprocal deformation and M18 lateral deformation are phenomenological reduced-order models, not finite-element structural analysis or manufacturer body-in-white/target data.
 - M15 joint limits are numerical stability envelopes, not human biomechanical ranges.
 - Target geometry remains simplified.
+- M8 calibration does not validate the M12–M18 production architecture.
 - CI validates deterministic logic, editor runtime and engine-physics regression paths, but does not perform a real 4K GPU render or invoke the machine's FFmpeg binary.
 
 ## Run from source
@@ -249,8 +273,10 @@ Or open `project.godot` directly in Godot and run the project.
 
 | Guide | What it is for |
 | --- | --- |
-| [Roadmap](docs/ROADMAP.md) | Implementation history and next physics ports |
+| [Roadmap](docs/ROADMAP.md) | Implementation history and future physics work |
 | [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, distribution and presentation layers |
+| [M18 side impacts](docs/M18_SIDE_IMPACTS.md) | Passenger-car broadside contact, bounded lateral deformation and evidence limits |
+| [M17 reciprocal impacts and comparison](docs/M17_RECIPROCAL_IMPACTS_COMPARISON.md) | Production comparison, reciprocal impact direction, lorry/motorcycle routing and long proving road |
 | [M16 UX and vehicle visuals](docs/M16_UX_AND_VEHICLE_VISUALS.md) | Task-focused desktop shell and class-specific presentation layer |
 | [M15 articulated road users](docs/M15_ARTICULATED_ROAD_USERS.md) | Articulated pedestrian/bicycle topology, stability decisions and validation limits |
 | [M14 road users and yielding obstacles](docs/M14_ROAD_USERS_OBSTACLES.md) | Rigid vulnerable-target trajectories, generic pole/tree yielding and M14 gates |
@@ -265,11 +291,11 @@ Or open `project.godot` directly in Godot and run the project.
 
 ## Development status
 
-**M16.1 is the current release milestone.** Canonical Core CI retains the historical M0–M12 regression suite, while dedicated M10, M11, M12, M13, M14, M15, M16 and M16.1 workflows independently guard responsive UI, crush dynamics, rigid-body production motion, progressive failure, vulnerable-target/yielding-target physics, articulated road users, the M16 production presentation path and the M16.1 packaged presentation correction. Independent packaging gates build the macOS Universal 2 DMG and Windows x64 installer, including a real Windows Program Files install/uninstall lifecycle.
+**M18 is the current source milestone on `main`.** M17 restored production Comparison, reciprocal dynamic-impact direction and rigid-lorry/motorcycle production routing; M18 adds passenger-car broadside physics. The dedicated M17 and M18 gates passed on their final PR heads, and both dedicated checks passed again on the merged M18 `main` commit together with canonical Core CI and native packaging checks.
 
-`v0.7.0-beta.2` is the corrective M16.1 beta. Release automation verifies both package checksum sidecars, generates `update-manifest.json`, and refuses to replace an already-published release under the same version.
+The latest published installers remain `v0.7.0-beta.2`, which is the corrective M16.1 beta. M17/M18 deliberately did not change the application version, so the download links above still point to that earlier packaged build rather than claiming that the M18 source state has been released under the same version.
 
-The next physics work is to port rigid lorry, motorcycle and the comparison recorder to the rigid-body world architecture, then add additional independent public/licensed references before extending validation claims.
+The next physics work should focus on richer target-specific contact/deformation models and additional independent public/licensed references before extending validation claims.
 
 ## Licence
 
