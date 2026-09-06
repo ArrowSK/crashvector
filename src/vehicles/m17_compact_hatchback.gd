@@ -30,26 +30,39 @@ func _consume_real_contact_impulses() -> void:
 			continue
 		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
 		hybrid_crush_impulse_ns += impulse.length()
-		var local_position: Vector3 = sample.get("position_local", sample.get("position_world", Vector3.ZERO))
-		# The protected-cell rigid volume spans the middle of the car. Contacts on
-		# its rear third are direct rear impacts; front impacts remain governed by
-		# the established M12/M13 forward probe and staged crush path.
-		if local_position.x > -0.55:
-			continue
 		var collider: Object = sample.get("collider", null)
+		var contact_side_x := float((sample.get("position_local", Vector3.ZERO) as Vector3).x)
+		# PhysicsDirectBodyState contact points are useful for shape-local detail,
+		# but actor-to-actor centre position is a more stable front/rear classifier
+		# after a high-speed solver step. This also works when the other vehicle's
+		# collision volume is already partly overlapping the protected cell.
+		if collider is Node3D:
+			contact_side_x = rigid_chassis.to_local((collider as Node3D).global_position).x
+		# The protected-cell rigid volume spans the middle of the car. A collider
+		# whose centre is materially behind the car is a direct rear-impact source;
+		# forward impacts remain governed by the established M12/M13 probe path.
+		if contact_side_x > -0.40:
+			continue
 		var other_velocity := Vector3.ZERO
 		var other_mass := rigid_chassis.mass
 		if collider is RigidBody3D:
 			var other := collider as RigidBody3D
 			other_velocity = other.linear_velocity
 			other_mass = maxf(other.mass, 1.0)
+		var reduced_mass := rigid_chassis.mass * other_mass / maxf(rigid_chassis.mass + other_mass, 1.0)
 		var closing_speed := maxf((other_velocity - rigid_chassis.linear_velocity).dot(forward), 0.0)
 		if closing_speed <= 0.05:
 			# Head-on/reversed geometry can produce the opposite sign. Contact-side
 			# classification is authoritative, so retain the longitudinal magnitude.
 			closing_speed = absf((other_velocity - rigid_chassis.linear_velocity).dot(forward))
-		var reduced_mass := rigid_chassis.mass * other_mass / maxf(rigid_chassis.mass + other_mass, 1.0)
-		var energy := 0.5 * reduced_mass * closing_speed * closing_speed
+		var velocity_energy := 0.5 * reduced_mass * closing_speed * closing_speed
+		# By the time _integrate_forces exposes the contact, Godot has already
+		# applied most of the collision impulse and the post-solve relative speed
+		# can be close to zero. J^2/(2*mu) reconstructs the normal collision work
+		# represented by that real solver impulse instead of losing the impact just
+		# because both bodies now share a similar velocity.
+		var impulse_energy := impulse.length_squared() / maxf(2.0 * reduced_mass, 1.0)
+		var energy := maxf(velocity_energy, impulse_energy)
 		hybrid_rear_impact_energy_j = maxf(hybrid_rear_impact_energy_j, energy)
 
 	var preset := PassengerCarCatalog.data(vehicle_preset_id)
