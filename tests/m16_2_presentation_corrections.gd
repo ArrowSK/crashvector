@@ -20,7 +20,8 @@ func _run() -> void:
 	for _frame in range(10):
 		await process_frame
 
-	_expect(editor.get_script().resource_path.ends_with("crash_demo_m16_2.gd"), "Production scene is not routed through M16.2")
+	var production_script := String(editor.get_script().resource_path)
+	_expect(production_script.ends_with("crash_demo_m16_2.gd") or production_script.ends_with("crash_demo_m17.gd"), "Production scene is not routed through the M16.2 presentation lineage")
 	var primary_visual := _find_named(editor, "M16PrimaryVehicleVisual")
 	_expect(primary_visual is M162VehicleVisual, "Production passenger car is not using the M16.2 deformation-aware skin")
 	_expect(not _has_visible_label_prefix(editor.get("m10_left_panel"), "Choose the vehicle, target and speed."), "Redundant M16 tutorial paragraph is still visible")
