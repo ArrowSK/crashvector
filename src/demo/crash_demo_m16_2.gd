@@ -4,10 +4,12 @@
 
 extends "res://src/demo/crash_demo_m16_1.gd"
 
-# M16.2 is another presentation-only layer. It preserves the finalized M12-M15
-# physics and addresses packaged beta.2 review findings: impact-cluster camera
-# composition, immutable scenario-editor values, connected articulated-road-user
-# skins, deformation fairing and a clearer tractor/trailer silhouette.
+# M16.2 is a corrective layer over the finalized M12-M15 production path. Most
+# changes are presentation-only. One narrow physics guard limits passenger-car
+# crush commanded by geometric probe penetration to the normal collision energy
+# already available at the contact; this prevents light road users from causing
+# impossible near-metre nose collapse while preserving existing heavy-target
+# behavior.
 
 var m162_scenario_snapshot: Dictionary = {}
 var m162_road_user_skin: RoadUserPresentationSkin3D
@@ -32,6 +34,26 @@ func _rebuild_preview() -> void:
 func _clear_runtime_objects() -> void:
 	_m162_dispose_presentation_skins()
 	super._clear_runtime_objects()
+
+func _spawn_passenger_car(
+	node_name: String,
+	preset_id: StringName,
+	mass_kg: float,
+	speed_kmh: float,
+	position_m: Vector3,
+	heading_deg: float
+) -> CompactHatchback:
+	var vehicle := M162CompactHatchback.new()
+	vehicle.name = node_name
+	vehicle.vehicle_preset_id = preset_id
+	vehicle.total_mass_kg = mass_kg
+	vehicle.initial_speed_kmh = speed_kmh
+	vehicle.origin_offset_m = position_m
+	vehicle.heading_deg = heading_deg
+	vehicle.auto_step = false
+	vehicle.show_structure = scenario.show_structure
+	add_child(vehicle)
+	return vehicle
 
 func _ensure_m16_vehicle_visual(vehicle_node: CompactHatchback, node_name: String) -> void:
 	if vehicle_node == null or not is_instance_valid(vehicle_node):
@@ -182,6 +204,8 @@ func _m162_apply_aftermath_camera() -> void:
 	var target_subject := anchor + _m162_limit_vector(target_center - anchor, target_limit)
 
 	var target_weight := 0.32 if scenario.target_type in [ScenarioConfig.TARGET_PEDESTRIAN, ScenarioConfig.TARGET_BICYCLE] else 0.22
+	if scenario.target_type == ScenarioConfig.TARGET_TRUCK:
+		target_weight = 0.36
 	var car_weight := 0.40
 	var anchor_weight := 1.0 - target_weight - car_weight
 	var focus_point := anchor * anchor_weight + car_subject * car_weight + target_subject * target_weight
@@ -195,7 +219,7 @@ func _m162_apply_aftermath_camera() -> void:
 	var max_projection := maxf(2.0, maxf(car_projection + primary_half * 0.78, target_projection + target_extent))
 	var span := clampf(max_projection - min_projection, 4.5, 9.4)
 	if scenario.target_type == ScenarioConfig.TARGET_TRUCK:
-		span = minf(span, 8.2)
+		span = minf(span, 8.8)
 
 	camera.fov = 50.0
 	var aspect := 1.55
@@ -204,7 +228,7 @@ func _m162_apply_aftermath_camera() -> void:
 	var vertical_fov := deg_to_rad(camera.fov)
 	var horizontal_fov := 2.0 * atan(tan(vertical_fov * 0.5) * aspect)
 	var distance := (span * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.70, 0.10)
-	distance = clampf(distance, 5.4, 12.5)
+	distance = clampf(distance, 5.4, 12.8)
 
 	camera.global_position = focus_point - forward * distance * 0.08 + Vector3.UP * clampf(distance * 0.21, 2.10, 3.5) + lateral * distance
 	camera.look_at(focus_point, Vector3.UP)
@@ -228,9 +252,9 @@ func _m162_impact_anchor() -> Vector3:
 func _m162_aftermath_target_extent() -> float:
 	match scenario.target_type:
 		ScenarioConfig.TARGET_TRUCK:
-			# The contact is at the trailer rear. The nearby trailer structure is the
-			# relevant result subject; the distant cab remains available in preview.
-			return 2.1
+			# The contact is at the trailer rear. Include enough nearby trailer body
+			# to read the target without widening all the way to the distant cab.
+			return 2.8
 		ScenarioConfig.TARGET_PASSENGER_CAR:
 			return float(PassengerCarCatalog.data(scenario.target_car_preset_id).get("representative_length_m", 4.1)) * 0.42
 		ScenarioConfig.TARGET_PEDESTRIAN:
