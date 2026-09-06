@@ -1,0 +1,33 @@
+name: M17 validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crashvector-m17-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  m17-production-integration:
+    name: M17 reciprocal impacts and production comparison
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Architecture audit
+        run: sh tools/check_no_monkey_patching.sh
+      - name: Import and parse project
+        run: |
+          tools/ci_godot_checked.sh godot --headless --path . --editor --quit
+          tools/ci_godot_checked.sh godot --headless --path . --script res://tests/project_parse.gd
+      - name: M17 reciprocal-impact, long-road and production-comparison regression
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m17_production_integration.gd
