@@ -121,8 +121,8 @@ func _m162_apply_aftermath_camera() -> void:
 	var car_projection := (car_subject - anchor).dot(forward)
 	var target_projection := (target_subject - anchor).dot(forward)
 	var target_extent := _m162_aftermath_target_extent()
-	var min_projection := minf(-2.1, car_projection - primary_half * 0.72, target_projection - target_extent)
-	var max_projection := maxf(2.1, car_projection + primary_half * 0.72, target_projection + target_extent)
+	var min_projection := minf(-2.1, minf(car_projection - primary_half * 0.72, target_projection - target_extent))
+	var max_projection := maxf(2.1, maxf(car_projection + primary_half * 0.72, target_projection + target_extent))
 	var span := clampf(max_projection - min_projection, 4.6, 10.5)
 	if scenario.target_type == ScenarioConfig.TARGET_TRUCK:
 		span = minf(span, 8.6)
