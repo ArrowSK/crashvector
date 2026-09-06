@@ -234,11 +234,18 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 		if collider is Node:
 			collider_name = (collider as Node).name
 		var impulse := state.get_contact_impulse(contact_index)
+		var local_position := state.get_contact_local_position(contact_index)
 		var sample := {
-			"position_world": state.get_contact_local_position(contact_index),
+			# Keep the historical key for compatibility, but expose the correctly
+			# named local point and collider object as well. Later production layers
+			# use these fields to distinguish front/rear contact and calculate a
+			# reduced-mass collision demand without guessing from object names.
+			"position_world": local_position,
+			"position_local": local_position,
 			"normal": state.get_contact_local_normal(contact_index),
 			"impulse": impulse,
 			"collider_name": collider_name,
+			"collider": collider,
 			"local_shape": state.get_contact_local_shape(contact_index),
 		}
 		contact_samples.append(sample)

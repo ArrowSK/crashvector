@@ -59,7 +59,7 @@ func _run() -> void:
 	_expect(absf(scenario.car_speed_kmh - 200.0) < 0.001, "Exact-case regression did not set 200 km/h")
 
 	var initial_visual := _find_named(editor, "M16PrimaryVehicleVisual")
-	_expect(initial_visual is M161VehicleVisual, "D-segment preview is not using the M16.1 vehicle presentation skin")
+	_expect(initial_visual is M161VehicleVisual, "D-segment preview is not using the M16.1 vehicle presentation lineage")
 	if initial_visual is M161VehicleVisual:
 		var preview_visual := initial_visual as M161VehicleVisual
 		_expect(preview_visual.profile_id == PassengerCarCatalog.D_SEGMENT_MIDSIZE, "D-segment preview visual profile is out of sync with the scenario")
@@ -83,7 +83,7 @@ func _run() -> void:
 		_expect(recorder.recording.duration_s > 0.5, "Exact-case replay duration is implausibly short")
 
 	var final_visual := _find_named(editor, "M16PrimaryVehicleVisual")
-	_expect(final_visual is M161VehicleVisual, "M16.1 vehicle presentation skin disappeared after the 200 km/h barrier run")
+	_expect(final_visual is M161VehicleVisual, "M16.1 vehicle presentation lineage disappeared after the 200 km/h barrier run")
 	if final_visual is M161VehicleVisual:
 		var visual := final_visual as M161VehicleVisual
 		var car: CompactHatchback = editor.get("car")
@@ -102,18 +102,24 @@ func _run() -> void:
 	var camera: Camera3D = editor.get("camera")
 	_expect(camera != null, "Exact-case aftermath camera could not be resolved")
 	if camera != null:
-		var bounds: Vector2 = editor.call("_m161_horizontal_bounds")
 		var primary_center: Vector3 = editor.call("_m161_primary_center")
 		var target_center: Vector3 = editor.call("_m161_target_center")
 		_expect(is_finite(primary_center.x) and is_finite(primary_center.y) and is_finite(primary_center.z), "Exact-case primary vehicle finished at a non-finite position")
-		_expect(primary_center.x >= bounds.x - 0.01 and primary_center.x <= bounds.y + 0.01, "Aftermath bounds do not contain the final D-segment position")
-		_expect(target_center.x >= bounds.x - 0.01 and target_center.x <= bounds.y + 0.01, "Aftermath bounds do not contain the concrete barrier")
-		var focus := Vector3((bounds.x + bounds.y) * 0.5, 0.92, (primary_center.z + target_center.z) * 0.5)
-		var camera_distance := camera.global_position.distance_to(focus)
-		_expect(camera_distance >= 5.0 and camera_distance <= 26.0, "Aftermath camera framing is implausibly tight/wide: %.2f m" % camera_distance)
-		var to_focus := (focus - camera.global_position).normalized()
-		var camera_forward := (-camera.global_transform.basis.z).normalized()
-		_expect(camera_forward.dot(to_focus) > 0.985, "Aftermath camera is not aimed at the final crash bounds")
+		_expect(is_finite(target_center.x) and is_finite(target_center.y) and is_finite(target_center.z), "Exact-case target finished at a non-finite position")
+		if editor.has_method("_m162_impact_anchor"):
+			var anchor: Vector3 = editor.call("_m162_impact_anchor")
+			var anchor_distance := camera.global_position.distance_to(anchor)
+			_expect(anchor_distance >= 4.0 and anchor_distance <= 16.0, "M16.2 impact-cluster camera is implausibly tight/wide: %.2f m" % anchor_distance)
+		else:
+			var bounds: Vector2 = editor.call("_m161_horizontal_bounds")
+			_expect(primary_center.x >= bounds.x - 0.01 and primary_center.x <= bounds.y + 0.01, "Aftermath bounds do not contain the final D-segment position")
+			_expect(target_center.x >= bounds.x - 0.01 and target_center.x <= bounds.y + 0.01, "Aftermath bounds do not contain the concrete barrier")
+			var focus := Vector3((bounds.x + bounds.y) * 0.5, 0.92, (primary_center.z + target_center.z) * 0.5)
+			var camera_distance := camera.global_position.distance_to(focus)
+			_expect(camera_distance >= 5.0 and camera_distance <= 26.0, "Aftermath camera framing is implausibly tight/wide: %.2f m" % camera_distance)
+			var to_focus := (focus - camera.global_position).normalized()
+			var camera_forward := (-camera.global_transform.basis.z).normalized()
+			_expect(camera_forward.dot(to_focus) > 0.985, "Aftermath camera is not aimed at the final crash bounds")
 
 	editor.queue_free()
 	await process_frame

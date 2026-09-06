@@ -1,0 +1,45 @@
+name: M16.2 validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crashvector-m16-2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  m16-2-presentation:
+    name: M16.2 crash-scene presentation corrections
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Architecture audit
+        run: sh tools/check_no_monkey_patching.sh
+      - name: Import and parse project
+        run: |
+          tools/ci_godot_checked.sh godot --headless --path . --editor --quit
+          tools/ci_godot_checked.sh godot --headless --path . --script res://tests/project_parse.gd
+      - name: Preserve M10 responsive shell contract
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m10_layout.gd
+      - name: Preserve M16 UX and M15 integration
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_ui_vehicle_visuals.gd
+      - name: Preserve M16.1 corrective presentation contract
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_1_visual_polish.gd
+      - name: Preserve M16.1 exact 200 km/h barrier production case
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_1_d_segment_200_barrier.gd
+      - name: M16.2 presentation-layer regression
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_2_presentation_corrections.gd
+      - name: M16.2 packaged screenshot acceptance cases
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_2_packaged_cases.gd
+      - name: M16.2 light-target crush-energy guard
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_2_light_target_crush.gd

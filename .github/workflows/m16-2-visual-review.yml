@@ -1,0 +1,38 @@
+name: M16.2 rendered review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crashvector-m16-2-render-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rendered-acceptance:
+    name: Render packaged acceptance screenshots
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4.1
+    env:
+      LIBGL_ALWAYS_SOFTWARE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure X virtual framebuffer is available
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            apt-get update
+            apt-get install -y xvfb
+          fi
+      - name: Import project
+        run: godot --headless --path . --editor --quit
+      - name: Render preview and aftermath acceptance frames
+        run: xvfb-run -a godot --path . --script res://tests/m16_2_visual_snapshot.gd
+      - name: Upload rendered review frames
+        uses: actions/upload-artifact@v4
+        with:
+          name: m16-2-rendered-review
+          path: build/m16_2_visual_review/*.png
+          if-no-files-found: error

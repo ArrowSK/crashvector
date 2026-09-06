@@ -76,6 +76,19 @@ static func target_display_name(id: StringName) -> String:
 		_:
 			return "Unknown target"
 
+static func target_is_dynamic_id(id: StringName) -> bool:
+	return id in [
+		TARGET_PASSENGER_CAR,
+		TARGET_TRUCK,
+		TARGET_LORRY,
+		TARGET_MOTORCYCLE,
+		TARGET_BICYCLE,
+		TARGET_PEDESTRIAN,
+	]
+
+func target_is_dynamic() -> bool:
+	return target_is_dynamic_id(target_type)
+
 func reset_defaults() -> void:
 	title = "Car vs Truck"
 	car_preset_id = PassengerCarCatalog.B_SEGMENT_HATCHBACK
@@ -124,6 +137,9 @@ func apply_target_defaults(id: StringName) -> void:
 func car_forward() -> Vector3:
 	return Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(car_heading_deg)).normalized()
 
+func target_forward() -> Vector3:
+	return Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(target_heading_deg)).normalized()
+
 func heading_delta_deg() -> float:
 	return absf(wrapf(car_heading_deg - target_heading_deg, -180.0, 180.0))
 
@@ -152,21 +168,23 @@ func validation_errors() -> Array[String]:
 			errors.append("Target passenger-car speed must be between 0 and 300 km/h")
 		var car_delta := heading_delta_deg()
 		if car_delta > 25.0 and car_delta < 155.0:
-			errors.append("Passenger-car pair contact supports rear-end or near head-on layouts, not broadside impacts yet")
+			errors.append("Passenger-car contact supports near-collinear rear-end or head-on layouts; broadside deformation is not modelled yet")
 	elif target_type == TARGET_TRUCK:
 		if target_mass_kg < 3500.0 or target_mass_kg > 60000.0:
 			errors.append("Heavy-truck mass must be between 3,500 and 60,000 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 140.0:
 			errors.append("Heavy-truck speed must be between 0 and 140 km/h")
-		if heading_delta_deg() > 25.0:
-			errors.append("Car/truck rear-contact model supports heading differences up to 25 degrees")
+		var truck_delta := heading_delta_deg()
+		if truck_delta > 25.0 and truck_delta < 155.0:
+			errors.append("Car/truck contact supports near-collinear rear-end or head-on layouts; broadside truck collapse is not modelled yet")
 	elif target_type == TARGET_LORRY:
 		if target_mass_kg < 3500.0 or target_mass_kg > 26000.0:
 			errors.append("Rigid-lorry mass must be between 3,500 and 26,000 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 140.0:
 			errors.append("Rigid-lorry speed must be between 0 and 140 km/h")
-		if heading_delta_deg() > 25.0:
-			errors.append("Car/lorry rear-contact model supports heading differences up to 25 degrees")
+		var lorry_delta := heading_delta_deg()
+		if lorry_delta > 25.0 and lorry_delta < 155.0:
+			errors.append("Car/lorry contact supports near-collinear rear-end or head-on layouts; broadside impacts are not modelled yet")
 	elif target_type == TARGET_MOTORCYCLE:
 		if target_mass_kg < 80.0 or target_mass_kg > 600.0:
 			errors.append("Motorcycle mass must be between 80 and 600 kg")
@@ -202,9 +220,15 @@ func validation_errors() -> Array[String]:
 		errors.append("Solver substeps must be between 1 and %d" % MAX_SOLVER_SUBSTEPS)
 	if not _finite_vector(car_position_m) or not _finite_vector(target_position_m):
 		errors.append("Object positions must contain finite numbers")
-	var forward_separation := (target_position_m - car_position_m).dot(car_forward())
-	if forward_separation < 2.0:
-		errors.append("Target must begin at least 2 m ahead of the primary passenger car")
+	if target_is_dynamic():
+		# Dynamic targets may now approach the passenger car from ahead or behind.
+		# Whole-world RigidBody3D contact determines which actor is the striker.
+		if car_position_m.distance_to(target_position_m) < 2.0:
+			errors.append("Dynamic actors must start at least 2 m apart")
+	else:
+		var forward_separation := (target_position_m - car_position_m).dot(car_forward())
+		if forward_separation < 2.0:
+			errors.append("Static target must begin at least 2 m ahead of the primary passenger car")
 	return errors
 
 func to_dictionary() -> Dictionary:
