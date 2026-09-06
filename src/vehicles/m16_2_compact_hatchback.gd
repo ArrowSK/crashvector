@@ -50,3 +50,21 @@ func _m162_energy_limited_crush_m(collision_energy_j: float, resistance_scale: f
 	var stiffness_n_m := (155000.0 / 0.62) * scale
 	var discriminant := force0_n * force0_n + 2.0 * stiffness_n_m * collision_energy_j
 	return maxf((-force0_n + sqrt(maxf(discriminant, 0.0))) / maxf(stiffness_n_m, 1.0), 0.0)
+
+func apply_replay_visual_state(state: Dictionary) -> void:
+	# Replay snapshots include the rigid transform, but the historical base
+	# implementation restored only structural/deformation state. That left the
+	# generated M16 skin using the final 4 s chassis basis while its structural
+	# nodes belonged to an earlier impact frame. Restore the frozen chassis first
+	# so body geometry, details, camera bounds and scrubbed replay all share one
+	# authoritative transform.
+	if rigid_chassis != null and hybrid_physics_enabled:
+		var replay_transform: Variant = state.get("rigid_transform", null)
+		if replay_transform is Transform3D:
+			rigid_chassis.global_transform = replay_transform
+			last_chassis_transform = rigid_chassis.global_transform
+			chassis_sync_ready = true
+		var replay_velocity: Variant = state.get("rigid_linear_velocity_ms", null)
+		if replay_velocity is Vector3:
+			rigid_chassis.linear_velocity = replay_velocity
+	super.apply_replay_visual_state(state)
