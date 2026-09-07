@@ -158,6 +158,13 @@ func _check_production_cyclist_routing() -> void:
 	_expect(skin != null and skin.proxy == preview_proxy, "M22 production preview did not install combined rider+bicycle presentation")
 	var speed_row := editor.get("m10_target_speed_row") as HBoxContainer
 	_expect(speed_row != null and speed_row.visible, "M22 current desktop target controls did not expose cyclist speed")
+	var preview_car := editor.get("car") as M17CompactHatchback
+	_expect(preview_car != null and preview_car.rigid_chassis != null, "M22 cyclist preview lost the production passenger-car chassis")
+	if preview_car != null and preview_car.rigid_chassis != null:
+		_expect(preview_car.rigid_chassis.front_crush_probe_count() >= 3, "M22 production car lost the M19 three-ray front observation layout")
+		for probe in preview_car.rigid_chassis.front_crush_probes:
+			if probe != null and is_instance_valid(probe):
+				_expect(probe.collision_mask == 2, "M22 articulated road-user routing left front probe %s blind to the dedicated road-user layer" % probe.name)
 
 	editor.call("_on_simulate_pressed")
 	await physics_frame
