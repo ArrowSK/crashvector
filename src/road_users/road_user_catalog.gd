@@ -17,6 +17,7 @@ const BICYCLE_EBIKE: StringName = &"bicycle_ebike"
 # rider. The rider mass is a default scenario assumption, not a biomechanical
 # body model; users may override the combined cyclist+bicycle mass.
 const DEFAULT_CYCLIST_RIDER_MASS_KG: float = 75.0
+const MIN_CYCLIST_RIDER_MASS_KG: float = 35.0
 
 static func pedestrian_ids() -> Array[StringName]:
 	return [PEDESTRIAN_ADULT, PEDESTRIAN_CHILD, PEDESTRIAN_TALL_ADULT]
@@ -65,13 +66,17 @@ static func default_mass_kg(id: StringName) -> float:
 static func cyclist_default_mass_kg(bicycle_id: StringName) -> float:
 	return default_mass_kg(bicycle_id) + DEFAULT_CYCLIST_RIDER_MASS_KG
 
+static func cyclist_minimum_mass_kg(bicycle_id: StringName) -> float:
+	return cyclist_bicycle_mass_kg(bicycle_id) + MIN_CYCLIST_RIDER_MASS_KG
+
 static func cyclist_bicycle_mass_kg(bicycle_id: StringName) -> float:
 	return default_mass_kg(bicycle_id)
 
 static func cyclist_rider_mass_kg(combined_mass_kg: float, bicycle_id: StringName) -> float:
-	# Preserve at least a lightweight adult-sized rider share when the user edits
-	# combined mass. Validation prevents obviously nonsensical combined values.
-	return maxf(combined_mass_kg - cyclist_bicycle_mass_kg(bicycle_id), 35.0)
+	# Scenario validation enforces the minimum rider share. Do not silently
+	# inflate the returned value here: the physical articulated-body mass must
+	# continue to add up to the user's configured combined target mass.
+	return maxf(combined_mass_kg - cyclist_bicycle_mass_kg(bicycle_id), 0.0)
 
 static func pedestrian_height_m(id: StringName) -> float:
 	return float(pedestrian_data(id).get("height_m", 1.75))
