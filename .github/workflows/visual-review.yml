@@ -34,12 +34,15 @@ jobs:
         run: xvfb-run -a godot --path . --script res://tests/presentation_visual_snapshot.gd
       - name: Render representative crash review
         run: xvfb-run -a godot --path . --script res://tests/presentation_deformation_snapshot.gd
-      - name: Upload rendered review frames
+      - name: Run M19 contact-fidelity diagnostic matrix
+        run: xvfb-run -a godot --path . --script res://tests/m19_contact_matrix.gd
+      - name: Upload rendered review frames and diagnostics
         uses: actions/upload-artifact@v4
         with:
           name: presentation-visual-review
           path: |
             build/presentation_visual_review/*.png
             build/presentation_deformation_review/*.png
+            build/m19_contact_fidelity/contact_matrix.json
           if-no-files-found: error
           retention-days: 14
