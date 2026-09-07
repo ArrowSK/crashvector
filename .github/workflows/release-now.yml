@@ -1,0 +1,27 @@
+name: Dispatch 0.9.0-beta.1 release now
+
+on:
+  push:
+    branches:
+      - release-now-0.9.0-beta.1
+    paths:
+      - .github/workflows/release-now.yml
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch package and release workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run package-release.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f validation=smoke \
+            -f publish_release=true
