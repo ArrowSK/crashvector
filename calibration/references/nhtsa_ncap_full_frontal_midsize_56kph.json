@@ -47,12 +47,15 @@
     "energy_balance_relative_error_max": 0.35
   },
   "scope": {
+    "evidence_role": "source_correlation",
+    "production_runnable": false,
+    "execution_path": "historical_m8_reduced_order",
     "directly_correlated_class_id": "d_segment_midsize",
     "directly_correlated_speed_min_kmh": 50.0,
     "directly_correlated_speed_max_kmh": 60.0,
     "directly_correlated_mass_min_kg": 1500.0,
     "directly_correlated_mass_max_kg": 1800.0,
     "target_type": "rigid_wall",
-    "warning": "Passing this reference is a limited structural correlation check, not vehicle certification, occupant-injury validation, or manufacturer-specific crash prediction. Delta-v, safety-cell proxy, and energy-balance limits are project regression guardrails rather than published NHTSA corridors."
+    "warning": "Passing this reference is a limited historical reduced-order structural correlation check, not validation of the M12-M18 production rigid-body stack, vehicle certification, occupant-injury validation, or manufacturer-specific crash prediction. Delta-v, safety-cell proxy, and energy-balance limits are project regression guardrails rather than published NHTSA corridors."
   }
 }
