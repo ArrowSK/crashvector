@@ -32,8 +32,10 @@ func _rebuild_preview() -> void:
 
 func _replace_legacy_road_user_with_rigid_proxy() -> void:
 	# M16 inherits the stable M14 editor/physics shell, but the production scene
-	# must instantiate the finalized M15 articulated proxy rather than the M14
-	# single-root compatibility proxy.
+	# must instantiate the finalized bounded M15 articulated proxy rather than the
+	# M14 single-root compatibility proxy. The Stable wrapper preserves the M15
+	# topology/API and adds only the later high-closing-speed pedestrian transfer
+	# bound, so downstream M16.2-M22 scenes do not regress that production guard.
 	if bicycle != null and is_instance_valid(bicycle) and bicycle.get_parent() == self:
 		remove_child(bicycle)
 		bicycle.queue_free()
@@ -46,7 +48,7 @@ func _replace_legacy_road_user_with_rigid_proxy() -> void:
 	static_simulation = null
 	hybrid_production_active = true
 
-	road_user_proxy = RoadUserArticulatedProxy3D.new()
+	road_user_proxy = RoadUserArticulatedStableProxy3D.new()
 	road_user_proxy.name = "RoadUserArticulatedProxy"
 	road_user_proxy.configure(
 		scenario.target_type,
@@ -75,8 +77,14 @@ func _configure_m15_articulated_collision_channels() -> void:
 		if body != null and is_instance_valid(body):
 			_set_m15_road_user_body_channels(body)
 	_rebind_m15_articulated_joints()
-	if car != null and car.rigid_chassis != null and car.rigid_chassis.front_crush_probe != null:
-		car.rigid_chassis.front_crush_probe.collision_mask = M16_ROAD_USER_LAYER
+	if car != null and car.rigid_chassis != null:
+		# M19 expands the passenger-car front observation from the historical
+		# centre ray to three rays. All of them must see the dedicated road-user
+		# layer; otherwise the lateral M19 rays are blind to offset pedestrians and
+		# M22 cyclists while the centre compatibility handle still appears healthy.
+		for probe in car.rigid_chassis.front_crush_probes:
+			if probe != null and is_instance_valid(probe):
+				probe.collision_mask = M16_ROAD_USER_LAYER
 
 func _set_m15_road_user_body_channels(body: PhysicsBody3D) -> void:
 	body.collision_layer = M16_ROAD_USER_LAYER
