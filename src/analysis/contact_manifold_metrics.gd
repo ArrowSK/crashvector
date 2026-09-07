@@ -20,8 +20,10 @@ static func summarize(samples: Array) -> Dictionary:
 	var weighted_centroid := Vector3.ZERO
 	var weighted_normal := Vector3.ZERO
 	var total_impulse_ns := 0.0
+	var maximum_point_impulse_ns := 0.0
 	var total_weight := 0.0
 	var collider_names: Array[String] = []
+	var local_shape_indices: Array[int] = []
 
 	for sample_variant in samples:
 		if not sample_variant is Dictionary:
@@ -46,6 +48,7 @@ static func summarize(samples: Array) -> Dictionary:
 		weighted_centroid += position * weight
 		weighted_normal += normal * weight
 		total_impulse_ns += impulse_magnitude
+		maximum_point_impulse_ns = maxf(maximum_point_impulse_ns, impulse_magnitude)
 		total_weight += weight
 		if not have_point:
 			minimum = position
@@ -57,16 +60,22 @@ static func summarize(samples: Array) -> Dictionary:
 		var collider_text := String(collider_name)
 		if not collider_text.is_empty() and collider_text not in collider_names:
 			collider_names.append(collider_text)
+		var local_shape := int(sample.get("local_shape", -1))
+		if local_shape >= 0 and local_shape not in local_shape_indices:
+			local_shape_indices.append(local_shape)
 
 	if count == 0:
 		return {
 			"contact_count": 0,
 			"total_impulse_ns": 0.0,
+			"maximum_point_impulse_ns": 0.0,
+			"impulse_concentration_ratio": 0.0,
 			"centroid_local_m": Vector3.ZERO,
 			"span_local_m": Vector3.ZERO,
 			"normal_local": Vector3.ZERO,
 			"projected_span_xz_m2": 0.0,
 			"collider_names": [],
+			"local_shape_indices": [],
 			"interpretation": "No non-ground contacts in this physics integration step.",
 		}
 
@@ -76,6 +85,12 @@ static func summarize(samples: Array) -> Dictionary:
 	return {
 		"contact_count": count,
 		"total_impulse_ns": total_impulse_ns,
+		"maximum_point_impulse_ns": maximum_point_impulse_ns,
+		# Fraction of the integration step's summed reported impulse carried by
+		# the strongest individual contact. 1.0 means one reported point dominated;
+		# lower values indicate a more distributed manifold. This is a numerical
+		# diagnostic, not an engineering pressure/concentration measurement.
+		"impulse_concentration_ratio": maximum_point_impulse_ns / total_impulse_ns if total_impulse_ns > 0.000001 else 0.0,
 		"centroid_local_m": centroid,
 		"span_local_m": span,
 		"normal_local": normal,
@@ -84,5 +99,6 @@ static func summarize(samples: Array) -> Dictionary:
 		# as physical contact-patch area.
 		"projected_span_xz_m2": maxf(span.x, 0.0) * maxf(span.z, 0.0),
 		"collider_names": collider_names,
-		"interpretation": "Diagnostic spread of reported Godot contact points; not a physical contact-patch area or validation corridor.",
+		"local_shape_indices": local_shape_indices,
+		"interpretation": "Diagnostic spread/concentration of reported Godot contact points; not physical contact-patch area, pressure or a validation corridor.",
 	}
