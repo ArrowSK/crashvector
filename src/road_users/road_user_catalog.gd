@@ -13,6 +13,11 @@ const BICYCLE_CITY: StringName = &"bicycle_city"
 const BICYCLE_ROAD: StringName = &"bicycle_road"
 const BICYCLE_EBIKE: StringName = &"bicycle_ebike"
 
+# M22 cyclist targets use the existing bicycle archetypes plus one generic adult
+# rider. The rider mass is a default scenario assumption, not a biomechanical
+# body model; users may override the combined cyclist+bicycle mass.
+const DEFAULT_CYCLIST_RIDER_MASS_KG: float = 75.0
+
 static func pedestrian_ids() -> Array[StringName]:
 	return [PEDESTRIAN_ADULT, PEDESTRIAN_CHILD, PEDESTRIAN_TALL_ADULT]
 
@@ -56,6 +61,17 @@ static func default_mass_kg(id: StringName) -> float:
 	if is_bicycle_id(id):
 		return float(bicycle_data(id).get("default_mass_kg", 16.0))
 	return 0.0
+
+static func cyclist_default_mass_kg(bicycle_id: StringName) -> float:
+	return default_mass_kg(bicycle_id) + DEFAULT_CYCLIST_RIDER_MASS_KG
+
+static func cyclist_bicycle_mass_kg(bicycle_id: StringName) -> float:
+	return default_mass_kg(bicycle_id)
+
+static func cyclist_rider_mass_kg(combined_mass_kg: float, bicycle_id: StringName) -> float:
+	# Preserve at least a lightweight adult-sized rider share when the user edits
+	# combined mass. Validation prevents obviously nonsensical combined values.
+	return maxf(combined_mass_kg - cyclist_bicycle_mass_kg(bicycle_id), 35.0)
 
 static func pedestrian_height_m(id: StringName) -> float:
 	return float(pedestrian_data(id).get("height_m", 1.75))
