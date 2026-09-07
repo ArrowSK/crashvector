@@ -17,10 +17,12 @@ func _ready() -> void:
 func _layout_m10() -> void:
 	super._layout_m10()
 	_fit_m10_scenario_geometry()
+	_fit_m10_update_modal()
 
 func _layout_non_recursive() -> void:
 	super._layout_non_recursive()
 	_fit_m10_scenario_geometry()
+	_fit_m10_update_modal()
 
 func _fit_m10_scenario_geometry() -> void:
 	# M10 initially used estimated compact dimensions. Reserve the actual minimum
@@ -52,6 +54,29 @@ func _fit_m10_scenario_geometry() -> void:
 	_set_rect(m10_right_panel, size.x - 12.0 - right_width, top_y, size.x - 12.0, content_bottom)
 	_set_rect(m10_viewport_frame, content_left, top_y, content_right, content_bottom)
 	_set_rect(m10_replay_drawer, content_left, size.y - replay_height - bottom_margin, content_right, size.y - bottom_margin)
+
+func _fit_m10_update_modal() -> void:
+	# M9 authored the updater before the responsive M10 desktop existed. Keep the
+	# proven updater hierarchy and callbacks, but give its panel an explicit
+	# viewport-relative rectangle so it stays centred and fully visible instead of
+	# inheriting stale legacy anchors/offsets after the desktop is resized.
+	if update_panel == null:
+		return
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+	var modal_width := minf(760.0, maxf(320.0, viewport_size.x - 48.0))
+	var modal_height := minf(510.0, maxf(360.0, viewport_size.y - 48.0))
+	var left := (viewport_size.x - modal_width) * 0.5
+	var top := (viewport_size.y - modal_height) * 0.5
+	update_panel.anchor_left = 0.0
+	update_panel.anchor_top = 0.0
+	update_panel.anchor_right = 0.0
+	update_panel.anchor_bottom = 0.0
+	update_panel.offset_left = left
+	update_panel.offset_top = top
+	update_panel.offset_right = left + modal_width
+	update_panel.offset_bottom = top + modal_height
 
 func _harden_m10_scenario_rail() -> void:
 	# At the supported 1280x720 desktop floor, long option labels and the full
@@ -160,6 +185,12 @@ func _hide_legacy_ui() -> void:
 				(launch_panel as Control).visible = false
 	if update_canvas != null:
 		update_canvas.visible = true
+		# M9's update panel has the same legacy-layer problem as the calibration
+		# modal: leaving it below M10 makes it appear clipped by the current desktop
+		# and prevents its buttons from receiving pointer input. Preserve the M9
+		# hierarchy and callbacks; only raise the modal-bearing canvas above M10.
+		if m10_canvas != null:
+			update_canvas.layer = m10_canvas.layer + 1
 	if updates_button != null:
 		updates_button.visible = false
 	if custom_speed_panel != null:
