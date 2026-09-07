@@ -30,7 +30,10 @@ func _check_scene_routing_and_long_road(packed: PackedScene) -> void:
 	root.add_child(editor)
 	for _frame in range(6):
 		await process_frame
-	_expect(String(editor.get_script().resource_path).ends_with("crash_demo_m17.gd"), "Production scene must route through M17")
+	# The current production script is allowed to extend M17 through later
+	# milestones. M20 inherits the M17 long-road/comparison/reciprocal-impact
+	# implementation rather than replacing it.
+	_expect(String(editor.get_script().resource_path).ends_with("crash_demo_m20.gd"), "Current production scene must route through the M20 layer that inherits M17")
 	var road := editor.get_node_or_null("Road") as StaticBody3D
 	_expect(road != null, "M17 production scene must expose the continuous Road collision body")
 	if road != null:
@@ -85,12 +88,12 @@ func _check_new_rigid_targets(packed: PackedScene) -> void:
 		_expect(editor.get("pair_simulation") == null and editor.get("static_simulation") == null, "%s must not fall back to a legacy world-motion solver" % ScenarioConfig.target_display_name(target_type))
 		if target_type == ScenarioConfig.TARGET_LORRY:
 			var lorry: Variant = editor.get("m17_lorry")
-			_expect(lorry is M17RigidLorry, "Rigid lorry must use M17RigidLorry")
+			_expect(lorry is M17RigidLorry, "Rigid lorry must preserve the M17 rigid-body compatibility contract")
 			if lorry is M17RigidLorry:
 				_expect((lorry as M17RigidLorry).rigid_chassis is RigidBody3D, "Rigid lorry must own a Godot RigidBody3D chassis")
 		else:
 			var motorcycle: Variant = editor.get("m17_motorcycle")
-			_expect(motorcycle is M17Motorcycle, "Motorcycle must use M17Motorcycle")
+			_expect(motorcycle is M17Motorcycle, "Motorcycle must preserve the M17 rigid-body compatibility contract")
 			if motorcycle is M17Motorcycle:
 				_expect((motorcycle as M17Motorcycle).rigid_chassis is RigidBody3D, "Motorcycle must own a Godot RigidBody3D chassis")
 		editor.queue_free()
@@ -133,8 +136,8 @@ func _check_truck_strikes_and_deforms_car(packed: PackedScene) -> void:
 
 	var car := editor.get("car") as M17CompactHatchback
 	var truck := editor.get("truck") as M17HeavyTruck
-	_expect(car != null, "Reciprocal case did not use M17CompactHatchback")
-	_expect(truck != null, "Reciprocal case did not use M17HeavyTruck")
+	_expect(car != null, "Reciprocal case did not preserve M17CompactHatchback compatibility")
+	_expect(truck != null, "Reciprocal case did not preserve M17HeavyTruck compatibility")
 	if car != null and truck != null:
 		_expect(car.rigid_chassis.non_ground_contact_events > 0, "Truck->car case produced no real car contact")
 		_expect(truck.rigid_chassis.non_ground_contact_events > 0, "Truck->car case produced no real truck contact")
