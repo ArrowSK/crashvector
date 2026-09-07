@@ -160,6 +160,12 @@ func _hide_legacy_ui() -> void:
 				(launch_panel as Control).visible = false
 	if update_canvas != null:
 		update_canvas.visible = true
+		# M9's update panel has the same legacy-layer problem as the calibration
+		# modal: leaving it below M10 makes it appear clipped by the current desktop
+		# and prevents its buttons from receiving pointer input. Preserve the M9
+		# hierarchy and callbacks; only raise the modal-bearing canvas above M10.
+		if m10_canvas != null:
+			update_canvas.layer = m10_canvas.layer + 1
 	if updates_button != null:
 		updates_button.visible = false
 	if custom_speed_panel != null:
