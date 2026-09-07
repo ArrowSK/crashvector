@@ -7,6 +7,11 @@
 # procedural skin and report a false green result.
 set -eu
 if [ -f .gitmodules ] && [ ! -f "third_party/kenney_car_kit/License.txt" ]; then
+  # actions/checkout runs on the host while Godot validation runs inside a
+  # container. The mounted worktree therefore has a different numeric owner
+  # inside the container; Git 2.35+ rejects submodule commands unless this exact
+  # checkout is explicitly trusted. Trust only the current CI worktree.
+  git config --global --add safe.directory "$(pwd)"
   git submodule sync --recursive
   git submodule update --init --recursive
 fi
