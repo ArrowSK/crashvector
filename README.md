@@ -18,12 +18,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.8.0-beta.1/CrashVector-0.8.0-beta.1-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.8.0-beta.1/CrashVector-0.8.0-beta.1-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.8.0-beta.2/CrashVector-0.8.0-beta.2-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.8.0-beta.2/CrashVector-0.8.0-beta.2-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.8.0-beta.1">Release notes & checksums</a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.8.0-beta.2">Release notes & checksums</a>
   ·
   <a href="docs/DISTRIBUTION.md">Installation & updates</a>
 </p>
@@ -41,7 +41,7 @@ The current M12–M18 production architecture separates whole-object world motio
 
 > **Current state:** `main` and the current packaged beta are complete through **M18**. Supported production scenarios include passenger-car impacts with rigid wall, concrete barrier, yielding generic pole/tree targets, another passenger car including broadside passenger-car layouts, the heavy articulated truck, rigid lorry, riderless motorcycle, articulated pedestrian contact/trajectory targets and riderless bicycles. Visual Compare and Comparison Lab run each variant through the current production scene rather than the historical reduced-order world solver.
 
-> **Packaged release:** **`0.8.0-beta.1`** is the current public desktop beta, packaging the completed M17/M18 production stack for macOS Universal 2 and Windows x64.
+> **Packaged release:** **`0.8.0-beta.2`** is the current public desktop beta, packaging the completed M17/M18 production stack for macOS Universal 2 and Windows x64 with corrective runtime fixes for wheel presentation, heavy-truck skin attachment and bounded high-speed pedestrian launch.
 
 > **Important boundary:** M18 broadside deformation is currently limited to passenger-car pairs. Heavy-truck, rigid-lorry, motorcycle and bicycle broadside cases remain outside the implemented lateral model. Rigid-lorry and motorcycle world motion is production `RigidBody3D` in M17, but their structural graphs remain rigid presentation/reference structures rather than detailed crush models.
 
@@ -53,10 +53,10 @@ No Git, Godot, Python, Terminal or PowerShell is required for the packaged deskt
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.8.0-beta.1/CrashVector-0.8.0-beta.1-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
-| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.8.0-beta.1/CrashVector-0.8.0-beta.1-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
+| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.8.0-beta.2/CrashVector-0.8.0-beta.2-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
+| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.8.0-beta.2/CrashVector-0.8.0-beta.2-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
 
-The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.8.0-beta.1 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.8.0-beta.1)**.
+The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.8.0-beta.2 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.8.0-beta.2)**.
 
 This beta is ad-hoc signed on macOS and unsigned on Windows when paid signing credentials are not configured, so Gatekeeper or SmartScreen may warn about an unknown developer/publisher. Use only the files attached to the official `ArrowSK/crashvector` release.
 
@@ -111,7 +111,7 @@ Defaults exist for normal scenarios, so mass and solver parameters are not manda
 | Other dynamic targets | Rigid lorry and riderless motorcycle use production Godot rigid-body world motion; their own detailed crush models are not implemented |
 | Video export | 1080p / 1440p / 4K offline replay rendering at 30/60 fps with external FFmpeg H.264 encoding |
 | Calibration | Historical M8 evidence labels/reference check retained separately from current M12–M18 production-world validation |
-| Desktop distribution | Current `0.8.0-beta.1` macOS Universal 2 DMG and Windows x64 Setup installer with checksums and update manifest |
+| Desktop distribution | Current `0.8.0-beta.2` macOS Universal 2 DMG and Windows x64 Setup installer with checksums and update manifest |
 
 ## Passenger-car classes
 
@@ -275,7 +275,7 @@ Or open `project.godot` directly in Godot and run the project.
 | --- | --- |
 | [Roadmap](docs/ROADMAP.md) | Implementation history and future physics work |
 | [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, distribution and presentation layers |
-| [0.8.0-beta.1 release notes](docs/releases/0.8.0-beta.1.md) | Current packaged M17/M18 beta and release boundaries |
+| [0.8.0-beta.2 release notes](docs/releases/0.8.0-beta.2.md) | Current packaged M17/M18 corrective beta and release boundaries |
 | [M18 side impacts](docs/M18_SIDE_IMPACTS.md) | Passenger-car broadside contact, bounded lateral deformation and evidence limits |
 | [M17 reciprocal impacts and comparison](docs/M17_RECIPROCAL_IMPACTS_COMPARISON.md) | Production comparison, reciprocal impact direction, lorry/motorcycle routing and long proving road |
 | [M16 UX and vehicle visuals](docs/M16_UX_AND_VEHICLE_VISUALS.md) | Task-focused desktop shell and class-specific presentation layer |
@@ -294,7 +294,7 @@ Or open `project.godot` directly in Godot and run the project.
 
 **M18 is the current source and packaged milestone.** M17 restored production Comparison, reciprocal dynamic-impact direction and rigid-lorry/motorcycle production routing; M18 adds passenger-car broadside physics. The dedicated M17 and M18 gates passed on their final PR heads and again on the merged M18 source state together with canonical Core CI and native packaging checks.
 
-The current public installers are **`v0.8.0-beta.1`**, built from the M17/M18 source line with verified macOS Universal 2 and Windows x64 packages, checksum sidecars and `update-manifest.json`.
+The current public installers are **`v0.8.0-beta.2`**, built from the M17/M18 source line with the corrective runtime fixes, verified macOS Universal 2 and Windows x64 packages, checksum sidecars and `update-manifest.json`.
 
 The next physics work should focus on richer target-specific contact/deformation models and additional independent public/licensed references before extending validation claims.
 
