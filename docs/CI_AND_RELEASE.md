@@ -4,7 +4,7 @@ CrashVector separates code validation, rendered presentation review and desktop 
 
 ## Normal code changes
 
-`.github/workflows/ci.yml` is the normal automated gate for `main` and pull requests. It uses one Ubuntu/Godot job, imports the project once, then runs the unique M0-M19 regression scripts sequentially. The old milestone-specific workflows were removed because they repeatedly imported the same project and re-ran overlapping tests on separate runners.
+`.github/workflows/ci.yml` is the normal automated gate for `main` and pull requests. It uses one Ubuntu/Godot job, imports the project once, then runs the unique M0-M20 regression scripts sequentially. The old milestone-specific workflows were removed because they repeatedly imported the same project and re-ran overlapping tests on separate runners.
 
 Documentation-only changes under `docs/` or Markdown files do not start CI.
 
@@ -28,10 +28,10 @@ This review is intentionally not a per-push workload because rendered acceptance
 The workflow asks for a validation level:
 
 - `none` — package-only diagnostic build; no regression suite is run;
-- `smoke` — focused layout, Kenney presentation, runtime-stability/M19 diagnostic-foundation and M18 side-impact checks;
-- `full` — the full package-validation regression list through M18 plus the M19 checks embedded in the runtime-stability and production side-impact gates.
+- `smoke` — focused layout, Kenney presentation, runtime-stability, M18 passenger-car side impact, dedicated M19 contact diagnostics and the M20 heavy/lorry/motorcycle production-impact gate;
+- `full` — the consolidated historical/package regression set plus dedicated M19 and M20 production checks.
 
-Normal consolidated CI additionally runs the dedicated `m19_contact_fidelity.gd` regression. The manual contact matrix is intentionally outside package validation because it adds four more production simulations and is intended for evidence review rather than release gating.
+The expensive four-case M19 observation matrix remains in the manual visual-review workflow because it is intended for evidence inspection rather than pass/fail external correlation. M20's new production capability is different: its dedicated regression is part of both `smoke` and `full`, so a release cannot gain heavy/lorry/motorcycle broadside support while the corresponding production gate is omitted.
 
 It also asks whether to publish a versioned GitHub release. Publishing requires `smoke` or `full` validation to succeed, successful macOS and Windows packages, a new semantic version in `project.godot`, and matching release notes under `docs/releases/<version>.md`. `validation=none` deliberately cannot publish; it produces artifacts only. Existing release tags are never overwritten.
 
