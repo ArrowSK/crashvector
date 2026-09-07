@@ -5,6 +5,7 @@ import argparse
 import json
 from pathlib import Path
 import re
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 PROJECT = ROOT / "project.godot"
@@ -12,6 +13,41 @@ EXPORT_PRESETS = ROOT / "export_presets.cfg"
 INNO_VERSION = ROOT / "packaging" / "windows" / "generated_version.iss"
 BUILD_METADATA = ROOT / "build" / "version-metadata.json"
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
+KENNEY_ROOT = ROOT / "third_party" / "kenney_car_kit"
+KENNEY_REQUIRED = (
+    KENNEY_ROOT / "License.txt",
+    KENNEY_ROOT / "Models" / "GLB format" / "hatchback-sports.glb",
+    KENNEY_ROOT / "Models" / "GLB format" / "sedan.glb",
+    KENNEY_ROOT / "Models" / "GLB format" / "sedan-sports.glb",
+    KENNEY_ROOT / "Models" / "GLB format" / "suv.glb",
+    KENNEY_ROOT / "Models" / "GLB format" / "van.glb",
+    KENNEY_ROOT / "Models" / "GLB format" / "wheel-default.glb",
+)
+
+
+def ensure_kenney_assets() -> None:
+    missing = [path for path in KENNEY_REQUIRED if not path.is_file()]
+    if not missing:
+        return
+    if not (ROOT / ".gitmodules").is_file():
+        raise SystemExit("Kenney Car Kit assets are missing and .gitmodules is unavailable")
+    try:
+        subprocess.run(
+            ["git", "submodule", "sync", "--recursive"],
+            cwd=ROOT,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "submodule", "update", "--init", "--recursive"],
+            cwd=ROOT,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise SystemExit(f"Could not initialise pinned Kenney Car Kit assets: {exc}") from exc
+    missing = [path for path in KENNEY_REQUIRED if not path.is_file()]
+    if missing:
+        relative = ", ".join(str(path.relative_to(ROOT)) for path in missing)
+        raise SystemExit(f"Kenney Car Kit submodule is incomplete; missing: {relative}")
 
 
 def read_version() -> str:
@@ -123,6 +159,7 @@ def write_inno_version(meta: dict[str, str | int]) -> None:
 
 
 def prepare() -> dict[str, str | int]:
+    ensure_kenney_assets()
     version = read_version()
     meta = derived_versions(version)
     write_export_presets(meta)

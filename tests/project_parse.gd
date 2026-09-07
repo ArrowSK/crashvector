@@ -19,6 +19,8 @@ const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/vehicles/compact_hatchback_builder.gd",
 	"res://src/vehicles/passenger_car_builder.gd",
 	"res://src/vehicles/passenger_car_catalog.gd",
+	"res://src/vehicles/kenney_vehicle_asset_catalog.gd",
+	"res://src/vehicles/kenney_vehicle_skin_3d.gd",
 	"res://src/vehicles/heavy_truck_builder.gd",
 	"res://src/vehicles/rigid_lorry_builder.gd",
 	"res://src/vehicles/rigid_lorry.gd",

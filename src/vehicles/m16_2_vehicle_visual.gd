@@ -11,6 +11,14 @@ extends M161VehicleVisual
 # triangular spikes, while leaving collision geometry and M12-M15 physics
 # untouched.
 
+var kenney_skin: KenneyVehicleSkin3D
+
+func configure(target: CompactHatchback) -> void:
+	super.configure(target)
+	kenney_skin = KenneyVehicleSkin3D.new()
+	add_child(kenney_skin)
+	kenney_skin.configure(self)
+
 func _section_at_u(u: float) -> Dictionary:
 	var section: Dictionary = super._section_at_u(u)
 	if vehicle == null or section.is_empty():
