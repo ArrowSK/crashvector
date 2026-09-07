@@ -175,25 +175,23 @@ func validation_errors() -> Array[String]:
 			errors.append("Heavy-truck mass must be between 3,500 and 60,000 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 140.0:
 			errors.append("Heavy-truck speed must be between 0 and 140 km/h")
-		var truck_delta := heading_delta_deg()
-		if truck_delta > 25.0 and truck_delta < 155.0:
-			errors.append("Car/truck contact supports near-collinear rear-end or head-on layouts; broadside truck collapse is not modelled yet")
+		# M20 keeps the existing one-piece tractor/trailer rigid chassis but adds
+		# bounded generic side deformation, so arbitrary headings may use normal
+		# Godot contact. Fifth-wheel articulation is still not implied.
 	elif target_type == TARGET_LORRY:
 		if target_mass_kg < 3500.0 or target_mass_kg > 26000.0:
 			errors.append("Rigid-lorry mass must be between 3,500 and 26,000 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 140.0:
 			errors.append("Rigid-lorry speed must be between 0 and 140 km/h")
-		var lorry_delta := heading_delta_deg()
-		if lorry_delta > 25.0 and lorry_delta < 155.0:
-			errors.append("Car/lorry contact supports near-collinear rear-end or head-on layouts; broadside impacts are not modelled yet")
+		# M20 provides bounded generic front/rear/side deformation around the
+		# existing rigid-body lorry contact geometry. No manufacturer correlation.
 	elif target_type == TARGET_MOTORCYCLE:
 		if target_mass_kg < 80.0 or target_mass_kg > 600.0:
 			errors.append("Motorcycle mass must be between 80 and 600 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 250.0:
 			errors.append("Motorcycle speed must be between 0 and 250 km/h")
-		var motorcycle_delta := heading_delta_deg()
-		if motorcycle_delta > 25.0 and motorcycle_delta < 155.0:
-			errors.append("Motorcycle contact supports rear-end or near head-on layouts, not broadside impacts yet")
+		# M20 permits broadside/oblique riderless motorcycle layouts using the
+		# existing rigid-body trajectory with bounded local frame/fork response.
 	elif target_type == TARGET_BICYCLE:
 		if not RoadUserCatalog.bicycle_ids().has(target_preset_id):
 			errors.append("Unknown bicycle preset")
