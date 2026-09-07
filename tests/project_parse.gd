@@ -44,6 +44,7 @@ const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/replay/replay_recorder.gd",
 	"res://src/analysis/crash_analysis.gd",
 	"res://src/analysis/contact_manifold_metrics.gd",
+	"res://src/analysis/contact_fidelity_scenario_catalog.gd",
 	"res://src/analysis/analysis_overlay_3d.gd",
 	"res://src/ui/crash_metric_graph.gd",
 	"res://src/comparison/comparison_runner.gd",
