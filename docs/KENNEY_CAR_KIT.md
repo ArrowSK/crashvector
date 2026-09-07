@@ -15,14 +15,18 @@ The submodule is commit-pinned. A normal `git submodule update --init --recursiv
 
 ## Passenger-car mapping
 
+Each CrashVector passenger-car class now has its own pinned Kenney body asset instead of sharing a presentation body with another class.
+
 | CrashVector class | Kenney body |
 | --- | --- |
 | A-segment city car | `hatchback-sports.glb` |
-| B-segment small hatchback | `hatchback-sports.glb` |
+| B-segment small hatchback | `sedan-sports.glb` |
 | C-segment compact car | `sedan.glb` |
-| D-segment midsize car | `sedan-sports.glb` |
+| D-segment midsize car | `taxi.glb` |
 | J-segment SUV / crossover | `suv.glb` |
 | M-segment MPV / minivan | `van.glb` |
+
+The Car Kit has only one dedicated hatchback body and a limited set of ordinary passenger-car silhouettes. The D-segment therefore uses the additional Kenney passenger-sedan/taxi asset as a distinct presentation source rather than reusing the compact or sports-sedan body. These asset choices are visual class proxies only; they do not imply manufacturer-specific geometry or physics.
 
 Passenger cars use Kenney `wheel-default.glb` for all four presentation wheels. The existing wheel-anchor groups remain authoritative for wheel location and rolling motion.
 
@@ -30,8 +34,11 @@ Passenger cars use Kenney `wheel-default.glb` for all four presentation wheels. 
 
 The Kenney meshes are not collision geometry and do not replace CrashVector's structural model.
 
-`M162VehicleVisual` creates a `KenneyVehicleSkin3D`. The imported Kenney body is remapped into the same structural cross-section cage that already drives the M16.2 presentation. Consequently:
+`M162VehicleVisual` creates a `KenneyVehicleSkin3D`. On initial load, the Kenney body is converted into CrashVector's vehicle axes, fitted with one **uniform** scale and positioned inside the neutral presentation envelope. The source body proportions are not stretched independently and are not forced into the procedural cross-section cage before the crash starts.
 
+The neutral M16.2 cage is captured once when the presentation skin is installed. During simulation, the Kenney body receives only the displacement between the live structural cage and that neutral cage at the current rigid-body pose. Consequently:
+
+- an undeformed vehicle preserves the source Kenney silhouette apart from axis conversion, one uniform scale, placement and the selected CrashVector paint;
 - M12/M13 front deformation still comes from the production structural graph and rigid-body contact path;
 - M17 rear deformation still moves the rear presentation anchors;
 - M18 lateral intrusion still moves the struck-side presentation anchors;
@@ -50,12 +57,13 @@ This is a presentation limitation only; the corresponding M14-M18 simulation pat
 
 `tests/kenney_car_kit_visuals.gd` verifies:
 
-- all six passenger-car class mappings;
+- six distinct passenger-car class mappings;
 - availability of the pinned Kenney bodies and wheel model;
 - production-scene activation of the Kenney skin;
+- preservation of a uniformly scaled pristine source body before structural deformation;
 - replacement of the generated passenger-car body and four presentation wheels;
 - existing CrashVector paint selection;
-- direct coupling to front, rear and lateral structural anchors;
+- direct coupling to front, rear and lateral structural displacement;
 - class-specific rebuild to the SUV asset.
 
 The pre-existing M17 and M18 regressions remain responsible for reciprocal-impact and side-impact physics. The Kenney integration does not weaken or replace those gates.
