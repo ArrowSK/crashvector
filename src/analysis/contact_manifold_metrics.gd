@@ -32,14 +32,18 @@ static func summarize(samples: Array) -> Dictionary:
 		var collider_name := StringName(String(sample.get("collider_name", "")))
 		if collider_name in GROUND_NAMES:
 			continue
-		var position_value: Variant = sample.get("position_local", Vector3.ZERO)
+		var position_value = sample.get("position_local", Vector3.ZERO)
 		if not position_value is Vector3:
 			continue
 		var position: Vector3 = position_value
-		var impulse_value: Variant = sample.get("impulse", Vector3.ZERO)
-		var impulse := impulse_value as Vector3 if impulse_value is Vector3 else Vector3.ZERO
-		var normal_value: Variant = sample.get("normal", Vector3.ZERO)
-		var normal := normal_value as Vector3 if normal_value is Vector3 else Vector3.ZERO
+		var impulse_value = sample.get("impulse", Vector3.ZERO)
+		var impulse := Vector3.ZERO
+		if impulse_value is Vector3:
+			impulse = impulse_value
+		var normal_value = sample.get("normal", Vector3.ZERO)
+		var normal := Vector3.ZERO
+		if normal_value is Vector3:
+			normal = normal_value
 		var impulse_magnitude := impulse.length()
 		var weight := maxf(impulse_magnitude, 0.000001)
 
