@@ -33,18 +33,23 @@ func _check_broadside_preflight() -> void:
 	var errors := config.validation_errors()
 	_expect(errors.is_empty(), "M18 must allow a 90-degree passenger-car pair: %s" % "; ".join(errors))
 
-	var truck_case := ScenarioConfig.from_dictionary(config.to_dictionary())
-	truck_case.apply_target_defaults(ScenarioConfig.TARGET_TRUCK)
-	truck_case.target_position_m = Vector3(0.0, 0.0, -8.0)
-	truck_case.target_heading_deg = -90.0
-	truck_case.target_speed_kmh = 50.0
-	var truck_errors := truck_case.validation_errors()
-	var truck_broadside_still_blocked := false
-	for error in truck_errors:
-		if error.contains("broadside truck collapse"):
-			truck_broadside_still_blocked = true
+	# M20 later extends arbitrary-heading support to truck/lorry/motorcycle. Keep
+	# the M18 regression focused on the passenger-car side path and on a target
+	# class whose broadside deformation is still deliberately outside scope.
+	var bicycle_case := ScenarioConfig.from_dictionary(config.to_dictionary())
+	bicycle_case.apply_target_defaults(ScenarioConfig.TARGET_BICYCLE)
+	bicycle_case.target_preset_id = RoadUserCatalog.BICYCLE_CITY
+	bicycle_case.target_mass_kg = RoadUserCatalog.default_mass_kg(bicycle_case.target_preset_id)
+	bicycle_case.target_position_m = Vector3(0.0, 0.0, -8.0)
+	bicycle_case.target_heading_deg = -90.0
+	bicycle_case.target_speed_kmh = 20.0
+	var bicycle_errors := bicycle_case.validation_errors()
+	var bicycle_broadside_still_blocked := false
+	for error in bicycle_errors:
+		if error.contains("not broadside impacts yet"):
+			bicycle_broadside_still_blocked = true
 			break
-	_expect(truck_broadside_still_blocked, "M18 passenger-car side support must not silently enable unmodelled truck broadside collapse")
+	_expect(bicycle_broadside_still_blocked, "M18/M20 scope must not silently enable the still-unmodelled bicycle broadside path")
 
 func _check_perpendicular_car_to_car_impact() -> void:
 	var packed := load("res://app/main.tscn") as PackedScene
@@ -113,10 +118,8 @@ func _check_perpendicular_car_to_car_impact() -> void:
 		var visual_state := car.replay_visual_state()
 		_expect(visual_state.has("hybrid_side_negative_z_crush_m") and visual_state.has("hybrid_side_positive_z_crush_m"), "M18 replay state does not preserve lateral deformation")
 
-		# M19 is observational only. The existing broadside production smoke also
-		# verifies that the current main scene records real contact-manifold data,
-		# so manual package smoke covers the new diagnostic layer without adding
-		# another expensive production run.
+		# M19 diagnostics remain observational. The existing broadside production
+		# smoke verifies that the current scene records real contact-manifold data.
 		var manifold := car.rigid_chassis.contact_manifold_diagnostics()
 		_expect(String(manifold.get("scope", "")) == "diagnostic_only_no_solver_feedback", "M19 diagnostic scope marker is missing from the production chassis")
 		_expect(int(manifold.get("maximum_contact_points", 0)) > 0, "M19 production chassis recorded no non-ground contact manifold")
