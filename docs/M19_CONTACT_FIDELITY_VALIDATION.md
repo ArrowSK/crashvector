@@ -32,7 +32,7 @@ The catalog contains four stored references:
 
 The three offset/oblique references are `protocol_geometry_only`: they record public load-case geometry but contain no invented CrashVector outcome corridor. None of the four references currently claims validation of the M12-M19 production rigid-body stack. The historical M8 reference remains explicitly identified as a reduced-order correlation check.
 
-## Regression gate
+## Regression and smoke gates
 
 `tests/m19_contact_fidelity.gd` is intended to verify:
 
@@ -44,10 +44,25 @@ The three offset/oblique references are `protocol_geometry_only`: they record pu
 - replay frames preserve those diagnostics;
 - `CrashAnalysis` retains the primary manifold summary.
 
-The test is added to consolidated CI. Runtime execution remains required before any change to offset/oblique contact response is justified.
+The dedicated M19 test is part of consolidated CI. The manual package smoke gate already runs `runtime_presentation_stability.gd` and `m18_side_impacts.gd`; those tests now also verify the cheap M19 helper/catalog checks and the current production scene's replay/analysis manifold path, so no additional package-smoke production run is required.
+
+## Offset/oblique observation matrix
+
+`ContactFidelityScenarioCatalog` defines four generic CrashVector observation cases:
+
+- aligned head-on passenger cars;
+- generic offset head-on passenger cars;
+- generic 15-degree oblique passenger-car pair;
+- perpendicular passenger-car impact.
+
+These are deliberately not described as replicas of the stored NHTSA/IIHS protocols. They exist to compare the current production contact manifold as alignment changes while holding the architecture constant.
+
+`tests/m19_contact_matrix.gd` runs the four cases through the real production scene and writes `build/m19_contact_fidelity/contact_matrix.json`. The manual Presentation visual review workflow runs this matrix alongside the rendered acceptance frames and uploads the JSON in the same review artifact. This keeps the expensive multi-case observation pass manual rather than adding four more production simulations to every normal CI push.
+
+The diagnostic report includes reported contact-point count, local spread, peak reported-step impulse, primary/target front/rear/side crush and basic analysis metrics. It remains observation data only; no threshold is presented as an external validation corridor.
 
 ## Next production step
 
-The next M19 increment should compare full-frontal, offset-frontal, oblique and broadside production runs using the new manifold diagnostics. Only after those observations are available should CrashVector change collision/contact geometry or deformation classification. A change should be narrow and explainable from observed contact behaviour rather than introduced merely to make a screenshot look more plausible.
+The next M19 increment is evidence-dependent: run the manual matrix, inspect whether aligned, offset, oblique and broadside cases produce plausible and distinct manifold behaviour, and only then make the smallest justified change to collision/contact geometry or deformation classification. A solver change should be traceable to an observed failure mode rather than introduced merely to improve appearance.
 
 Public protocol geometry is not by itself a correlation corridor. Additional measured vehicle-response data or suitable licensed/public crash-test datasets are required before CrashVector can strengthen evidence claims for offset/oblique production behaviour.
