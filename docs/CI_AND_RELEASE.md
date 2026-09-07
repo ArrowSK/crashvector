@@ -39,13 +39,15 @@ A package produced with `validation=none` is an **unvalidated diagnostic artifac
 
 ## Current M22 release-readiness state
 
-The current `main` source is implemented through M22, but M19-M22 were committed with `[skip ci]` while GitHub-hosted Actions capacity was exhausted. Therefore:
+The current `main` source is implemented through M22. The canonical source version has now been advanced to the **`0.9.0-beta.1` release candidate**, with matching notes under `docs/releases/0.9.0-beta.1.md`.
+
+M19-M22 were implemented with `[skip ci]` while GitHub-hosted Actions capacity was exhausted, so the version bump does not make them runtime-validated. Therefore:
 
 - source routing, tests and package gates are wired through M22;
-- M19-M22 must still be treated as runtime-unvalidated;
-- `project.godot` intentionally remains at the last verified public version, `0.8.0-beta.3`;
-- the updater/download links therefore continue to point only at the verified M18-era public package;
-- no new public release should claim M19-M22 support until Godot and native package gates execute successfully.
+- M19-M22 must still be treated as runtime-unvalidated until Godot executes the current gates;
+- `0.9.0-beta.1` is a source/release candidate only and must not be described as a published validated beta yet;
+- the current verified public installers and updater manifest remain `0.8.0-beta.3` until a new release is actually published;
+- no public release should claim M19-M22 support until the required Godot and native package gates execute successfully.
 
 Once runner capacity is available, use this order:
 
@@ -53,8 +55,10 @@ Once runner capacity is available, use this order:
 2. If a quicker first diagnostic is needed, package `smoke` is the minimum publishable regression subset because it includes M19-M22.
 3. Run `Presentation visual review` and inspect the pristine passenger-car frames, representative deformation frames and M19 contact matrix rather than treating artifact generation itself as visual acceptance.
 4. Build macOS Universal 2 and Windows x64 packages and retain the existing signature/install/uninstall/checksum checks.
-5. Only after the source/runtime/visual/package gates are acceptable should `project.godot` be bumped and matching release notes be finalized.
-6. Publish with `publish_release=true`; the workflow will refuse publication if validation is `none`, if either native package fails, or if the release tag already exists.
+5. If the source/runtime/visual/package gates are acceptable, keep the already-prepared `0.9.0-beta.1` version/notes unchanged and publish with `publish_release=true`.
+6. The workflow will refuse publication if validation is `none`, if either native package fails, or if the release tag already exists.
+
+If validation uncovers a code defect after packages or release metadata have escaped into a published release, do not replace that release in place: fix the defect and bump to a new prerelease version.
 
 The preferred release-candidate path is `full` validation plus manual visual review. `smoke` exists as the minimum publishable gate, not as a reason to skip the full suite when capacity is available.
 
