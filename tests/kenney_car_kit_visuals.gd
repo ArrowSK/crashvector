@@ -55,6 +55,8 @@ func _run() -> void:
 			_fail("Kenney wheel is not attached to the authoritative wheel anchor group")
 			return
 
+	if not _verify_pristine_baseline(skin):
+		return
 	if not _verify_paint(vehicle, skin):
 		return
 	if not _verify_structural_mapping(vehicle, visual, skin):
@@ -70,23 +72,58 @@ func _run() -> void:
 func _verify_catalog_mapping() -> bool:
 	var expected := {
 		PassengerCarCatalog.A_SEGMENT_CITY: "hatchback-sports.glb",
-		PassengerCarCatalog.B_SEGMENT_HATCHBACK: "hatchback-sports.glb",
+		PassengerCarCatalog.B_SEGMENT_HATCHBACK: "sedan-sports.glb",
 		PassengerCarCatalog.C_SEGMENT_COMPACT: "sedan.glb",
-		PassengerCarCatalog.D_SEGMENT_MIDSIZE: "sedan-sports.glb",
+		PassengerCarCatalog.D_SEGMENT_MIDSIZE: "taxi.glb",
 		PassengerCarCatalog.J_SEGMENT_SUV: "suv.glb",
 		PassengerCarCatalog.M_SEGMENT_MPV: "van.glb",
 	}
+	var seen_paths := {}
 	for preset_id in PassengerCarCatalog.preset_ids():
 		var path := KenneyVehicleAssetCatalog.passenger_car_body_path(preset_id)
 		if not path.ends_with(String(expected[preset_id])):
 			_fail("Unexpected Kenney mapping for %s: %s" % [preset_id, path])
 			return false
+		if seen_paths.has(path):
+			_fail("Passenger-car classes reused the same Kenney body: %s" % path)
+			return false
+		seen_paths[path] = true
 		if not ResourceLoader.exists(path):
 			_fail("Mapped Kenney body is missing: %s" % path)
 			return false
+	if seen_paths.size() != PassengerCarCatalog.preset_ids().size():
+		_fail("Each passenger-car class must have its own Kenney body asset")
+		return false
 	if not ResourceLoader.exists(KenneyVehicleAssetCatalog.WHEEL_DEFAULT):
 		_fail("Kenney passenger-car wheel asset is missing")
 		return false
+	return true
+
+func _verify_pristine_baseline(skin: KenneyVehicleSkin3D) -> bool:
+	if skin.pristine_scale <= 0.001:
+		_fail("Kenney pristine-body uniform scale was not established")
+		return false
+	var box := skin.source_aabb
+	var source_origin := box.position
+	var source_width := source_origin + Vector3(box.size.x, 0.0, 0.0)
+	var source_height := source_origin + Vector3(0.0, box.size.y, 0.0)
+	var source_length := source_origin + Vector3(0.0, 0.0, box.size.z)
+	var mapped_origin := skin._map_vertex(source_origin)
+	var mapped_width := skin._map_vertex(source_width)
+	var mapped_height := skin._map_vertex(source_height)
+	var mapped_length := skin._map_vertex(source_length)
+	var tolerance_m := 0.010
+	var checks := [
+		[source_origin.distance_to(source_width), mapped_origin.distance_to(mapped_width), "width"],
+		[source_origin.distance_to(source_height), mapped_origin.distance_to(mapped_height), "height"],
+		[source_origin.distance_to(source_length), mapped_origin.distance_to(mapped_length), "length"],
+	]
+	for check in checks:
+		var expected_distance: float = float(check[0]) * skin.pristine_scale
+		var actual_distance: float = float(check[1])
+		if absf(actual_distance - expected_distance) > tolerance_m:
+			_fail("Undeformed Kenney body no longer preserves pristine uniform %s scale" % String(check[2]))
+			return false
 	return true
 
 func _verify_paint(vehicle: CompactHatchback, skin: KenneyVehicleSkin3D) -> bool:
