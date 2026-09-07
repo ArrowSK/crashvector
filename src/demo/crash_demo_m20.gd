@@ -62,6 +62,18 @@ func _m17_replace_static_with_motorcycle() -> void:
 	static_simulation = null
 	hybrid_production_active = true
 
+func _m162_refresh_presentation_skins() -> void:
+	super._m162_refresh_presentation_skins()
+	if not (truck is M20HeavyTruck):
+		return
+	if m162_truck_skin is M20HeavyTruckVisual and m162_truck_skin.truck == truck:
+		return
+	if m162_truck_skin != null and is_instance_valid(m162_truck_skin):
+		m162_truck_skin.queue_free()
+	m162_truck_skin = M20HeavyTruckVisual.new()
+	truck.add_child(m162_truck_skin)
+	m162_truck_skin.configure(truck)
+
 func _truck_metrics(vehicle: HeavyTruck) -> Dictionary:
 	var result := super._truck_metrics(vehicle)
 	if vehicle is M20HeavyTruck:
