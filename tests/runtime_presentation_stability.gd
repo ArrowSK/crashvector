@@ -13,6 +13,7 @@ func _run() -> void:
 	_check_m19_diagnostic_foundation()
 	await _check_heavy_truck_skin_origin()
 	await _check_m20_replay_safe_truck_skin()
+	await _check_m21_articulated_truck_construction()
 	await _check_passenger_car_wheel_axis()
 	await _check_high_speed_pedestrian_vertical_transfer()
 	if failures.is_empty():
@@ -105,6 +106,34 @@ func _m20_trailer_width(skin: M20HeavyTruckVisual) -> float:
 		return 0.0
 	var mesh := skin.trailer_instance.mesh as BoxMesh
 	return 0.0 if mesh == null else mesh.size.z
+
+func _check_m21_articulated_truck_construction() -> void:
+	# Package smoke does not need another full production collision. It does need
+	# to prove that the target shipped by main still has two separate bodies, a
+	# constrained fifth wheel and an articulated presentation root. The existing
+	# M20 production broadside smoke then exercises this same M21 route under real
+	# collision load.
+	var truck := M21HeavyTruck.new()
+	truck.name = "RuntimeRegressionM21Truck"
+	truck.total_mass_kg = 18000.0
+	truck.origin_offset_m = Vector3.ZERO
+	truck.auto_step = false
+	root.add_child(truck)
+	await process_frame
+	_expect(truck.rigid_chassis != null and truck.tractor_chassis != null, "M21 smoke: articulated truck did not create separate trailer/tractor rigid bodies")
+	_expect(truck.fifth_wheel_joint != null, "M21 smoke: articulated truck did not create the fifth-wheel joint")
+	if truck.rigid_chassis != null and truck.tractor_chassis != null:
+		_expect(absf((truck.rigid_chassis.mass + truck.tractor_chassis.mass) - truck.total_mass_kg) < 1.0, "M21 smoke: split rigid-body masses do not preserve total target mass")
+		_expect(truck.fifth_wheel_separation_m() < 0.01, "M21 smoke: fifth-wheel anchors are separated in the pristine pose")
+	var skin := M21HeavyTruckVisual.new()
+	truck.add_child(skin)
+	skin.configure(truck)
+	await process_frame
+	_expect(skin.tractor_presentation_root != null, "M21 smoke: articulated tractor presentation root is missing")
+	var diagnostics := truck.combined_contact_manifold_diagnostics()
+	_expect(String(diagnostics.get("scope", "")) == "diagnostic_only_no_solver_feedback_articulated_pair", "M21 smoke: combined contact diagnostic scope changed")
+	truck.queue_free()
+	await process_frame
 
 func _check_passenger_car_wheel_axis() -> void:
 	var car := M17CompactHatchback.new()
