@@ -34,6 +34,8 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 	var last_contact_increment_time_s: float = -1.0
 	var previous_contact_count: int = 0
 	var rest_time_s: float = -1.0
+	var primary_contact_manifold := _empty_contact_manifold_summary()
+	var target_contact_manifold := _empty_contact_manifold_summary()
 
 	for i in range(recording.frames.size()):
 		var frame := recording.frames[i]
@@ -63,6 +65,8 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 		if contact_count > previous_contact_count:
 			last_contact_increment_time_s = time_s
 		previous_contact_count = contact_count
+		_merge_contact_manifold_summary(primary_contact_manifold, context.get("primary_contact_manifold", {}))
+		_merge_contact_manifold_summary(target_contact_manifold, context.get("target_contact_manifold", {}))
 
 		if i > 0:
 			var previous := recording.frames[i - 1]
@@ -115,6 +119,11 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 		"front_crush_series": front_crush,
 		"safety_cell_series": safety_cell,
 		"event_markers": markers,
+		# M19 contact-manifold summaries are observational metadata from Godot's
+		# reported rigid-body contacts. They are not solver inputs or evidence
+		# corridors and must not be interpreted as physical contact-patch area.
+		"primary_contact_manifold": primary_contact_manifold,
+		"target_contact_manifold": target_contact_manifold,
 	}
 	var first_target := _metrics(first, "target_metrics")
 	var last_target := _metrics(last, "target_metrics")
@@ -127,6 +136,43 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 static func _metrics(frame: Dictionary, key: String) -> Dictionary:
 	var value: Variant = frame.get(key, {})
 	return value if value is Dictionary else {}
+
+static func _empty_contact_manifold_summary() -> Dictionary:
+	return {
+		"maximum_contact_points": 0,
+		"maximum_span_local_m": Vector3.ZERO,
+		"maximum_projected_span_xz_m2": 0.0,
+		"peak_total_impulse_ns": 0.0,
+		"peak": {},
+		"scope": "diagnostic_only_no_solver_feedback",
+	}
+
+static func _merge_contact_manifold_summary(summary: Dictionary, value: Variant) -> void:
+	if not value is Dictionary:
+		return
+	var diagnostics: Dictionary = value
+	var points := int(diagnostics.get("maximum_contact_points", 0))
+	summary["maximum_contact_points"] = maxi(int(summary.get("maximum_contact_points", 0)), points)
+	var span_value: Variant = diagnostics.get("maximum_span_local_m", Vector3.ZERO)
+	var span := span_value as Vector3 if span_value is Vector3 else Vector3.ZERO
+	var existing_value: Variant = summary.get("maximum_span_local_m", Vector3.ZERO)
+	var existing := existing_value as Vector3 if existing_value is Vector3 else Vector3.ZERO
+	var maximum_span := Vector3(
+		maxf(existing.x, span.x),
+		maxf(existing.y, span.y),
+		maxf(existing.z, span.z)
+	)
+	summary["maximum_span_local_m"] = maximum_span
+	summary["maximum_projected_span_xz_m2"] = maxf(
+		float(summary.get("maximum_projected_span_xz_m2", 0.0)),
+		maxf(maximum_span.x, 0.0) * maxf(maximum_span.z, 0.0)
+	)
+	var peak_impulse := float(diagnostics.get("peak_total_impulse_ns", 0.0))
+	if peak_impulse > float(summary.get("peak_total_impulse_ns", 0.0)):
+		summary["peak_total_impulse_ns"] = peak_impulse
+		var peak_value: Variant = diagnostics.get("peak", {})
+		if peak_value is Dictionary:
+			summary["peak"] = (peak_value as Dictionary).duplicate(true)
 
 static func _marker(id: StringName, label: String, time_s: float) -> Dictionary:
 	return {"id": String(id), "label": label, "time_s": time_s}
