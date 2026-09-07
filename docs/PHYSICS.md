@@ -2,243 +2,284 @@
 
 CrashVector is an educational simulator. Numerical outputs must be labelled according to the confidence of the underlying model and must not be presented as certified accident reconstruction, manufacturer crash performance, biomechanics or injury prediction.
 
+The current `main` source is implemented through M22. M19–M22 were committed while GitHub-hosted Actions capacity was exhausted, so those layers are **implemented but runtime-unvalidated** until Godot executes the current regression stack. The verified public package remains `0.8.0-beta.3` and predates M19–M22.
+
 ## Passenger-car presets
 
 CrashVector uses generic A-, B-, C-, D-, J- and M-segment passenger-car presets. The classes vary representative mass, structural dimensions, mass distribution and stiffness scaling. These parameters are development assumptions, not manufacturer data, CAD-derived structures or homologation models.
 
-Multiple passenger-car instances can exist in one scenario. This remains intentionally class-based rather than production-model based.
-
-M16 adds class-specific **presentation** profiles, but those profiles do not change the physics parameters described here. M17/M18 add additional longitudinal/lateral deformation state underneath the same presentation layer rather than changing class identity into manufacturer-specific geometry.
+Multiple passenger-car instances can exist in one scenario. Class identity remains generic even when the Kenney presentation layer supplies visually distinct bodies.
 
 ## Current production world motion
 
-Since M12, supported production whole-object motion is not integrated by the historical deformable point-mass graph. Godot `RigidBody3D` is authoritative for mass, inertia, translation, rotation, gravity and world collision on the current supported production path.
+Since M12, supported production whole-object motion is not integrated by the historical deformable point-mass graph. Godot `RigidBody3D` is authoritative for mass, inertia, translation, rotation, gravity and world collision on the current production path.
 
-For passenger cars, the M11 refined 44-node structural graph remains local to the rigid chassis and supplies permanent deformation/crush state. M13 extends that local failure rearward through firewall/cowl intrusion, floor/rocker and A-pillar/roof deformation, passenger-cell shortening and rear-body buckling when collision demand and front-zone exhaustion justify it. M17 adds a bounded direct rear-impact deformation path. M18 adds bounded left/right lateral protected-cell deformation for passenger-car broadside contact.
+For passenger cars, the M11 refined 44-node structural graph remains local to the rigid chassis and supplies permanent deformation/crush state. M13 extends local failure rearward through firewall/cowl intrusion, floor/rocker and A-pillar/roof deformation, passenger-cell shortening and rear-body buckling. M17 adds bounded direct rear deformation. M18 adds bounded left/right lateral protected-cell deformation. M19 adds observation/diagnostic coverage without taking collision authority away from Godot.
 
-The passenger-car rigid collision volume ends around the protected cell/subframe rather than occupying the crushable nose. A forward probe measures available front-crush travel, drives the phenomenological resistance force and provides the production contact route used by M14/M15 vulnerable road-user targets. M17 rear-impact and M18 side-impact paths use real rigid-body contact demand rather than reviving the old whole-car structural trajectory solver.
+The passenger-car rigid collision volume ends around the protected cell/subframe rather than occupying the crushable nose. Front-crush travel is observed by one centre ray plus two M19 lateral rays. The deepest valid non-ground observation drives the existing crush path; those rays are sensors, not collision shapes and not separate force generators.
 
-Passenger cars use four force-producing raycast suspension contacts. The supported heavy articulated truck uses six suspension contacts plus a physical rear underride contact face. Continuous collision detection is enabled for production rigid bodies. M17 also ports generic rigid-lorry and riderless-motorcycle world motion/contact to the production Godot rigid-body architecture.
+Passenger cars use four force-producing raycast suspension contacts. Heavy/other targets use their own production rigid bodies and support structures. Continuous collision detection remains enabled for production rigid bodies.
 
-## Historical reduced-order pair solver
+## Historical reduced-order solvers
 
-`VehiclePairSimulation` and `VehiclePairContact` remain in the repository for historical regression continuity. They advance structural models on a shared substep clock and apply equal-and-opposite contact response at paired structural points.
+`VehiclePairSimulation`, `VehiclePairContact`, `VehicleStaticSimulation` and the historical synchronous `ComparisonRunner` remain for regression continuity.
 
-That solver is not silently substituted for the current M12–M18 production world-motion path. Rigid lorry and motorcycle production world motion is handled by the Godot rigid-body path from M17, and production Visual Compare / Comparison Lab no longer use the historical synchronous runner to generate current results.
+They are not silently substituted for the M12–M22 production world-motion path. Since M17, Visual Compare and Comparison Lab execute each requested variant through an isolated current production scene/`World3D` and consume the resulting production `ReplayRecording` and analysis state.
 
-The historical pair solver remains useful for regression continuity, but a result produced only by that path is not presented as current production physics.
+A result produced only by the historical reduced-order path must not be presented as current production physics.
 
-## Car vs car and heavy truck
+## Passenger-car longitudinal deformation
 
-Supported current passenger-car scenarios use the rigid-body production path for world motion. M17 supports reciprocal near-collinear longitudinal impacts so a dynamic actor may approach from ahead or behind. M18 extends passenger-car pairs to arbitrary relative headings, including perpendicular broadside/T-bone layouts.
+### Front and staged failure
 
-M18 broadside support is deliberately limited to passenger-car pairs. Heavy-truck, rigid-lorry, motorcycle and bicycle broadside cases remain outside the implemented lateral model.
+The M12 front structure has finite crush travel. M13 propagates severe residual collision demand through:
 
-The supported heavy articulated truck uses the rigid-body world path. Its rear underride geometry and M17 front/rear collapse envelopes are generic educational approximations and do not claim compliance with a particular rear-guard standard or reproduce a specific production vehicle. The truck remains one rigid world assembly rather than a fifth-wheel articulation model.
+`front crush → firewall/cowl → floor/rocker + A-pillar/roof → passenger-cell shortening → rear-body buckle`
 
-## M17 reciprocal longitudinal deformation
+Stage activation uses collision demand and measured front-zone exhaustion rather than a simple speed threshold. The protected-cell collision face retreats during severe collapse so later shortening corresponds to physical collision geometry rather than a mesh-only effect.
 
-M17 removes the assumption that the UI “primary” actor is always the striker. Supported dynamic impacts are classified from position, heading and velocity, while static fixtures still have to start ahead of the passenger car.
+The established generic B-class regression values remain historical project guards:
 
-Passenger-car direct rear deformation and heavy-truck front/rear collapse use real contact demand. To avoid underestimating demand after Godot has already resolved much of the relative velocity, the model retains both reduced-mass relative-velocity energy and contact-impulse energy reconstructed as:
+- 50 km/h rigid wall: about 105.0 kJ demand, 0.536 m front crush, effectively zero firewall/cabin/rear collapse;
+- 200 km/h rigid wall: about 1,739.2 kJ demand, 0.945 m front-zone crush, 0.300 m firewall intrusion, 0.820 m passenger-cell collapse, 0.231 m rear buckle and 1.948 m combined longitudinal collapse.
+
+These are CrashVector regression measurements, not predictions for a production car.
+
+### Reciprocal rear impacts
+
+M17 removes the assumption that the UI “primary” actor is always the striker. Supported dynamic impacts are classified from position, heading and velocity.
+
+Passenger-car direct rear deformation and heavy-target longitudinal deformation retain both reduced-mass relative-velocity demand and contact-impulse-derived demand:
 
 `E_impulse = J² / (2μ)`
 
-where `J` is the measured contact impulse and `μ` is reduced mass.
+where `J` is measured contact impulse and `μ` is reduced mass.
 
-The passenger-car rear deformation path is bounded and does not replace the M12/M13 front-crush/staged-failure path. Heavy-truck local collapse also retreats the corresponding rigid collision face so the visible/local deformation is not disconnected from physical contact geometry.
-
-Rigid-lorry and riderless-motorcycle world motion is production `RigidBody3D` in M17, but their own detailed crush structures are not implemented.
+This avoids suppressing legitimate deformation merely because Godot has already resolved much of the relative velocity before the local-deformation layer observes the state.
 
 ## M18 passenger-car side impacts
 
-M18 introduces a generic bounded lateral-deformation envelope for passenger-car pairs.
+M18 adds a generic bounded lateral-deformation envelope for passenger-car pairs.
 
-A Godot contact sample is considered lateral only when it lies near a protected-cell side face and within the longitudinal span of that protected cell. When collider-centre information is available, the classifier also requires a predominantly lateral approach so a wide vehicle touching a side edge during an ordinary longitudinal impact is not misclassified as a broadside event.
+A reported contact sample is considered lateral only when it lies near a protected-cell side face and within the protected-cell longitudinal span. Collider-centre/relative-motion checks prevent ordinary longitudinal contact with a wide actor from being misclassified as broadside.
 
-For a lateral sample, collision demand uses the larger of reduced-mass lateral relative-velocity energy and `J² / (2μ)` reconstructed from the real contact impulse.
+Lateral collision demand again uses the larger of reduced-mass lateral relative-velocity energy and `J²/(2μ)` reconstructed from real contact impulse.
 
-The generic lateral crush relation is phenomenological:
+The phenomenological side relation is:
 
 `E = F0*x + 0.5*k*x²`
 
-with class/mass scaling applied to the generic resistance terms. Commanded intrusion is bounded to a fraction of the class-scaled vehicle width. Struck-side structural nodes move inward, with additional upper-structure drop, and the physical protected-cell collision face retreats on the struck side as intrusion increases.
+with generic class/mass scaling and a bounded intrusion envelope. Struck-side structural nodes move inward/downward and the physical side collision face retreats with commanded intrusion.
 
-The final perpendicular regression uses a stationary C-segment passenger car and a B-segment passenger car approaching at 55 km/h and -90 degrees. It records approximately:
+The accepted M18 perpendicular regression uses a stationary C-segment car and a B-segment striker at 55 km/h / -90° and historically records approximately:
 
-- 0.058 m bounded lateral intrusion on the struck passenger car;
-- about 10 kJ side-contact demand in the generic M18 envelope;
-- 0.305 m front deformation on the striking passenger car;
-- six real non-ground Godot contact events on each actor.
+- 0.058 m lateral intrusion on the struck car;
+- about 10 kJ generic side-contact demand;
+- 0.305 m front deformation on the striking car;
+- real non-ground Godot contacts on both actors.
 
-These are project regression values, not manufacturer body-in-white data, regulatory side-impact corridors or injury evidence.
+Those are internal project regression values, not regulatory or manufacturer side-impact corridors.
 
-## M14 vulnerable-road-user production bridge
+## M19 contact fidelity and diagnostics
 
-M14 introduced `RoadUserRigidProxy3D`, a real Godot `RigidBody3D` wrapper for pedestrian and riderless-bicycle targets. It owns vulnerable-target mass, gravity, CCD, collision geometry, friction and post-impact world motion.
+M19 makes the real Godot contact manifold observable without modifying solver impulses.
 
-The passenger-car front probe uses relative closing speed and reduced mass to derive a target-side contact impulse while the passenger car continues to receive its existing phenomenological front-crush resistance. The vulnerable-target proxy therefore does not add a second competing passenger-car motion solver.
+`ContactManifoldMetrics` summarizes non-ground samples from `PhysicsDirectBodyState3D`, including:
 
-M14 also established production replay/metric plumbing for road-user trajectories and the dedicated road-user/road collision channel later retained by M15.
+- simultaneous reported contact count;
+- impulse-weighted local centroid/normal;
+- XYZ spread;
+- projected X/Z bounding-box spread product;
+- reported per-step impulse;
+- collider names.
 
-## M15 articulated pedestrian dynamics
+The diagnostic scope is explicitly `diagnostic_only_no_solver_feedback` (or the articulated-pair equivalent for M21). The X/Z spread product is not physical contact-patch area and must not be interpreted as such.
 
-M15 keeps `RoadUserRigidProxy3D` as the compatibility API/root but replaces the pedestrian's one-rigid-body approximation with `RoadUserArticulatedProxy3D`.
+M19 also stores public contact-load-case references. The extra NHTSA/IIHS offset/oblique entries are protocol-geometry-only where no source outcome corridor is stored. Geometry alone does not establish production correlation.
 
-The production pedestrian contains 11 rigid bodies connected by 10 bounded `Generic6DOFJoint3D` constraints. Linear motion at the joints is locked; angular motion is limited by conservative joint-specific envelopes.
+## M20 heavy and other-vehicle deformation
 
-An earlier M15 prototype used `ConeTwistJoint3D`, but high-speed Godot 4.4.1 testing exposed severe numerical energy injection and near-180-degree direct-joint folding. The final Generic6DOF topology was selected because it remained bounded under the release regression.
+M20 extends generic broadside/oblique scope beyond passenger-car pairs for three target families while leaving Godot rigid bodies authoritative for world motion.
 
-The configured angular limits are **not** measured human range-of-motion data. They are numerical stability envelopes only.
+### Heavy truck
 
-The passenger-car front probe may contact any owned articulated rigid body. The target-side impulse is distributed through the articulated target, while the road-user bodies physically collide with the road through an isolated collision channel.
+Real target-local contact demand is decomposed into longitudinal and lateral components. The inherited front/rear paths remain active and M20 adds independent bounded side deformation with collision-face retreat. Oblique contact can therefore command both longitudinal and lateral local deformation.
 
-At the final 60 km/h pedestrian regression the project records:
+The generic truck side envelope is capped at approximately 0.52 m.
 
-- 11 rigid bodies and 10 joints;
-- 2.51 m/s final target centre-of-mass speed;
-- 13.97 m maximum target centre-of-mass travel;
+### Rigid lorry / box truck
+
+`M20RigidLorry` adds bounded local deformation around the existing cargo-box/cab/frame/rear-guard architecture. Current generic caps are:
+
+- rear 0.78 m;
+- front 0.66 m;
+- side 0.46 m.
+
+### Riderless motorcycle
+
+`M20Motorcycle` retains the riderless rigid-body trajectory/stability support and adds bounded frame/fork local deformation. Current generic caps are:
+
+- rear 0.24 m;
+- front 0.34 m;
+- side 0.20 m.
+
+There is no rider, steering controller, tyre-force model or injury inference.
+
+These M20 values are phenomenological project limits, not measured crashworthiness corridors.
+
+## M21 articulated heavy truck
+
+M21 removes the previous one-rigid-body tractor/trailer simplification.
+
+The heavy truck now uses separate trailer and tractor `RigidBody3D` assemblies. The configured target mass is preserved across the pair with a generic project mass split. The bodies exclude one another from collision response and are connected through a constrained `Generic6DOFJoint3D` fifth wheel.
+
+The fifth-wheel model constrains linear separation and uses generic angular envelopes of approximately:
+
+- yaw ±52°;
+- pitch ±8°;
+- roll ±6°.
+
+Those are numerical/educational limits, not specifications for a real tractor/trailer.
+
+M20 front/rear/side local deformation remains inherited. Contacts from trailer and tractor are consumed independently and mapped to the structure owned by the contacted rigid body. Replay/metrics add articulation yaw, peak articulation, fifth-wheel separation and combined contact diagnostics.
+
+M21 does not add tyre-force modelling, load-securement behaviour, manufacturer mass distribution or forensic truck reconstruction.
+
+## Vulnerable-road-user production path
+
+Road-user targets remain contact/trajectory models rather than biomechanics models.
+
+### M15 articulated pedestrian
+
+The production pedestrian uses 11 rigid bodies connected by 10 bounded `Generic6DOFJoint3D` joints. Linear motion at those joints is constrained and angular motion uses conservative stability envelopes.
+
+The historical accepted M15 regression recorded:
+
+- 2.51 m/s final pedestrian COM speed;
+- 13.97 m maximum COM travel;
 - 105.2° maximum direct-joint motion;
-- 0.001 m maximum passenger-car vertical rise;
-- no measured reverse launch;
-- a hard 22 m/s target-centre-of-mass speed sanity ceiling for the test.
+- about 0.001 m maximum passenger-car vertical rise.
 
-These are numerical stability/trajectory regressions, not experimental biomechanics corridors.
+These are numerical stability/trajectory guards, not experimental biomechanics corridors.
 
-## M15 riderless-bicycle dynamics
+### M15 riderless bicycle
 
-The M15 riderless bicycle uses a rigid frame plus two independently simulated wheel bodies connected at the hubs. It remains a riderless target; no cyclist body is coupled to it.
+The riderless bicycle uses a rigid frame plus two independently simulated wheel bodies joined at the hubs.
 
-The final 60 km/h riderless-city-bicycle regression records:
+The historical accepted 60 km/h city-bicycle regression recorded:
 
-- 3 rigid bodies and 2 hub joints;
-- 9.21 m/s final target centre-of-mass speed;
-- 19.22 m maximum centre-of-mass travel;
+- 3 rigid bodies / 2 hub joints;
+- 9.21 m/s final target COM speed;
+- 19.22 m maximum COM travel;
 - 34.85 rad/s maximum wheel angular motion;
-- 0.001 m maximum passenger-car vertical rise.
+- about 0.001 m maximum passenger-car vertical rise.
 
-The bicycle values are project regression measurements, not manufacturer bicycle data or cyclist-injury evidence.
+The target remains riderless and keeps its near-longitudinal heading restriction.
 
-## Vulnerable-road-user scope boundary
+## M22 cyclist
 
-The current pedestrian presets provide representative adult, child-sized and tall-adult height/mass defaults. The pedestrian starts stationary; walking/running motion is not modelled. The bicycle remains riderless.
+M22 adds a separate `cyclist` target instead of changing the meaning of `bicycle`.
 
-These objects are contact/trajectory visualisations only. CrashVector does not calculate injury, survivability, HIC, AIS, fracture probability, tissue loading, dummy-equivalent measures or medical outcomes.
+The cyclist combines:
+
+- one bicycle frame/root body;
+- two bicycle wheel bodies;
+- eleven generic rider bodies;
+- two hub joints;
+- ten bounded rider articulation joints;
+- five temporary rider↔bicycle coupling joints at seat, hands and feet.
+
+The scenario mass is combined rider+bicycle mass. The selected bicycle contributes its generic mass and validation preserves at least a 35 kg rider share.
+
+Before contact the temporary coupling joints keep rider and bicycle associated. On first production-compatible vehicle contact those couplings are detached, after which rider and bicycle can follow independent trajectories. Self-collision inside the rider/bicycle assembly remains deliberately disabled; M22 does not claim a validated rider/bicycle high-energy contact solver.
+
+The one-shot vulnerable-target transfer remains closing-speed based and bounded. It is a stability-oriented educational coupling, not a biomechanical force calculation.
+
+Cyclist initial speed may be configured from 0–80 km/h and generic broadside/oblique heading layouts are allowed.
+
+## M22 moving pedestrian
+
+The articulated pedestrian may now start with 0–20 km/h translation along the configured heading. Every articulated body begins with the same translational velocity.
+
+This is not a walking or running simulation. CrashVector does not model gait cycle, foot placement, propulsion, balance, ground-reaction control or evasive movement.
+
+## Vulnerable-road-user evidence boundary
+
+Pedestrian, riderless-bicycle and cyclist output is trajectory/contact visualisation only. CrashVector does not calculate HIC, AIS, survivability, fracture probability, tissue loading, dummy-equivalent measures or medical outcome.
+
+M15/M22 joint limits, coupling locations, release logic and impulse sharing are numerical/model assumptions, not validated human biomechanical data.
 
 ## Static and yielding targets
 
-`StaticObstacle3D` owns the current wall, concrete-barrier, pole and tree target hierarchy.
+Wall and concrete barrier remain fixed collision targets.
 
-Wall and concrete barrier remain real `StaticBody3D` targets with fixed collision geometry.
+Generic pole/tree targets begin effectively anchored and can be released into normal rigid-body motion when project collision-demand thresholds are exceeded. Current generic thresholds remain approximately:
 
-Pole and tree are different in M14. Their collision and visual hierarchy begins as a frozen `RigidBody3D`, effectively behaving as an anchored fixture. CrashVector tracks generic collision demand and releases the target into normal rigid-body motion when the configured phenomenological yielding threshold is exceeded. Visible geometry and collision geometry therefore move together after yielding instead of leaving a permanently vertical rigid cylinder at arbitrary impact severity.
+- pole yielding around 70 kJ; generic failure flag around 480 kJ;
+- tree yielding around 240 kJ; generic failure flag around 1.65 MJ.
 
-Current generic project thresholds are:
-
-- pole yielding begins around 70 kJ; the generic failure flag is reached around 480 kJ;
-- tree yielding begins around 240 kJ; the generic failure flag is reached around 1.65 MJ.
-
-The released target receives only a fraction of residual collision energy as translational/rotational impulse so target failure does not become an artificial launch mechanism for the passenger car.
-
-These values are educational project parameters. They are not claims about a particular lamp post, utility pole, tree species, trunk diameter, root system, soil, foundation or roadside installation.
-
-## M13 progressive passenger-car failure
-
-M13 removes the severe-impact discontinuity that existed after the original M12 rigid-body correction. The front crush zone has finite travel. Once that zone is materially exhausted, residual normal collision demand can activate later structural stages rather than disappearing at a fixed nose clamp.
-
-The current progression is front crush → firewall/cowl intrusion → floor/rocker and A-pillar/roof deformation → passenger-cell shortening → rear-body buckling. Stage activation uses collision demand plus measured front-zone exhaustion, not a simple speed threshold.
-
-For dynamic rigid targets, demand uses relative normal speed and reduced mass. The protected-cell collision face retreats as catastrophic firewall/cabin collapse develops, so later shortening produces real additional obstacle travel instead of being a mesh-only animation.
-
-The M13 release regression preserves the distinction between moderate and extreme loading. The generic B-class reference runs recorded approximately:
-
-- 50 km/h rigid wall: 105.0 kJ demand, 0.536 m front crush, effectively zero firewall/cabin/rear collapse;
-- 200 km/h rigid wall: 1,739.2 kJ demand, 0.945 m front-zone crush, 0.300 m firewall intrusion, 0.820 m passenger-cell collapse, 0.231 m rear buckle and 1.948 m combined longitudinal collapse.
-
-Those are CrashVector regression measurements for the generic project model, not predictions for a production car.
+These are educational parameters, not claims about a particular pole, tree, soil, roots or foundation.
 
 ## Replay and metrics
 
-Production replay is recorded at 120 Hz. For the current rigid-body path, replay stores rigid transform and rigid-body velocity state in addition to local structural snapshots.
+Production replay is recorded at 120 Hz and stores enough state to reproduce historical presentation without re-running the crash.
 
-M15 vulnerable-target replay additionally stores articulated part transforms and velocities, so playback does not reconstruct a multi-body pedestrian/bicycle as a single root body. M17 comparison lanes consume the real production recordings. M18 passenger-car replay adds independent left/right lateral collision-energy and intrusion state.
+Depending on target/model, replay can include:
 
-The analysis layer exposes only quantities meaningful for the selected model. Passenger-car metrics include rigid-body speed/momentum plus front, rear, staged structural-failure and lateral-intrusion measures where applicable. Vulnerable-road-user output remains contact/trajectory only.
+- passenger-car rigid transform/velocity and structural snapshot;
+- M17 rear crush state;
+- M18 left/right lateral state;
+- M19 contact-manifold diagnostics;
+- M20 target-specific deformation;
+- M21 articulated truck state;
+- articulated road-user part transforms/velocities;
+- M22 cyclist coupling-release state.
+
+The analysis layer exposes only quantities meaningful for the selected model. Road-user modes remain trajectory/contact only.
 
 ## Energy bookkeeping
 
-CrashVector energy accounting is a numerical diagnostic, not a validated thermodynamic partition. It is used to expose hidden energy creation, instability and regression.
+CrashVector energy accounting is a numerical diagnostic rather than a validated thermodynamic partition. It is used to expose hidden energy creation, instability and regression.
 
-The historical structural solvers retain their elastic/plastic/damping/fracture/contact bookkeeping. The current rigid-body production path additionally uses measured collision demand and local crush/failure state. M15 adds explicit target-centre-of-mass sanity gating to catch articulated-target instability. M17/M18 additionally retain real contact-impulse demand where post-solve relative speed alone would understate contact severity.
+Historical structural solvers retain elastic/plastic/damping/fracture/contact bookkeeping. Current rigid-body production paths use measured contact demand and bounded local deformation state. M15/M22 add road-user stability guards. M17–M21 retain real contact-impulse information where post-solve relative speed alone would understate collision demand.
 
 These quantities must not be interpreted as an experimentally validated energy partition for a real vehicle, person, bicycle or roadside object.
 
 ## Comparison
 
-The historical comparison workflows clone a scenario and independently run each requested speed/type variant. They do not scale or interpolate a single crash result, and their regression coverage remains useful.
+Each current production comparison variant is simulated independently in an isolated production scene. Results are then synchronized for replay; CrashVector does not scale or interpolate one crash to manufacture another speed/class result.
 
-M17 changes the production execution route: Visual Compare and Comparison Lab now run each variant independently in an isolated `SubViewport` / `World3D` using the current production scene and Godot rigid-body path. The resulting real production `ReplayRecording` and analysis report are then shown in synchronized comparison lanes.
+The historical `ComparisonRunner` remains for regression continuity only.
 
-The historical synchronous `ComparisonRunner` remains in the repository for regression continuity, but it is no longer presented as the source of current production Comparison results.
-
-The familiar kinetic-energy relationship still holds for initial conditions: at equal mass, `E = 0.5 m v²`, so a 140 km/h case begins with about 16% more translational kinetic energy than a 130 km/h case.
+At equal mass the familiar initial-condition relation still applies: `E = 0.5 m v²`. For example, 140 km/h carries about 16% more translational kinetic energy than 130 km/h.
 
 ## M8 correlation boundary
 
-M8 adds the first external structural-correlation reference rather than validating the later production architecture. The directly correlated condition is intentionally narrow: a generic D-segment midsize passenger car at approximately 56 km/h in a full-frontal rigid-wall impact, using the NHTSA DOT HS 812 237 / laboratory test 7078 condition as the evidence source.
+The historical M8 directly correlated condition remains intentionally narrow: generic D-segment midsize passenger car, approximately 56 km/h, full-frontal rigid wall, limited mass range around NHTSA DOT HS 812 237 / laboratory test 7078.
 
-The stored source-correlation observation and CrashVector regression guardrails are explicitly separated. Current evidence labels mean:
+Evidence labels remain:
 
-- `reference_correlated` — inside the narrow midsize rigid-wall mass/speed envelope;
-- `near_reference` — same class/impact family but just outside the direct envelope;
-- `class_scaled` — another generic passenger-car class produced by the same structural scaling rules without direct test correlation;
-- `extrapolated` — other conditions, including high-speed cases, dynamic vehicle-pair impacts, lorry/motorcycle cases, M17 reciprocal deformation, M18 side impacts and all road-user cases.
+- `reference_correlated`;
+- `near_reference`;
+- `class_scaled`;
+- `extrapolated`.
 
-The M8 calibration runner remains a separate historical reduced-order correlation/regression path. It does not validate the M12–M18 rigid-body, staged-collapse, yielding-target, articulated-road-user, reciprocal-impact, production-comparison or side-impact path.
+The M8 runner is a separate historical reduced-order correlation/regression path. It does **not** validate the M12–M22 production architecture, including rigid-body world motion, staged collapse, road-user articulation, reciprocal impacts, passenger-car side impacts, M19 contact diagnostics, M20 heavy/other deformation, M21 fifth-wheel articulation or M22 cyclist/moving-pedestrian behaviour.
 
-A `reference_correlated` label is not a safety rating, homologation result, occupant-injury prediction or claim that the generic D-segment structure reproduces a specific production vehicle. See `docs/CALIBRATION.md` for source and corridor definitions.
+M19 protocol-geometry references also do not create outcome correlation corridors merely because a test geometry is public.
 
 ## Validation scope by milestone
 
-M14 dedicated engine-physics regression checks:
+The current consolidated test inventory retains historical M0–M18 regression plus dedicated source gates for:
 
-- passenger car versus stationary adult pedestrian proxy with material post-contact target trajectory;
-- passenger car versus stationary riderless city-bicycle proxy with material post-contact target trajectory;
-- severe generic pole and tree impacts producing permanent target motion;
-- wall and concrete barrier remaining non-yielding;
-- bounded passenger-car rebound/vertical behaviour;
-- production routing through the real road-user proxy path.
+- M19 contact-manifold helper/reference/probe/replay diagnostics;
+- M20 truck/lorry/motorcycle broadside/oblique deformation;
+- M21 articulated heavy-truck topology/contact/articulation/replay;
+- M22 cyclist topology/mass/coupling/replay and moving-pedestrian initial motion.
 
-M15 adds:
+The manual visual-review workflow separately renders presentation acceptance frames and the four-case M19 contact-observation matrix.
 
-- articulated pedestrian body/joint topology;
-- bounded direct-joint motion;
-- target centre-of-mass speed/travel sanity;
-- passenger-car vertical/rebound stability after articulated contact;
-- independently simulated bicycle wheel motion;
-- preservation of M14 compatibility behaviour.
-
-M16 does not add or retune physics. Its production regression verifies that the actual M16 UI still routes pedestrian selection to the finalized M15 articulated target and that the class-specific vehicle visual layer remains presentation-only.
-
-M17 adds production integration regression for:
-
-- reciprocal truck→car rear impact;
-- material deformation on both relevant actors;
-- rigid-lorry and riderless-motorcycle production rigid-body routing;
-- the approximately 4 km proving road;
-- an actual two-variant Comparison run through the production scene.
-
-M18 adds:
-
-- 90-degree passenger-car pair preflight support while unmodelled heavy-truck broadside remains rejected;
-- real Godot contact on both actors in a perpendicular passenger-car production run;
-- material but bounded lateral intrusion on the struck passenger car;
-- preservation of the striking passenger car's existing front-crush path;
-- physical lateral collision-face retreat;
-- finite rigid-body state and bounded vertical launch;
-- replay preservation of lateral-deformation state.
-
-M14 also carries the evidence-scope UI regression that opens the Calibration / **Extrapolated** modal, verifies it is above the desktop UI, closes it through the existing **Close** control and verifies the normal UI remains intact. That test guards interaction/presentation only; it does not change physics or evidence scope.
+Because hosted Actions capacity is currently exhausted, M19–M22 have not yet been executed by Godot in CI. Until that changes, they must be described as implemented source behaviour, not as passed runtime validation or released support.
 
 ## M0 reference quantities
 
