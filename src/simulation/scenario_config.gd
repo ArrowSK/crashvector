@@ -202,8 +202,10 @@ func validation_errors() -> Array[String]:
 	elif target_type == TARGET_CYCLIST:
 		if not RoadUserCatalog.bicycle_ids().has(target_preset_id):
 			errors.append("Unknown cyclist bicycle preset")
-		if target_mass_kg < 45.0 or target_mass_kg > 220.0:
-			errors.append("Combined cyclist and bicycle mass must be between 45 and 220 kg")
+		else:
+			var cyclist_minimum_mass := RoadUserCatalog.cyclist_minimum_mass_kg(target_preset_id)
+			if target_mass_kg < cyclist_minimum_mass or target_mass_kg > 220.0:
+				errors.append("Combined cyclist and bicycle mass must be between %.0f and 220 kg for the selected bicycle" % cyclist_minimum_mass)
 		if target_speed_kmh < 0.0 or target_speed_kmh > 80.0:
 			errors.append("Cyclist speed must be between 0 and 80 km/h")
 	elif target_type == TARGET_PEDESTRIAN:
