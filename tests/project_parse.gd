@@ -26,6 +26,7 @@ const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/vehicles/kenney_vehicle_skin_3d.gd",
 	"res://src/vehicles/heavy_truck_builder.gd",
 	"res://src/vehicles/m20_heavy_truck.gd",
+	"res://src/vehicles/m20_heavy_truck_visual.gd",
 	"res://src/vehicles/rigid_lorry_builder.gd",
 	"res://src/vehicles/rigid_lorry.gd",
 	"res://src/vehicles/m20_rigid_lorry.gd",
