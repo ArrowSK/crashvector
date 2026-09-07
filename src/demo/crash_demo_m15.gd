@@ -70,8 +70,16 @@ func _configure_articulated_collision_channels() -> void:
 		if body != null and is_instance_valid(body):
 			_set_road_user_body_channels(body)
 	_rebind_articulated_joints()
-	if car != null and car.rigid_chassis != null and car.rigid_chassis.front_crush_probe != null:
-		car.rigid_chassis.front_crush_probe.collision_mask = ROAD_USER_LAYER
+	if car != null and car.rigid_chassis != null:
+		# M19 expanded the historical centre-line crush sensor to three observation
+		# rays. Articulated road users live on their dedicated collision layer, so
+		# every front observation ray must see that layer; configuring only the old
+		# compatibility handle leaves the two lateral M19 rays blind to an offset
+		# pedestrian/cyclist even though they are intentionally there to close that
+		# front-contact blind spot.
+		for probe in car.rigid_chassis.front_crush_probes:
+			if probe != null and is_instance_valid(probe):
+				probe.collision_mask = ROAD_USER_LAYER
 
 func _set_road_user_body_channels(body: PhysicsBody3D) -> void:
 	body.collision_layer = ROAD_USER_LAYER
