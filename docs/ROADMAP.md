@@ -6,8 +6,9 @@ Current state:
 
 - **M0–M18:** complete and historically runtime/package validated through the published `0.8.0-beta.3` line.
 - **M19–M22:** implemented on `main`, with regression/package gates wired, but runtime validation is still pending.
+- **Current source release candidate:** `0.9.0-beta.1`.
 - **Current verified public package:** `0.8.0-beta.3`.
-- **Next required work:** run current Godot validation + visual review + native packages before another public beta. Do not start another physics milestone merely because source work exists through M22.
+- **Next required work:** run current Godot validation + visual review + native packages before publishing `0.9.0-beta.1`. Do not start another physics milestone merely because source work exists through M22.
 
 ## M0 — Physics skeleton — complete
 
@@ -230,14 +231,16 @@ See `docs/M22_CYCLIST_MOVING_PEDESTRIAN.md`.
 
 No M23 physics milestone is currently scheduled. The next work is evidence and runtime validation.
 
-Before a new beta is published:
+`project.godot` is now bumped to `0.9.0-beta.1` and matching release-candidate notes exist. This is preparation only; `0.8.0-beta.3` remains the current verified public package until the new candidate passes the gates below and is actually published.
+
+Before `0.9.0-beta.1` is published:
 
 1. Godot must import/parse the current `main` source successfully.
 2. At minimum the publishable package `smoke` set must pass, including M19, M20, M21 and M22 production regressions.
 3. Preferably the consolidated M0–M22 full suite should pass on the release candidate.
 4. The manual presentation visual review must be inspected, including pristine A/B/C/D/J/M views, representative crash frames and the M19 contact-observation matrix.
 5. macOS Universal 2 and Windows x64 packages must build and pass their existing package/install/checksum checks.
-6. Only after those gates should `project.godot` be bumped from the current verified `0.8.0-beta.3` and matching new release notes be used for publication.
+6. Only after those gates should the already-prepared `0.9.0-beta.1` candidate be published. If validation requires code changes after publication, bump again rather than replacing an immutable release.
 
 A package built with `validation=none` is a diagnostic artifact only and cannot be presented as a validated release.
 
