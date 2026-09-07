@@ -4,7 +4,7 @@ CrashVector separates code validation, rendered presentation review and desktop 
 
 ## Normal code changes
 
-`.github/workflows/ci.yml` is the normal automated gate for `main` and pull requests. It uses one Ubuntu/Godot job, imports the project once, then runs the unique M0-M18 regression scripts sequentially. The old milestone-specific workflows were removed because they repeatedly imported the same project and re-ran overlapping tests on separate runners.
+`.github/workflows/ci.yml` is the normal automated gate for `main` and pull requests. It uses one Ubuntu/Godot job, imports the project once, then runs the unique M0-M19 regression scripts sequentially. The old milestone-specific workflows were removed because they repeatedly imported the same project and re-ran overlapping tests on separate runners.
 
 Documentation-only changes under `docs/` or Markdown files do not start CI.
 
@@ -26,8 +26,10 @@ The PNG files are uploaded as a workflow artifact for human review. This is inte
 The workflow asks for a validation level:
 
 - `none` — package-only diagnostic build; no regression suite is run;
-- `smoke` — focused layout, Kenney presentation, runtime-stability and M18 side-impact checks;
-- `full` — the complete consolidated M0-M18 regression set.
+- `smoke` — focused layout, Kenney presentation, runtime-stability/M19 diagnostic-foundation and M18 side-impact checks;
+- `full` — the complete consolidated M0-M19 regression set.
+
+The M19 smoke coverage is intentionally cheap: `runtime_presentation_stability.gd` verifies the contact-manifold helper and external-reference catalog, while the existing M18 production side-impact smoke still instantiates the current M19 production scene. The dedicated `m19_contact_fidelity.gd` production/replay/analysis regression remains in consolidated/full validation.
 
 It also asks whether to publish a versioned GitHub release. Publishing requires `smoke` or `full` validation to succeed, successful macOS and Windows packages, a new semantic version in `project.godot`, and matching release notes under `docs/releases/<version>.md`. `validation=none` deliberately cannot publish; it produces artifacts only. Existing release tags are never overwritten.
 
