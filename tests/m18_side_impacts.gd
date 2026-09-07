@@ -113,8 +113,35 @@ func _check_perpendicular_car_to_car_impact() -> void:
 		var visual_state := car.replay_visual_state()
 		_expect(visual_state.has("hybrid_side_negative_z_crush_m") and visual_state.has("hybrid_side_positive_z_crush_m"), "M18 replay state does not preserve lateral deformation")
 
+		# M19 is observational only. The existing broadside production smoke also
+		# verifies that the current main scene records real contact-manifold data,
+		# so manual package smoke covers the new diagnostic layer without adding
+		# another expensive production run.
+		var manifold := car.rigid_chassis.contact_manifold_diagnostics()
+		_expect(String(manifold.get("scope", "")) == "diagnostic_only_no_solver_feedback", "M19 diagnostic scope marker is missing from the production chassis")
+		_expect(int(manifold.get("maximum_contact_points", 0)) > 0, "M19 production chassis recorded no non-ground contact manifold")
+		_expect(float(manifold.get("peak_total_impulse_ns", 0.0)) > 0.0, "M19 production chassis recorded no peak contact impulse")
+
 	var recorder: ReplayRecorder = editor.get("replay_recorder")
 	_expect(recorder != null and recorder.recording != null and recorder.recording.has_frames(), "M18 side-impact case produced no replay")
+	var replay_has_m19 := false
+	if recorder != null and recorder.recording != null:
+		for frame in recorder.recording.frames:
+			var context_value: Variant = frame.get("context", {})
+			if not context_value is Dictionary:
+				continue
+			var diagnostic_value: Variant = (context_value as Dictionary).get("primary_contact_manifold", {})
+			if diagnostic_value is Dictionary and int((diagnostic_value as Dictionary).get("maximum_contact_points", 0)) > 0:
+				replay_has_m19 = true
+				break
+	_expect(replay_has_m19, "M19 contact-manifold diagnostics were not preserved in production replay context")
+
+	var analysis_value: Variant = editor.get("analysis_report")
+	_expect(analysis_value is Dictionary, "M19 production analysis report is unavailable")
+	if analysis_value is Dictionary:
+		var contact_value: Variant = (analysis_value as Dictionary).get("primary_contact_manifold", {})
+		_expect(contact_value is Dictionary and int((contact_value as Dictionary).get("maximum_contact_points", 0)) > 0, "M19 analysis did not aggregate the primary contact manifold")
+
 	editor.queue_free()
 	await process_frame
 
