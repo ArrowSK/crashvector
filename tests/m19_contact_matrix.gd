@@ -72,10 +72,25 @@ func _run_case(id: StringName) -> Dictionary:
 		row["target_front_crush_mm"] = target.front_crush_deformation_m() * 1000.0
 		row["target_rear_crush_mm"] = target.rear_impact_deformation_m() * 1000.0
 		row["target_side_crush_mm"] = target.side_impact_deformation_m() * 1000.0
+		row["primary_max_vertical_ms"] = primary.rigid_chassis.maximum_vertical_speed_ms
+		row["target_max_vertical_ms"] = target.rigid_chassis.maximum_vertical_speed_ms
 		if completed and int(primary_diagnostics.get("maximum_contact_points", 0)) <= 0:
 			failures.append("%s completed but primary reported no non-ground contact" % String(id))
 		if completed and int(target_diagnostics.get("maximum_contact_points", 0)) <= 0:
 			failures.append("%s completed but target reported no non-ground contact" % String(id))
+		if completed:
+			_expect_finite_diagnostics(id, "primary", primary_diagnostics)
+			_expect_finite_diagnostics(id, "target", target_diagnostics)
+			if primary.rigid_chassis.maximum_vertical_speed_ms >= 20.0 or target.rigid_chassis.maximum_vertical_speed_ms >= 20.0:
+				failures.append("%s produced an implausible vertical launch" % String(id))
+			if id in [
+				ContactFidelityScenarioCatalog.FULL_FRONTAL,
+				ContactFidelityScenarioCatalog.OFFSET_FRONTAL,
+				ContactFidelityScenarioCatalog.OBLIQUE_FRONTAL,
+			]:
+				var maximum_front_crush := maxf(primary.front_crush_deformation_m(), target.front_crush_deformation_m())
+				if maximum_front_crush <= 0.005:
+					failures.append("%s produced real contact but no measurable front-crush response; check front-contact coverage" % String(id))
 
 	var analysis_value: Variant = editor.get("analysis_report")
 	if analysis_value is Dictionary:
@@ -92,6 +107,17 @@ func _run_case(id: StringName) -> Dictionary:
 	await process_frame
 	return row
 
+func _expect_finite_diagnostics(id: StringName, actor: String, diagnostics: Dictionary) -> void:
+	var span := _vector_from(diagnostics.get("maximum_span_local_m", Vector3.ZERO))
+	var projected := float(diagnostics.get("maximum_projected_span_xz_m2", 0.0))
+	var impulse := float(diagnostics.get("peak_total_impulse_ns", 0.0))
+	if not _finite_vector(span) or span.x < 0.0 or span.y < 0.0 or span.z < 0.0:
+		failures.append("%s %s manifold span is invalid" % [String(id), actor])
+	if not is_finite(projected) or projected < 0.0:
+		failures.append("%s %s projected manifold spread is invalid" % [String(id), actor])
+	if not is_finite(impulse) or impulse <= 0.0:
+		failures.append("%s %s peak manifold impulse is invalid" % [String(id), actor])
+
 func _serialize_diagnostics(value: Variant) -> Dictionary:
 	if not value is Dictionary:
 		return {}
@@ -100,6 +126,7 @@ func _serialize_diagnostics(value: Variant) -> Dictionary:
 	return {
 		"maximum_contact_points": int(diagnostics.get("maximum_contact_points", 0)),
 		"maximum_span_local_m": [span.x, span.y, span.z],
+		"maximum_projected_span_xz_m2": float(diagnostics.get("maximum_projected_span_xz_m2", 0.0)),
 		"peak_total_impulse_ns": float(diagnostics.get("peak_total_impulse_ns", 0.0)),
 		"peak": _serialize_manifold(diagnostics.get("peak", {})),
 		"scope": String(diagnostics.get("scope", "")),
@@ -124,6 +151,9 @@ func _serialize_manifold(value: Variant) -> Dictionary:
 
 func _vector_from(value: Variant) -> Vector3:
 	return value as Vector3 if value is Vector3 else Vector3.ZERO
+
+func _finite_vector(value: Vector3) -> bool:
+	return is_finite(value.x) and is_finite(value.y) and is_finite(value.z)
 
 func _write_report() -> void:
 	var output_dir := "res://build/m19_contact_fidelity"
