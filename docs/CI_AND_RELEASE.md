@@ -29,9 +29,9 @@ The workflow asks for a validation level:
 
 - `none` — package-only diagnostic build; no regression suite is run;
 - `smoke` — focused layout, Kenney presentation, runtime-stability/M19 diagnostic-foundation and M18 side-impact checks;
-- `full` — the complete consolidated M0-M19 regression set.
+- `full` — the full package-validation regression list through M18 plus the M19 checks embedded in the runtime-stability and production side-impact gates.
 
-The M19 smoke coverage is intentionally cheap: `runtime_presentation_stability.gd` verifies the contact-manifold helper and external-reference catalog, while the existing M18 production side-impact smoke still instantiates the current M19 production scene and verifies replay/analysis contact-manifold diagnostics. The dedicated `m19_contact_fidelity.gd` remains in normal consolidated CI; the manual contact matrix is intentionally outside package validation.
+Normal consolidated CI additionally runs the dedicated `m19_contact_fidelity.gd` regression. The manual contact matrix is intentionally outside package validation because it adds four more production simulations and is intended for evidence review rather than release gating.
 
 It also asks whether to publish a versioned GitHub release. Publishing requires `smoke` or `full` validation to succeed, successful macOS and Windows packages, a new semantic version in `project.godot`, and matching release notes under `docs/releases/<version>.md`. `validation=none` deliberately cannot publish; it produces artifacts only. Existing release tags are never overwritten.
 
