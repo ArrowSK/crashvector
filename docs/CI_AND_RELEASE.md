@@ -37,6 +37,27 @@ It also asks whether to publish a versioned GitHub release. Publishing requires 
 
 A package produced with `validation=none` is an **unvalidated diagnostic artifact**. It may be useful for local visual inspection when regression capacity is constrained, but it must not be described as having passed CrashVector's regression suite.
 
+## Current M22 release-readiness state
+
+The current `main` source is implemented through M22, but M19-M22 were committed with `[skip ci]` while GitHub-hosted Actions capacity was exhausted. Therefore:
+
+- source routing, tests and package gates are wired through M22;
+- M19-M22 must still be treated as runtime-unvalidated;
+- `project.godot` intentionally remains at the last verified public version, `0.8.0-beta.3`;
+- the updater/download links therefore continue to point only at the verified M18-era public package;
+- no new public release should claim M19-M22 support until Godot and native package gates execute successfully.
+
+Once runner capacity is available, use this order:
+
+1. Run normal consolidated CI or the package workflow with `validation=full` to import/parse the project and execute M0-M22.
+2. If a quicker first diagnostic is needed, package `smoke` is the minimum publishable regression subset because it includes M19-M22.
+3. Run `Presentation visual review` and inspect the pristine passenger-car frames, representative deformation frames and M19 contact matrix rather than treating artifact generation itself as visual acceptance.
+4. Build macOS Universal 2 and Windows x64 packages and retain the existing signature/install/uninstall/checksum checks.
+5. Only after the source/runtime/visual/package gates are acceptable should `project.godot` be bumped and matching release notes be finalized.
+6. Publish with `publish_release=true`; the workflow will refuse publication if validation is `none`, if either native package fails, or if the release tag already exists.
+
+The preferred release-candidate path is `full` validation plus manual visual review. `smoke` exists as the minimum publishable gate, not as a reason to skip the full suite when capacity is available.
+
 ## GitHub Actions quota
 
 Separating these workflows reduces runner consumption but cannot bypass GitHub-hosted Actions account limits. If GitHub refuses to allocate hosted runners because the account quota is exhausted, automated tests, visual rendering and package builds are all unavailable until runner capacity becomes available again. Source changes can still be committed with `[skip ci]`, but their runtime behaviour remains unverified until a runner or local Godot environment executes the relevant checks.
