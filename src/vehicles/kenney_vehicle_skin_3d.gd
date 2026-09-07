@@ -17,12 +17,13 @@ var active := false
 var body_asset_path := ""
 var wheel_asset_path := KenneyVehicleAssetCatalog.WHEEL_DEFAULT
 var body_instance: MeshInstance3D
-var source_arrays: Array[Array] = []
+var source_arrays: Array = []
 var surface_primitives: Array[int] = []
 var surface_materials: Array[Material] = []
 var surface_base_colors: Array[Color] = []
 var source_aabb := AABB()
 var wheel_nodes: Array[Node3D] = []
+var last_paint := Color(-1.0, -1.0, -1.0, -1.0)
 
 func configure(owner_visual: M162VehicleVisual) -> void:
 	host = owner_visual
@@ -161,9 +162,15 @@ func _map_vertex(source: Vector3) -> Vector3:
 	var side_t := clampf(1.0 - (source.x - source_aabb.position.x) / maxf(size.x, 0.001), 0.0, 1.0)
 	var height_t := clampf((source.y - source_aabb.position.y) / maxf(size.y, 0.001), 0.0, 1.0)
 	var section: Dictionary = host._section_at_u(u)
-	var lower := (section["lower_left"] as Vector3).lerp(section["lower_right"] as Vector3, side_t)
-	var belt := (section["belt_left"] as Vector3).lerp(section["belt_right"] as Vector3, side_t)
-	var upper := (section["upper_left"] as Vector3).lerp(section["upper_right"] as Vector3, side_t)
+	var lower_left: Vector3 = section.get("lower_left", Vector3.ZERO)
+	var lower_right: Vector3 = section.get("lower_right", Vector3.ZERO)
+	var belt_left: Vector3 = section.get("belt_left", Vector3.ZERO)
+	var belt_right: Vector3 = section.get("belt_right", Vector3.ZERO)
+	var upper_left: Vector3 = section.get("upper_left", Vector3.ZERO)
+	var upper_right: Vector3 = section.get("upper_right", Vector3.ZERO)
+	var lower := lower_left.lerp(lower_right, side_t)
+	var belt := belt_left.lerp(belt_right, side_t)
+	var upper := upper_left.lerp(upper_right, side_t)
 	var belt_t := clampf(float(profile.get("belt_ratio", 0.58)), 0.35, 0.78)
 	if height_t <= belt_t:
 		return lower.lerp(belt, height_t / maxf(belt_t, 0.001))
@@ -173,13 +180,18 @@ func _update_paint() -> void:
 	if vehicle == null:
 		return
 	var paint := CarPaintCatalog.color(vehicle.paint_id)
+	if paint.is_equal_approx(last_paint):
+		return
+	last_paint = paint
 	for index in range(surface_materials.size()):
 		var material := surface_materials[index]
 		if not material is BaseMaterial3D:
 			continue
 		var base := surface_base_colors[index]
-		# Preserve Kenney's baked palette/details and use albedo as a per-instance
+		# Preserve Kenney's palette texture/details and use albedo as a per-instance
 		# multiplier so the existing CrashVector paint selector remains effective.
+		# Black glazing/trim stays black while the coloured body follows the chosen
+		# CrashVector paint. The original texture remains attached to the material.
 		(material as BaseMaterial3D).albedo_color = Color(
 			base.r * paint.r,
 			base.g * paint.g,
@@ -231,7 +243,7 @@ func _install_wheels() -> void:
 		wheel_nodes.append(wheel)
 
 func _hide_procedural_wheels() -> void:
-	if host == null or wheel_nodes.is_empty():
+	if host == null or wheel_nodes.size() != host.wheel_groups.size():
 		return
 	for index in range(host.wheel_groups.size()):
 		if index < host.wheel_tires.size():
