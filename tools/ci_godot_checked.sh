@@ -6,6 +6,13 @@ if [[ $# -eq 0 ]]; then
   exit 64
 fi
 
+# GitHub's container job can see the checked-out workspace with a different UID
+# from the checkout step. Mark only this workspace as safe before the on-demand
+# submodule operation so Git does not reject it as dubious ownership.
+if [[ -d .git ]]; then
+  git config --global --add safe.directory "$PWD" >/dev/null 2>&1 || true
+fi
+
 # Kenney Car Kit is pinned as a submodule. GitHub checkout intentionally stays
 # lightweight, so initialise it on demand before any Godot command that can
 # parse/load the production presentation assets.
