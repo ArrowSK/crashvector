@@ -23,6 +23,15 @@ var initial_forward_world := Vector3.RIGHT
 var stored_linear_velocity := Vector3.ZERO
 var stored_angular_velocity := Vector3.ZERO
 
+# M19 diagnostics only. These values summarize the real Godot contacts already
+# reported to the production chassis. They never feed back into the solver,
+# collision shapes, crush classification or contact impulses.
+var last_non_ground_contact_manifold: Dictionary = {}
+var peak_non_ground_contact_manifold: Dictionary = {}
+var peak_non_ground_contact_impulse_ns: float = 0.0
+var maximum_non_ground_contact_points: int = 0
+var maximum_non_ground_contact_span_m := Vector3.ZERO
+
 func configure(
 	body_mass_kg: float,
 	spawn_position_m: Vector3,
@@ -133,6 +142,11 @@ func begin_motion(speed_kmh: float, heading_deg: float) -> void:
 	front_probe_contact_active = false
 	front_probe_contact_ever = false
 	maximum_front_probe_crush_m = 0.0
+	last_non_ground_contact_manifold.clear()
+	peak_non_ground_contact_manifold.clear()
+	peak_non_ground_contact_impulse_ns = 0.0
+	maximum_non_ground_contact_points = 0
+	maximum_non_ground_contact_span_m = Vector3.ZERO
 	freeze = false
 	sleeping = false
 
@@ -156,6 +170,16 @@ func drain_contact_samples() -> Array[Dictionary]:
 	var result: Array[Dictionary] = contact_samples.duplicate(true)
 	contact_samples.clear()
 	return result
+
+func contact_manifold_diagnostics() -> Dictionary:
+	return {
+		"last": last_non_ground_contact_manifold.duplicate(true),
+		"peak": peak_non_ground_contact_manifold.duplicate(true),
+		"maximum_contact_points": maximum_non_ground_contact_points,
+		"maximum_span_local_m": maximum_non_ground_contact_span_m,
+		"peak_total_impulse_ns": peak_non_ground_contact_impulse_ns,
+		"scope": "diagnostic_only_no_solver_feedback",
+	}
 
 func front_crush_travel_m() -> float:
 	return maximum_front_probe_crush_m
@@ -252,6 +276,25 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 		if not _is_ground_contact(collider_name):
 			non_ground_contact_events += 1
 			cumulative_non_ground_impulse_ns += impulse.length()
+
+	# Summarize after collecting the step's contacts and before any consumer drains
+	# contact_samples. The summary is observational only.
+	var manifold := ContactManifoldMetrics.summarize(contact_samples)
+	var manifold_count := int(manifold.get("contact_count", 0))
+	if manifold_count > 0:
+		last_non_ground_contact_manifold = manifold.duplicate(true)
+		maximum_non_ground_contact_points = maxi(maximum_non_ground_contact_points, manifold_count)
+		var span_value: Variant = manifold.get("span_local_m", Vector3.ZERO)
+		var span := span_value as Vector3 if span_value is Vector3 else Vector3.ZERO
+		maximum_non_ground_contact_span_m = Vector3(
+			maxf(maximum_non_ground_contact_span_m.x, span.x),
+			maxf(maximum_non_ground_contact_span_m.y, span.y),
+			maxf(maximum_non_ground_contact_span_m.z, span.z)
+		)
+		var total_impulse := float(manifold.get("total_impulse_ns", 0.0))
+		if total_impulse > peak_non_ground_contact_impulse_ns:
+			peak_non_ground_contact_impulse_ns = total_impulse
+			peak_non_ground_contact_manifold = manifold.duplicate(true)
 
 func _is_ground_contact(collider_name: StringName) -> bool:
 	return collider_name == &"Road" or collider_name == &"Ground" or collider_name == &"ProvingGround"
