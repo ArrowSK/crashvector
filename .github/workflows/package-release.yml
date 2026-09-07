@@ -158,12 +158,18 @@ jobs:
             security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
             security list-keychains -d user -s "$KEYCHAIN"
             codesign --force --deep --options runtime --timestamp --sign "$MACOS_SIGN_IDENTITY" "$APP"
+            echo "CV_DEVELOPER_SIGNED=1" >> "$GITHUB_ENV"
           else
             codesign --force --deep --sign - "$APP"
+            echo "CV_DEVELOPER_SIGNED=0" >> "$GITHUB_ENV"
           fi
           codesign --verify --deep --strict --verbose=2 "$APP"
-      - name: Build, validate and checksum DMG
+      - name: Build, validate, optionally notarize and checksum DMG
         shell: bash
+        env:
+          MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+          MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
         run: |
           set -euo pipefail
           DMG="dist/CrashVector-${VERSION}-macOS-universal.dmg"
@@ -177,6 +183,12 @@ jobs:
           hdiutil attach "$DMG" -readonly -nobrowse -mountpoint "$MOUNT"
           test -d "$MOUNT/CrashVector.app" && test -L "$MOUNT/Applications"
           hdiutil detach "$MOUNT"
+          if [[ "${CV_DEVELOPER_SIGNED:-0}" == "1" && -n "${MACOS_NOTARY_APPLE_ID:-}" && -n "${MACOS_NOTARY_PASSWORD:-}" && -n "${MACOS_TEAM_ID:-}" ]]; then
+            xcrun notarytool submit "$DMG" --apple-id "$MACOS_NOTARY_APPLE_ID" --password "$MACOS_NOTARY_PASSWORD" --team-id "$MACOS_TEAM_ID" --wait
+            xcrun stapler staple "$DMG"
+          else
+            echo "Developer ID/notarization credentials not configured; beta remains ad-hoc/unnotarized."
+          fi
           cd dist
           shasum -a 256 "CrashVector-${VERSION}-macOS-universal.dmg" > "CrashVector-${VERSION}-macOS-universal.dmg.sha256"
           shasum -a 256 -c "CrashVector-${VERSION}-macOS-universal.dmg.sha256"
@@ -352,9 +364,10 @@ jobs:
     if: >-
       always() &&
       inputs.publish_release == true &&
+      inputs.validation != 'none' &&
+      needs.validation.result == 'success' &&
       needs.macos-package.result == 'success' &&
-      needs.windows-package.result == 'success' &&
-      (inputs.validation == 'none' || needs.validation.result == 'success')
+      needs.windows-package.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -373,9 +386,6 @@ jobs:
           if gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release v${VERSION} already exists; bump project.godot before publishing." >&2
             exit 1
-          fi
-          if [[ "${{ inputs.validation }}" == "none" ]]; then
-            echo "WARNING: publishing without regression validation because this was explicitly selected."
           fi
       - name: Download packages
         uses: actions/download-artifact@v4
