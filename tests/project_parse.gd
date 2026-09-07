@@ -12,6 +12,8 @@ const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/demo/crash_demo_m8.gd",
 	"res://src/demo/crash_demo_extended.gd",
 	"res://src/demo/crash_demo_m9.gd",
+	"res://src/demo/crash_demo_presentation.gd",
+	"res://src/demo/crash_demo_m19.gd",
 	"res://src/update/semantic_version.gd",
 	"res://src/update/update_service.gd",
 	"res://src/structural/structural_sled_builder.gd",
@@ -41,6 +43,7 @@ const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/replay/replay_recording.gd",
 	"res://src/replay/replay_recorder.gd",
 	"res://src/analysis/crash_analysis.gd",
+	"res://src/analysis/contact_manifold_metrics.gd",
 	"res://src/analysis/analysis_overlay_3d.gd",
 	"res://src/ui/crash_metric_graph.gd",
 	"res://src/comparison/comparison_runner.gd",
@@ -56,6 +59,7 @@ const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/calibration/calibration_metrics.gd",
 	"res://src/calibration/calibration_scope.gd",
 	"res://src/calibration/calibration_runner.gd",
+	"res://src/calibration/validation_reference_catalog.gd",
 ]
 
 func _initialize() -> void:
