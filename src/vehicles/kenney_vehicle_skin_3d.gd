@@ -7,8 +7,19 @@ extends Node3D
 
 # Kenney supplies presentation geometry only. CrashVector's M12-M18 structural
 # graph, rigid-body motion, collision shapes and replay remain authoritative.
-# The imported body is remapped into M16.2's existing structural cross-section
-# cage each frame so front/rear crush and M18 side intrusion remain visible.
+# The undeformed body preserves the source Kenney proportions with one uniform
+# fit transform. Structural deformation is then added only as displacement from
+# the captured neutral M16.2 cross-section cage, avoiding pre-crash body warping.
+
+const NEUTRAL_SECTION_SAMPLE_COUNT := 65
+const SECTION_KEYS := [
+	"lower_left",
+	"lower_right",
+	"belt_left",
+	"belt_right",
+	"upper_left",
+	"upper_right",
+]
 
 var host: M162VehicleVisual
 var vehicle: CompactHatchback
@@ -24,6 +35,14 @@ var surface_base_colors: Array[Color] = []
 var source_aabb := AABB()
 var wheel_nodes: Array[Node3D] = []
 var last_paint := Color(-1.0, -1.0, -1.0, -1.0)
+
+# Neutral presentation state. These values are presentation-only and never feed
+# back into the rigid body, collision shapes or structural solver.
+var neutral_reference := Transform3D.IDENTITY
+var neutral_sections_local: Array[Dictionary] = []
+var pristine_scale := 1.0
+var pristine_target_center_local := Vector3.ZERO
+var pristine_target_min_y := 0.0
 
 func configure(owner_visual: M162VehicleVisual) -> void:
 	host = owner_visual
@@ -67,6 +86,10 @@ func _install_skin() -> void:
 		push_warning("Kenney Car Kit body mesh contained no usable vertices: %s" % body_asset_path)
 		return
 	imported_root.free()
+
+	if not _capture_neutral_presentation_state():
+		push_warning("Kenney Car Kit body could not capture a neutral presentation fit: %s" % body_asset_path)
+		return
 
 	body_instance = MeshInstance3D.new()
 	body_instance.name = "KenneyCarKitBody"
@@ -120,6 +143,58 @@ func _capture_body_mesh(source_mesh: Mesh) -> bool:
 	source_aabb = AABB(minimum, maximum - minimum)
 	return source_aabb.size.x > 0.001 and source_aabb.size.y > 0.001 and source_aabb.size.z > 0.001
 
+func _capture_neutral_presentation_state() -> bool:
+	if host == null or vehicle == null or vehicle.model == null:
+		return false
+	neutral_reference = vehicle.global_reference_transform()
+	var inverse_reference := neutral_reference.affine_inverse()
+	neutral_sections_local.clear()
+
+	var have_point := false
+	var minimum := Vector3.ZERO
+	var maximum := Vector3.ZERO
+	for sample_index in range(NEUTRAL_SECTION_SAMPLE_COUNT):
+		var u := float(sample_index) / float(NEUTRAL_SECTION_SAMPLE_COUNT - 1)
+		var world_section: Dictionary = host._section_at_u(u)
+		var local_section: Dictionary = {}
+		for key in SECTION_KEYS:
+			var world_point := _section_point(world_section, key)
+			var local_point: Vector3 = inverse_reference * world_point
+			local_section[key] = local_point
+			if not have_point:
+				minimum = local_point
+				maximum = local_point
+				have_point = true
+			else:
+				minimum = minimum.min(local_point)
+				maximum = maximum.max(local_point)
+		neutral_sections_local.append(local_section)
+
+	if not have_point:
+		return false
+	var target_size := maximum - minimum
+	var source_oriented_size := Vector3(source_aabb.size.z, source_aabb.size.y, source_aabb.size.x)
+	if target_size.x <= 0.001 or target_size.y <= 0.001 or target_size.z <= 0.001:
+		return false
+	if source_oriented_size.x <= 0.001 or source_oriented_size.y <= 0.001 or source_oriented_size.z <= 0.001:
+		return false
+
+	# A single uniform scale preserves the Kenney source silhouette. The most
+	# restrictive dimension wins so the pristine body remains inside the neutral
+	# CrashVector presentation envelope without stretching any axis independently.
+	pristine_scale = minf(
+		target_size.x / source_oriented_size.x,
+		minf(
+			target_size.y / source_oriented_size.y,
+			target_size.z / source_oriented_size.z
+		)
+	)
+	if pristine_scale <= 0.001:
+		return false
+	pristine_target_center_local = (minimum + maximum) * 0.5
+	pristine_target_min_y = minimum.y
+	return true
+
 func _update_body() -> void:
 	if body_instance == null or host == null or vehicle == null or vehicle.model == null:
 		return
@@ -161,13 +236,56 @@ func _map_vertex(source: Vector3) -> Vector3:
 	# explicit CrashVector left/right cage.
 	var side_t := clampf(1.0 - (source.x - source_aabb.position.x) / maxf(size.x, 0.001), 0.0, 1.0)
 	var height_t := clampf((source.y - source_aabb.position.y) / maxf(size.y, 0.001), 0.0, 1.0)
-	var section: Dictionary = host._section_at_u(u)
-	var lower_left: Vector3 = section.get("lower_left", Vector3.ZERO)
-	var lower_right: Vector3 = section.get("lower_right", Vector3.ZERO)
-	var belt_left: Vector3 = section.get("belt_left", Vector3.ZERO)
-	var belt_right: Vector3 = section.get("belt_right", Vector3.ZERO)
-	var upper_left: Vector3 = section.get("upper_left", Vector3.ZERO)
-	var upper_right: Vector3 = section.get("upper_right", Vector3.ZERO)
+	var reference := vehicle.global_reference_transform()
+
+	# At zero deformation this is the only body transform: axis conversion,
+	# uniform scale and placement. It therefore preserves the original Kenney
+	# silhouette rather than forcing it into CrashVector's procedural cage.
+	var pristine_world: Vector3 = reference * _pristine_source_point_local(source)
+
+	# Deformation remains authoritative from the M12-M18 structural model. Apply
+	# only the displacement between the live cage and the captured neutral cage,
+	# both expressed at the current rigid-body pose. This prevents a pre-crash
+	# warp while retaining front, rear and lateral deformation coupling.
+	var live_section: Dictionary = host._section_at_u(u)
+	var neutral_section_local: Dictionary = _neutral_section_at_u(u)
+	if live_section.is_empty() or neutral_section_local.is_empty():
+		return pristine_world
+	var live_cage_point := _map_section_point(live_section, side_t, height_t)
+	var neutral_cage_local := _map_section_point(neutral_section_local, side_t, height_t)
+	var neutral_cage_world: Vector3 = reference * neutral_cage_local
+	return pristine_world + (live_cage_point - neutral_cage_world)
+
+func _pristine_source_point_local(source: Vector3) -> Vector3:
+	var source_center := source_aabb.position + source_aabb.size * 0.5
+	return Vector3(
+		pristine_target_center_local.x + (source.z - source_center.z) * pristine_scale,
+		pristine_target_min_y + (source.y - source_aabb.position.y) * pristine_scale,
+		pristine_target_center_local.z - (source.x - source_center.x) * pristine_scale
+	)
+
+func _neutral_section_at_u(u: float) -> Dictionary:
+	if neutral_sections_local.is_empty():
+		return {}
+	var sample_position := clampf(u, 0.0, 1.0) * float(neutral_sections_local.size() - 1)
+	var a := int(floor(sample_position))
+	var b := mini(a + 1, neutral_sections_local.size() - 1)
+	var t := sample_position - float(a)
+	var result: Dictionary = {}
+	for key in SECTION_KEYS:
+		result[key] = _section_point(neutral_sections_local[a], key).lerp(
+			_section_point(neutral_sections_local[b], key),
+			t
+		)
+	return result
+
+func _map_section_point(section: Dictionary, side_t: float, height_t: float) -> Vector3:
+	var lower_left := _section_point(section, "lower_left")
+	var lower_right := _section_point(section, "lower_right")
+	var belt_left := _section_point(section, "belt_left")
+	var belt_right := _section_point(section, "belt_right")
+	var upper_left := _section_point(section, "upper_left")
+	var upper_right := _section_point(section, "upper_right")
 	var lower := lower_left.lerp(lower_right, side_t)
 	var belt := belt_left.lerp(belt_right, side_t)
 	var upper := upper_left.lerp(upper_right, side_t)
@@ -175,6 +293,10 @@ func _map_vertex(source: Vector3) -> Vector3:
 	if height_t <= belt_t:
 		return lower.lerp(belt, height_t / maxf(belt_t, 0.001))
 	return belt.lerp(upper, (height_t - belt_t) / maxf(1.0 - belt_t, 0.001))
+
+func _section_point(section: Dictionary, key: String) -> Vector3:
+	var value: Variant = section.get(key, Vector3.ZERO)
+	return value if value is Vector3 else Vector3.ZERO
 
 func _update_paint() -> void:
 	if vehicle == null:
