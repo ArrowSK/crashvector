@@ -8,6 +8,7 @@ extends RigidBody3D
 var contact_samples: Array[Dictionary] = []
 var suspension_points: Array[Dictionary] = []
 var front_crush_probe: RayCast3D
+var front_crush_probes: Array[RayCast3D] = []
 var front_probe_rest_length_m: float = 0.0
 var front_probe_collider: Object
 var front_probe_contact_active: bool = false
@@ -31,6 +32,7 @@ var peak_non_ground_contact_manifold: Dictionary = {}
 var peak_non_ground_contact_impulse_ns: float = 0.0
 var maximum_non_ground_contact_points: int = 0
 var maximum_non_ground_contact_span_m := Vector3.ZERO
+var maximum_non_ground_projected_span_xz_m2: float = 0.0
 
 func configure(
 	body_mass_kg: float,
@@ -84,22 +86,73 @@ func add_front_crush_probe(
 	extra_range_m: float = 0.20
 ) -> RayCast3D:
 	front_probe_rest_length_m = maxf(rest_length_m, 0.05)
-	front_crush_probe = RayCast3D.new()
-	front_crush_probe.name = "FrontCrushProbe"
-	front_crush_probe.position = local_mount_m
-	front_crush_probe.target_position = Vector3(front_probe_rest_length_m + maxf(extra_range_m, 0.02), 0.0, 0.0)
-	front_crush_probe.enabled = true
-	front_crush_probe.exclude_parent = true
-	add_child(front_crush_probe)
+	front_crush_probe = _make_front_crush_probe(
+		"FrontCrushProbe",
+		local_mount_m,
+		front_probe_rest_length_m,
+		extra_range_m
+	)
+	front_crush_probes.append(front_crush_probe)
 	return front_crush_probe
 
 # Compatibility bridge for the first M12 branch revision. The former box
 # sensor's rear face is exactly the firewall-side probe origin and its X size
 # is the undeformed crush-zone length, so preserve that call shape while using
-# the more reliable distance probe internally.
+# distance probes internally.
+#
+# M19 adds two lateral probes at the same longitudinal mount. The centre probe
+# remains the public compatibility handle, and centred impacts therefore retain
+# the same measured travel. The lateral probes only close the blind spot where a
+# genuine offset/oblique front contact overlaps one side of the car while the
+# historical centre-line ray passes beside the other vehicle. They do not create
+# collision impulses; Godot's rigid bodies remain authoritative for contact.
 func add_front_crush_sensor(size_m: Vector3, local_position_m: Vector3) -> RayCast3D:
 	var mount := local_position_m - Vector3(size_m.x * 0.5, 0.0, 0.0)
-	return add_front_crush_probe(mount, size_m.x, 0.22)
+	var primary := add_front_crush_probe(mount, size_m.x, 0.22)
+	var lateral_offset := maxf(size_m.z * 0.35, 0.0)
+	if lateral_offset > 0.05:
+		front_crush_probes.append(_make_front_crush_probe(
+			"FrontCrushProbeNegativeZ",
+			mount + Vector3(0.0, 0.0, -lateral_offset),
+			front_probe_rest_length_m,
+			0.22
+		))
+		front_crush_probes.append(_make_front_crush_probe(
+			"FrontCrushProbePositiveZ",
+			mount + Vector3(0.0, 0.0, lateral_offset),
+			front_probe_rest_length_m,
+			0.22
+		))
+	return primary
+
+func _make_front_crush_probe(
+	node_name: String,
+	local_mount_m: Vector3,
+	rest_length_m: float,
+	extra_range_m: float
+) -> RayCast3D:
+	var probe := RayCast3D.new()
+	probe.name = node_name
+	probe.position = local_mount_m
+	probe.target_position = Vector3(maxf(rest_length_m, 0.05) + maxf(extra_range_m, 0.02), 0.0, 0.0)
+	probe.enabled = true
+	probe.exclude_parent = true
+	add_child(probe)
+	return probe
+
+func set_front_crush_probe_mount_x(local_x_m: float) -> void:
+	# M13 can retreat the protected-cell front face during catastrophic collapse.
+	# Keep every M19 probe on that same authoritative face; the legacy public
+	# front_crush_probe reference continues to point at the centre ray.
+	for probe in front_crush_probes:
+		if probe == null:
+			continue
+		var probe_position := probe.position
+		probe_position.x = local_x_m
+		probe.position = probe_position
+
+func front_crush_probe_count() -> int:
+	return front_crush_probes.size()
 
 func add_suspension_point(
 	node_name: String,
@@ -147,6 +200,7 @@ func begin_motion(speed_kmh: float, heading_deg: float) -> void:
 	peak_non_ground_contact_impulse_ns = 0.0
 	maximum_non_ground_contact_points = 0
 	maximum_non_ground_contact_span_m = Vector3.ZERO
+	maximum_non_ground_projected_span_xz_m2 = 0.0
 	freeze = false
 	sleeping = false
 
@@ -177,6 +231,7 @@ func contact_manifold_diagnostics() -> Dictionary:
 		"peak": peak_non_ground_contact_manifold.duplicate(true),
 		"maximum_contact_points": maximum_non_ground_contact_points,
 		"maximum_span_local_m": maximum_non_ground_contact_span_m,
+		"maximum_projected_span_xz_m2": maximum_non_ground_projected_span_xz_m2,
 		"peak_total_impulse_ns": peak_non_ground_contact_impulse_ns,
 		"scope": "diagnostic_only_no_solver_feedback",
 	}
@@ -229,23 +284,29 @@ func _update_suspension() -> void:
 func _update_front_crush_probe() -> void:
 	front_probe_contact_active = false
 	front_probe_collider = null
-	if front_crush_probe == null:
+	if front_crush_probes.is_empty():
 		return
-	front_crush_probe.force_raycast_update()
-	if not front_crush_probe.is_colliding():
-		return
-	var collider := front_crush_probe.get_collider()
-	var collider_name := StringName("")
-	if collider is Node:
-		collider_name = (collider as Node).name
-	if _is_ground_contact(collider_name):
-		return
-	var collision_distance := front_crush_probe.global_position.distance_to(front_crush_probe.get_collision_point())
-	var crush := maxf(front_probe_rest_length_m - collision_distance, 0.0)
-	front_probe_collider = collider
-	front_probe_contact_active = true
-	front_probe_contact_ever = true
-	maximum_front_probe_crush_m = maxf(maximum_front_probe_crush_m, crush)
+	var best_crush := -1.0
+	for probe in front_crush_probes:
+		if probe == null:
+			continue
+		probe.force_raycast_update()
+		if not probe.is_colliding():
+			continue
+		var collider := probe.get_collider()
+		var collider_name := StringName("")
+		if collider is Node:
+			collider_name = (collider as Node).name
+		if _is_ground_contact(collider_name):
+			continue
+		var collision_distance := probe.global_position.distance_to(probe.get_collision_point())
+		var crush := maxf(front_probe_rest_length_m - collision_distance, 0.0)
+		front_probe_contact_active = true
+		front_probe_contact_ever = true
+		maximum_front_probe_crush_m = maxf(maximum_front_probe_crush_m, crush)
+		if crush > best_crush:
+			best_crush = crush
+			front_probe_collider = collider
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	contact_samples.clear()
@@ -290,6 +351,10 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 			maxf(maximum_non_ground_contact_span_m.x, span.x),
 			maxf(maximum_non_ground_contact_span_m.y, span.y),
 			maxf(maximum_non_ground_contact_span_m.z, span.z)
+		)
+		maximum_non_ground_projected_span_xz_m2 = maxf(
+			maximum_non_ground_projected_span_xz_m2,
+			float(manifold.get("projected_span_xz_m2", 0.0))
 		)
 		var total_impulse := float(manifold.get("total_impulse_ns", 0.0))
 		if total_impulse > peak_non_ground_contact_impulse_ns:
