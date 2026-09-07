@@ -10,6 +10,7 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	_check_m19_diagnostic_foundation()
 	await _check_heavy_truck_skin_origin()
 	await _check_passenger_car_wheel_axis()
 	await _check_high_speed_pedestrian_vertical_transfer()
@@ -20,6 +21,23 @@ func _run() -> void:
 	for failure in failures:
 		push_error(failure)
 	quit(1)
+
+func _check_m19_diagnostic_foundation() -> void:
+	# This test is already part of the manual package smoke gate. Keep a cheap
+	# M19 foundation check here so a smoke package cannot silently lose the
+	# diagnostic helper/reference catalog even when the dedicated M19 production
+	# scenario is reserved for the consolidated/full regression set.
+	var samples: Array[Dictionary] = [
+		{"collider_name": &"Road", "position_local": Vector3.ZERO, "impulse": Vector3(1000.0, 0.0, 0.0), "normal": Vector3.UP},
+		{"collider_name": &"Vehicle", "position_local": Vector3(0.8, 0.2, -0.4), "impulse": Vector3(120.0, 0.0, 0.0), "normal": Vector3.LEFT},
+		{"collider_name": &"Vehicle", "position_local": Vector3(0.4, 0.3, 0.4), "impulse": Vector3(180.0, 0.0, 0.0), "normal": Vector3.LEFT},
+	]
+	var manifold := ContactManifoldMetrics.summarize(samples)
+	_expect(int(manifold.get("contact_count", 0)) == 2, "M19 smoke: ground contact leaked into manifold diagnostics")
+	_expect(absf(float(manifold.get("total_impulse_ns", 0.0)) - 300.0) < 0.001, "M19 smoke: manifold impulse summary changed unexpectedly")
+	var references := ValidationReferenceCatalog.load_all()
+	_expect(references.size() == 4, "M19 smoke: external validation reference catalog is incomplete")
+	_expect(ValidationReferenceCatalog.protocol_geometry_references().size() == 3, "M19 smoke: protocol-only evidence role separation is broken")
 
 func _check_heavy_truck_skin_origin() -> void:
 	var truck := M17HeavyTruck.new()
