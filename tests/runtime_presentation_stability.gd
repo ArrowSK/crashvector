@@ -12,6 +12,7 @@ func _initialize() -> void:
 func _run() -> void:
 	_check_m19_diagnostic_foundation()
 	await _check_heavy_truck_skin_origin()
+	await _check_m20_replay_safe_truck_skin()
 	await _check_passenger_car_wheel_axis()
 	await _check_high_speed_pedestrian_vertical_transfer()
 	if failures.is_empty():
@@ -56,6 +57,54 @@ func _check_heavy_truck_skin_origin() -> void:
 	_expect(trailer_bottom.y < 0.90, "Heavy-truck trailer is visibly floating before simulation: bottom y=%.3f m" % trailer_bottom.y)
 	truck.queue_free()
 	await process_frame
+
+func _check_m20_replay_safe_truck_skin() -> void:
+	# Replay restores StructuralSnapshot node positions, while M20's live scalar
+	# crush accumulators remain monotonic for the completed simulation. The visual
+	# must therefore be reconstructed from structural nodes, not from the final
+	# scalar peak, or rewinding would leave the truck visibly crushed.
+	var truck := M20HeavyTruck.new()
+	truck.name = "RuntimeRegressionM20Truck"
+	truck.origin_offset_m = Vector3.ZERO
+	truck.auto_step = false
+	root.add_child(truck)
+	await process_frame
+	var skin := M20HeavyTruckVisual.new()
+	truck.add_child(skin)
+	skin.configure(truck)
+	await process_frame
+	var pristine := StructuralSnapshot.capture(truck.model)
+	var pristine_width := _m20_trailer_width(skin)
+	_expect(absf(pristine_width - 2.42) < 0.06, "M20 truck pristine presentation width changed unexpectedly: %.3f m" % pristine_width)
+
+	# Inject a deterministic structural side crush without using the physics
+	# solver. Keep the live peak scalar non-zero afterwards to model the exact
+	# completed-run/replay condition that previously leaked final deformation.
+	for station in [1, 2, 3, 4]:
+		for corner in [1, 3]:
+			var index := HeavyTruckBuilder.node_index(station, corner)
+			var local := truck.rigid_chassis.to_local(truck.model.nodes[index].position_m)
+			local.z -= 0.24
+			truck.model.nodes[index].position_m = truck.rigid_chassis.to_global(local)
+	truck.hybrid_side_positive_z_crush_m = 0.24
+	skin._update_pose()
+	var crushed_width := _m20_trailer_width(skin)
+	_expect(crushed_width < pristine_width - 0.08, "M20 truck visual did not follow structural side deformation: %.3f -> %.3f m" % [pristine_width, crushed_width])
+
+	_expect(StructuralSnapshot.apply(truck.model, pristine), "M20 truck structural replay snapshot could not be restored")
+	# Deliberately do not reset hybrid_side_positive_z_crush_m.
+	skin._update_pose()
+	var restored_width := _m20_trailer_width(skin)
+	_expect(absf(restored_width - pristine_width) < 0.03, "M20 replay-safe presentation inherited the final live side-crush scalar: %.3f vs %.3f m" % [restored_width, pristine_width])
+
+	truck.queue_free()
+	await process_frame
+
+func _m20_trailer_width(skin: M20HeavyTruckVisual) -> float:
+	if skin == null or skin.trailer_instance == null:
+		return 0.0
+	var mesh := skin.trailer_instance.mesh as BoxMesh
+	return 0.0 if mesh == null else mesh.size.z
 
 func _check_passenger_car_wheel_axis() -> void:
 	var car := M17CompactHatchback.new()
