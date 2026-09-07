@@ -1,0 +1,45 @@
+name: Presentation visual review
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crashvector-visual-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    name: Render presentation acceptance frames
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4.1
+    env:
+      LIBGL_ALWAYS_SOFTWARE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure X virtual framebuffer is available
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            apt-get update
+            apt-get install -y xvfb
+          fi
+      - name: Import and parse production project
+        run: |
+          tools/ci_godot_checked.sh godot --headless --path . --editor --quit
+          tools/ci_godot_checked.sh godot --headless --path . --script res://tests/project_parse.gd
+      - name: Render pristine passenger-car review
+        run: xvfb-run -a godot --path . --script res://tests/presentation_visual_snapshot.gd
+      - name: Render representative crash review
+        run: xvfb-run -a godot --path . --script res://tests/presentation_deformation_snapshot.gd
+      - name: Upload rendered review frames
+        uses: actions/upload-artifact@v4
+        with:
+          name: presentation-visual-review
+          path: |
+            build/presentation_visual_review/*.png
+            build/presentation_deformation_review/*.png
+          if-no-files-found: error
+          retention-days: 14
