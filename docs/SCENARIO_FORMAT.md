@@ -26,6 +26,7 @@ Supported `target_type` values are:
 - `rigid_lorry`
 - `motorcycle`
 - `bicycle`
+- `cyclist`
 - `pedestrian`
 - `rigid_wall`
 - `concrete_barrier`
@@ -61,7 +62,9 @@ Bicycle presets:
 - `bicycle_road` — default 9 kg
 - `bicycle_ebike` — default 24 kg
 
-The selected road-user preset is stored as `target.preset_id`. The stored `target.mass_kg` is authoritative for that scenario, so users may override the preset default without creating a new preset.
+The selected road-user preset is stored as `target.preset_id`. For a riderless `bicycle`, `target.mass_kg` is the bicycle mass. For an M22 `cyclist`, the same bicycle preset selects the bicycle archetype while `target.mass_kg` stores the **combined rider + bicycle mass**. The M22 validator preserves at least a 35 kg rider share above the selected bicycle's generic mass.
+
+The stored mass remains authoritative for the scenario inside those validation limits, so users may override a preset default without creating a new preset.
 
 ## Example car-vs-car scenario
 
@@ -98,7 +101,7 @@ The selected road-user preset is stored as `target.preset_id`. The stored `targe
 }
 ```
 
-A near head-on car-vs-car scenario uses the same format but rotates the target passenger car approximately 180 degrees and gives it the desired speed.
+A near head-on car-vs-car scenario uses the same format but rotates the target passenger car approximately 180 degrees and gives it the desired speed. M18 passenger-car pairs also allow arbitrary relative headings, including broadside layouts.
 
 ## Example car-vs-pedestrian scenario
 
@@ -135,7 +138,7 @@ A near head-on car-vs-car scenario uses the same format but rotates the target p
 }
 ```
 
-The current pedestrian proxy starts stationary; walking/running pedestrian motion is not modelled yet.
+M22 allows the pedestrian's `target.speed_kmh` to be set from 0 to 20 km/h. That value gives the whole articulated pedestrian an initial translational velocity along `target.heading_deg`; CrashVector does not model walking/running gait, propulsion, foot placement or balance control.
 
 ## Validation ranges
 
@@ -148,17 +151,32 @@ Current important ranges are:
 - heavy articulated truck: 3,500–60,000 kg and 0–140 km/h;
 - rigid lorry / box truck: 3,500–26,000 kg and 0–140 km/h;
 - motorcycle: 80–600 kg and 0–250 km/h;
-- bicycle: 5–60 kg and 0–80 km/h;
-- pedestrian: 15–200 kg and currently 0 km/h initial speed;
+- riderless bicycle: 5–60 kg and 0–80 km/h;
+- cyclist: selected-bicycle generic mass + at least 35 kg rider share, up to 220 kg combined mass, and 0–80 km/h;
+- pedestrian: 15–200 kg and 0–20 km/h initial translation;
 - structural solver substeps: 1–64. Normal scenarios retain their existing defaults; the M11 M8-reference correlation run uses 64 on the same public solver path for the refined 44-node passenger-car structure.
 
-Passenger-car, motorcycle, and bicycle paired-node contact supports rear-end or near head-on layouts. Broadside/strongly oblique configurations are rejected rather than silently using the front/rear contact model outside its intended range. Heavy-truck and lorry rear-contact scenarios currently support heading differences up to 25 degrees.
+Current heading scope is target-specific:
 
-Static wall/barrier/pole/tree targets are externally fixed and do not use dynamic-target mass or speed.
+- passenger-car pairs may use arbitrary relative headings through the M18 side-impact path;
+- M20 heavy-truck, rigid-lorry and riderless-motorcycle targets may use broadside/oblique layouts with their bounded generic deformation models;
+- the old `bicycle` target remains riderless and rejects strongly broadside/oblique layouts, preserving its rear-end / near-head-on scope;
+- the M22 `cyclist` target permits generic broadside/oblique rider+bicycle trajectory scenarios;
+- pedestrians may use arbitrary heading for their configured initial translation.
+
+Static wall/barrier/pole/tree targets do not use dynamic-target mass or speed. Wall and concrete barrier remain non-yielding; generic pole/tree yielding is a production-model behaviour rather than a scenario-format difference.
+
+## Compatibility and implementation notes
+
+`heavy_truck` remains the same scenario identifier after M21. The production implementation now routes that target through separate tractor/trailer rigid bodies and a constrained fifth wheel, so saved M17/M18 truck scenarios do not require a format migration.
+
+Likewise, the original `bicycle` identifier remains riderless. M22 introduces `cyclist` as a new target type instead of changing the meaning of previously saved bicycle scenarios.
+
+M19–M22 source support is currently implemented on `main` but runtime-unvalidated while GitHub-hosted Actions capacity is unavailable. The current verified packaged `0.8.0-beta.3` predates those target/scope additions.
 
 ## Comparison data
 
-Comparison Lab does not introduce a separate scenario-file format. It clones a normal `ScenarioConfig`, applies one selected class/target/preset and one selected primary-car speed to each variant, then runs each variant independently. This keeps comparison behaviour aligned with normal scenario validation.
+Comparison Lab does not introduce a separate scenario-file format. It clones a normal `ScenarioConfig`, applies one selected class/target/preset and one selected primary-car speed to each variant, then runs each variant independently through the production-scene route. This keeps comparison behaviour aligned with normal scenario validation.
 
 ## Compatibility policy
 
