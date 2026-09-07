@@ -1,0 +1,34 @@
+{
+  "id": "iihs_small_overlap_64kph_25pct",
+  "title": "IIHS small-overlap frontal protocol reference",
+  "source": {
+    "agency": "Insurance Institute for Highway Safety",
+    "report": "Small Overlap Test Protocol",
+    "version": "VIII",
+    "publication_date": "2025-05",
+    "url": "https://www.iihs.org/media/b24c70f3-5354-4251-af20-0408adad2cf0/JjvNIg/Ratings/Protocols/current/small_overlap_test_protocol.pdf"
+  },
+  "reference_vehicle": {
+    "usage": "Protocol geometry and test-condition evidence only; no manufacturer-specific CrashVector vehicle is implied.",
+    "body_class": "passenger vehicle"
+  },
+  "test_condition": {
+    "impact": "small-overlap frontal impact into rigid barrier",
+    "impact_speed_kmh": 64.4,
+    "impact_speed_tolerance_kmh": 1.0,
+    "overlap_percent": 25.0,
+    "overlap_tolerance_percent": 1.0,
+    "barrier": "rigid flat-150 small-overlap barrier"
+  },
+  "published_observations": {
+    "notes": "Version VIII specifies 64.4 ± 1 km/h and 25 ± 1 percent overlap. CrashVector stores only the public protocol condition here; no IIHS rating, dummy injury measure, or intrusion outcome is used as a CrashVector acceptance corridor."
+  },
+  "source_correlation_corridors": {},
+  "project_regression_corridors": {},
+  "scope": {
+    "evidence_role": "protocol_geometry_only",
+    "production_runnable": false,
+    "required_model_gap": "CrashVector has a generic rigid wall but does not yet implement and validate the IIHS 25-percent small-overlap barrier alignment/contact geometry as a production protocol target.",
+    "warning": "This reference records the IIHS test condition only. It does not mean CrashVector results are IIHS-correlated or suitable for ratings, injury prediction, or vehicle-specific safety assessment."
+  }
+}
