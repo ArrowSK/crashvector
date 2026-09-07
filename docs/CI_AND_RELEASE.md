@@ -10,14 +10,16 @@ Documentation-only changes under `docs/` or Markdown files do not start CI.
 
 Normal CI does **not** build DMG or Windows installers.
 
-## Rendered presentation review
+## Rendered presentation and contact-fidelity review
 
 `.github/workflows/visual-review.yml` is manual (`workflow_dispatch`). It renders:
 
 - pristine A/B/C/D/J/M passenger cars at 1280x720, 1920x1080 and 2560x1440 in 3/4, side and front views;
 - representative frontal, rear and broadside production-crash preview/aftermath frames.
 
-The PNG files are uploaded as a workflow artifact for human review. This is intentionally not a per-push workload because visual acceptance is expensive and still requires a person to judge composition, proportions and obvious presentation defects.
+The same manual workflow also runs the M19 full-frontal/offset/oblique/broadside production observation matrix and uploads `build/m19_contact_fidelity/contact_matrix.json` with the PNG artifact. That JSON is diagnostic only: it reports the current Godot contact manifold and associated production metrics and does not define an external validation corridor.
+
+This review is intentionally not a per-push workload because rendered acceptance and four additional production simulations are expensive and still require a person to judge composition and contact behaviour.
 
 ## Desktop packages and releases
 
@@ -29,7 +31,7 @@ The workflow asks for a validation level:
 - `smoke` — focused layout, Kenney presentation, runtime-stability/M19 diagnostic-foundation and M18 side-impact checks;
 - `full` — the complete consolidated M0-M19 regression set.
 
-The M19 smoke coverage is intentionally cheap: `runtime_presentation_stability.gd` verifies the contact-manifold helper and external-reference catalog, while the existing M18 production side-impact smoke still instantiates the current M19 production scene. The dedicated `m19_contact_fidelity.gd` production/replay/analysis regression remains in consolidated/full validation.
+The M19 smoke coverage is intentionally cheap: `runtime_presentation_stability.gd` verifies the contact-manifold helper and external-reference catalog, while the existing M18 production side-impact smoke still instantiates the current M19 production scene and verifies replay/analysis contact-manifold diagnostics. The dedicated `m19_contact_fidelity.gd` remains in normal consolidated CI; the manual contact matrix is intentionally outside package validation.
 
 It also asks whether to publish a versioned GitHub release. Publishing requires `smoke` or `full` validation to succeed, successful macOS and Windows packages, a new semantic version in `project.godot`, and matching release notes under `docs/releases/<version>.md`. `validation=none` deliberately cannot publish; it produces artifacts only. Existing release tags are never overwritten.
 
