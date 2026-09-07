@@ -53,6 +53,15 @@ func _run() -> void:
 		_expect(preview_truck.fifth_wheel_separation_m() < 0.01, "M21 fifth-wheel anchors are separated before simulation")
 
 	editor.call("_on_simulate_pressed")
+	# M17's inherited begin path historically restores a one-piece frame. M21
+	# must immediately restore the split trailer/tractor frame dimensions before
+	# the first physics tick so an invisible trailer-attached frame cannot span
+	# through the articulated tractor region.
+	if preview_truck != null:
+		var trailer_frame_box := preview_truck.frame_collision.shape as BoxShape3D if preview_truck.frame_collision != null else null
+		var tractor_frame_box := preview_truck.tractor_frame_collision.shape as BoxShape3D if preview_truck.tractor_frame_collision != null else null
+		_expect(trailer_frame_box != null and trailer_frame_box.size.x <= M21HeavyTruck.TRAILER_FRAME_BASE_SIZE.x + 0.01, "M21 run start restored the historical full-length frame onto the trailer body")
+		_expect(tractor_frame_box != null and tractor_frame_box.size.x <= M21HeavyTruck.TRACTOR_FRAME_BASE_SIZE.x + 0.01, "M21 run start lost the separate tractor frame dimensions")
 	await physics_frame
 	var completed := false
 	for _frame in range(1500):
