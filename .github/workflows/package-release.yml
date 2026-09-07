@@ -52,6 +52,8 @@ jobs:
               m18_side_impacts.gd
               m19_contact_fidelity.gd
               m20_heavy_other_impacts.gd
+              m21_articulated_truck.gd
+              m22_cyclist_moving_pedestrian.gd
             )
           else
             tests=(
@@ -93,6 +95,8 @@ jobs:
               m18_side_impacts.gd
               m19_contact_fidelity.gd
               m20_heavy_other_impacts.gd
+              m21_articulated_truck.gd
+              m22_cyclist_moving_pedestrian.gd
             )
           fi
           for test_script in "${tests[@]}"; do
