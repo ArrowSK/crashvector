@@ -12,6 +12,7 @@ const TARGET_TRUCK: StringName = &"heavy_truck"
 const TARGET_LORRY: StringName = &"rigid_lorry"
 const TARGET_MOTORCYCLE: StringName = &"motorcycle"
 const TARGET_BICYCLE: StringName = &"bicycle"
+const TARGET_CYCLIST: StringName = &"cyclist"
 const TARGET_PEDESTRIAN: StringName = &"pedestrian"
 const TARGET_WALL: StringName = &"rigid_wall"
 const TARGET_BARRIER: StringName = &"concrete_barrier"
@@ -44,6 +45,7 @@ static func target_ids() -> Array[StringName]:
 		TARGET_LORRY,
 		TARGET_MOTORCYCLE,
 		TARGET_BICYCLE,
+		TARGET_CYCLIST,
 		TARGET_PEDESTRIAN,
 		TARGET_WALL,
 		TARGET_BARRIER,
@@ -63,6 +65,8 @@ static func target_display_name(id: StringName) -> String:
 			return "Motorcycle (riderless)"
 		TARGET_BICYCLE:
 			return "Bicycle (riderless)"
+		TARGET_CYCLIST:
+			return "Cyclist (generic rider + bicycle)"
 		TARGET_PEDESTRIAN:
 			return "Pedestrian"
 		TARGET_WALL:
@@ -83,6 +87,7 @@ static func target_is_dynamic_id(id: StringName) -> bool:
 		TARGET_LORRY,
 		TARGET_MOTORCYCLE,
 		TARGET_BICYCLE,
+		TARGET_CYCLIST,
 		TARGET_PEDESTRIAN,
 	]
 
@@ -127,6 +132,9 @@ func apply_target_defaults(id: StringName) -> void:
 		TARGET_BICYCLE:
 			target_preset_id = RoadUserCatalog.BICYCLE_CITY
 			target_mass_kg = RoadUserCatalog.default_mass_kg(target_preset_id)
+		TARGET_CYCLIST:
+			target_preset_id = RoadUserCatalog.BICYCLE_CITY
+			target_mass_kg = RoadUserCatalog.cyclist_default_mass_kg(target_preset_id)
 		TARGET_PEDESTRIAN:
 			target_preset_id = RoadUserCatalog.PEDESTRIAN_ADULT
 			target_mass_kg = RoadUserCatalog.default_mass_kg(target_preset_id)
@@ -166,32 +174,21 @@ func validation_errors() -> Array[String]:
 			errors.append("Target passenger-car mass must be between 500 and 5,000 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 300.0:
 			errors.append("Target passenger-car speed must be between 0 and 300 km/h")
-		# M18: passenger-car pairs use Godot rigid-body contact for arbitrary
-		# heading deltas. Bounded local lateral crush handles broadside contact;
-		# this is still a generic educational deformation envelope, not a
-		# manufacturer-specific side-impact crash model.
 	elif target_type == TARGET_TRUCK:
 		if target_mass_kg < 3500.0 or target_mass_kg > 60000.0:
 			errors.append("Heavy-truck mass must be between 3,500 and 60,000 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 140.0:
 			errors.append("Heavy-truck speed must be between 0 and 140 km/h")
-		# M20 keeps the existing one-piece tractor/trailer rigid chassis but adds
-		# bounded generic side deformation, so arbitrary headings may use normal
-		# Godot contact. Fifth-wheel articulation is still not implied.
 	elif target_type == TARGET_LORRY:
 		if target_mass_kg < 3500.0 or target_mass_kg > 26000.0:
 			errors.append("Rigid-lorry mass must be between 3,500 and 26,000 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 140.0:
 			errors.append("Rigid-lorry speed must be between 0 and 140 km/h")
-		# M20 provides bounded generic front/rear/side deformation around the
-		# existing rigid-body lorry contact geometry. No manufacturer correlation.
 	elif target_type == TARGET_MOTORCYCLE:
 		if target_mass_kg < 80.0 or target_mass_kg > 600.0:
 			errors.append("Motorcycle mass must be between 80 and 600 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 250.0:
 			errors.append("Motorcycle speed must be between 0 and 250 km/h")
-		# M20 permits broadside/oblique riderless motorcycle layouts using the
-		# existing rigid-body trajectory with bounded local frame/fork response.
 	elif target_type == TARGET_BICYCLE:
 		if not RoadUserCatalog.bicycle_ids().has(target_preset_id):
 			errors.append("Unknown bicycle preset")
@@ -201,14 +198,21 @@ func validation_errors() -> Array[String]:
 			errors.append("Bicycle speed must be between 0 and 80 km/h")
 		var bicycle_delta := heading_delta_deg()
 		if bicycle_delta > 25.0 and bicycle_delta < 155.0:
-			errors.append("Bicycle contact supports rear-end or near head-on layouts, not broadside impacts yet")
+			errors.append("Riderless bicycle contact supports rear-end or near head-on layouts; use the M22 Cyclist target for generic rider+bicycle broadside/oblique trajectories")
+	elif target_type == TARGET_CYCLIST:
+		if not RoadUserCatalog.bicycle_ids().has(target_preset_id):
+			errors.append("Unknown cyclist bicycle preset")
+		if target_mass_kg < 45.0 or target_mass_kg > 220.0:
+			errors.append("Combined cyclist and bicycle mass must be between 45 and 220 kg")
+		if target_speed_kmh < 0.0 or target_speed_kmh > 80.0:
+			errors.append("Cyclist speed must be between 0 and 80 km/h")
 	elif target_type == TARGET_PEDESTRIAN:
 		if not RoadUserCatalog.pedestrian_ids().has(target_preset_id):
 			errors.append("Unknown pedestrian body preset")
 		if target_mass_kg < 15.0 or target_mass_kg > 200.0:
 			errors.append("Pedestrian mass must be between 15 and 200 kg")
-		if absf(target_speed_kmh) > 0.001:
-			errors.append("The current pedestrian proxy starts stationary; pedestrian walking/running motion is not modelled yet")
+		if target_speed_kmh < 0.0 or target_speed_kmh > 20.0:
+			errors.append("Pedestrian initial translation speed must be between 0 and 20 km/h")
 	if contact_friction < 0.0 or contact_friction > 1.5:
 		errors.append("Contact friction must be between 0 and 1.5")
 	if restitution < 0.0 or restitution > 0.5:
@@ -220,8 +224,6 @@ func validation_errors() -> Array[String]:
 	if not _finite_vector(car_position_m) or not _finite_vector(target_position_m):
 		errors.append("Object positions must contain finite numbers")
 	if target_is_dynamic():
-		# Dynamic targets may now approach the passenger car from ahead or behind.
-		# Whole-world RigidBody3D contact determines which actor is the striker.
 		if car_position_m.distance_to(target_position_m) < 2.0:
 			errors.append("Dynamic actors must start at least 2 m apart")
 	else:
