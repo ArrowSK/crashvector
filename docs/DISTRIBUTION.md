@@ -4,7 +4,7 @@ CrashVector's desktop distribution layer was introduced in M9 and remains separa
 
 The canonical application version is `application/config/version` in `project.godot`. Packaging scripts, native package metadata, the updater and the release workflow all derive their version from that one value. Native operating-system version fields that cannot contain Semantic Version prerelease text are generated deterministically from it; they are not independent release versions.
 
-The current verified public desktop release is `0.8.0-beta.3`. Current `main` contains source work through M22, but M19-M22 were committed while GitHub-hosted Actions capacity was exhausted and therefore remain runtime-unvalidated. Until the current source passes the required Godot, visual and native package gates, the canonical version and public download/update channel intentionally remain on `0.8.0-beta.3`.
+The current verified public desktop release is `0.8.0-beta.3`. Current `main` contains source work through M22 and is now versioned as the **`0.9.0-beta.1` release candidate**. M19-M22 were committed while GitHub-hosted Actions capacity was exhausted and therefore remain runtime-unvalidated. Until the candidate passes the required Godot, visual and native package gates and is actually published, public download/update discovery correctly remains on `0.8.0-beta.3`.
 
 ## Install on macOS
 
@@ -111,14 +111,14 @@ A match fails the architecture audit before the regression suite is accepted.
 
 ## Current release-readiness sequence
 
-Because `main` is currently ahead of the last verified public package, a new release must not be created merely by changing the version number.
+`main` is now explicitly prepared as the `0.9.0-beta.1` release candidate, while `0.8.0-beta.3` remains the last verified public package. A new release must not be created merely because the candidate version exists.
 
 Once runner capacity is available, use this order:
 
 1. Run consolidated CI or the package workflow with `validation=full` and require the project import/parse plus M0-M22 regressions to succeed.
 2. Run the manual presentation visual review and inspect the pristine A/B/C/D/J/M vehicle frames, representative crash frames and M19 contact matrix.
 3. Build and validate both native packages. Retain the Universal 2 architecture check, macOS signing verification, Windows install/uninstall verification and both checksum checks.
-4. Only after those gates are acceptable, increment `application/config/version` in `project.godot` and add matching human-readable notes under `docs/releases/<version>.md`.
+4. Keep the already-prepared `application/config/version = 0.9.0-beta.1` and `docs/releases/0.9.0-beta.1.md` unchanged if those gates are acceptable.
 5. Run `Package and release` with `publish_release=true` and `validation=smoke` or `full`; `full` is preferred.
 
 The publish job refuses to run with `validation=none`, requires successful validation/macOS/Windows jobs, re-verifies both package SHA-256 sidecars, builds `update-manifest.json`, requires matching release notes, and refuses to overwrite an existing `v<version>` release.
