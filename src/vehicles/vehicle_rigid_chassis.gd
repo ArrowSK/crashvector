@@ -345,8 +345,10 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	if manifold_count > 0:
 		last_non_ground_contact_manifold = manifold.duplicate(true)
 		maximum_non_ground_contact_points = maxi(maximum_non_ground_contact_points, manifold_count)
-		var span_value: Variant = manifold.get("span_local_m", Vector3.ZERO)
-		var span := span_value as Vector3 if span_value is Vector3 else Vector3.ZERO
+		var span_value = manifold.get("span_local_m", Vector3.ZERO)
+		var span := Vector3.ZERO
+		if span_value is Vector3:
+			span = span_value
 		maximum_non_ground_contact_span_m = Vector3(
 			maxf(maximum_non_ground_contact_span_m.x, span.x),
 			maxf(maximum_non_ground_contact_span_m.y, span.y),
