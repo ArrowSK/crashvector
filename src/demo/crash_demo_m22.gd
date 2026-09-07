@@ -152,12 +152,18 @@ func _sync_m10_from_scenario() -> void:
 		m10_target_speed_row.visible = true
 
 func _set_m22_target_spin_ranges(mass_min: float, mass_max: float, mass_step: float, speed_min: float, speed_max: float, speed_step: float) -> void:
+	# Changing SpinBox limits can clamp the current control value and emit
+	# value_changed. Treat range updates as UI synchronisation so selecting a new
+	# target cannot overwrite ScenarioConfig defaults before the values are synced.
+	var was_syncing := m10_syncing
+	m10_syncing = true
 	m10_target_mass.min_value = mass_min
 	m10_target_mass.max_value = mass_max
 	m10_target_mass.step = mass_step
 	m10_target_speed.min_value = speed_min
 	m10_target_speed.max_value = speed_max
 	m10_target_speed.step = speed_step
+	m10_syncing = was_syncing
 
 func _refresh_m10_target_preset_options() -> void:
 	if scenario == null or scenario.target_type != ScenarioConfig.TARGET_CYCLIST:
