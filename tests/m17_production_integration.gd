@@ -32,8 +32,8 @@ func _check_scene_routing_and_long_road(packed: PackedScene) -> void:
 		await process_frame
 	# Later production milestones extend rather than replace the M17 long-road,
 	# comparison and reciprocal-impact implementation. The current scene routes
-	# through M21, which inherits M20 -> M19 -> presentation -> M17.
-	_expect(String(editor.get_script().resource_path).ends_with("crash_demo_m21.gd"), "Current production scene must route through the M21 layer that inherits M17")
+	# through M22, which inherits M21 -> M20 -> M19 -> presentation -> M17.
+	_expect(String(editor.get_script().resource_path).ends_with("crash_demo_m22.gd"), "Current production scene must route through the M22 layer that inherits M17")
 	var road := editor.get_node_or_null("Road") as StaticBody3D
 	_expect(road != null, "M17 production scene must expose the continuous Road collision body")
 	if road != null:
