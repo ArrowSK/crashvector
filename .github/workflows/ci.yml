@@ -79,6 +79,7 @@ jobs:
             m18_side_impacts.gd
             m19_contact_fidelity.gd
             m20_heavy_other_impacts.gd
+            m20_replay_presentation.gd
           )
           for test_script in "${tests[@]}"; do
             echo "=== ${test_script} ==="
