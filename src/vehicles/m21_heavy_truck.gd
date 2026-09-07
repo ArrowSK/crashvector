@@ -41,6 +41,10 @@ func _ready() -> void:
 func begin_simulation() -> void:
 	maximum_articulation_yaw_deg = 0.0
 	super.begin_simulation()
+	# M17's inherited start path restores its historical one-piece frame size.
+	# Re-apply the M21 split immediately so the trailer body cannot carry an
+	# invisible full-length frame through the articulated tractor region.
+	_reset_m20_collision_shapes()
 	if tractor_chassis == null:
 		return
 	tractor_chassis.position = origin_offset_m
