@@ -33,3 +33,5 @@ jobs:
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m10_layout.gd
       - name: M16 task-focused UX and vehicle visual regression
         run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/m16_ui_vehicle_visuals.gd
+      - name: Kenney Car Kit asset, paint and deformation regression
+        run: tools/ci_godot_checked.sh godot --headless --path . --script res://tests/kenney_car_kit_visuals.gd
