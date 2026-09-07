@@ -46,7 +46,7 @@ func _check_broadside_preflight() -> void:
 	var bicycle_errors := bicycle_case.validation_errors()
 	var bicycle_broadside_still_blocked := false
 	for error in bicycle_errors:
-		if error.contains("not broadside impacts yet"):
+		if error.contains("M22 Cyclist target"):
 			bicycle_broadside_still_blocked = true
 			break
 	_expect(bicycle_broadside_still_blocked, "M18/M20 scope must not silently enable the still-unmodelled bicycle broadside path")
