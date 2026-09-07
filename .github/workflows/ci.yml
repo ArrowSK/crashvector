@@ -24,7 +24,7 @@ env:
 
 jobs:
   regression:
-    name: Consolidated M0-M18 regression
+    name: Consolidated M0-M19 regression
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.4.1
@@ -77,6 +77,7 @@ jobs:
             m17_production_integration.gd
             runtime_presentation_stability.gd
             m18_side_impacts.gd
+            m19_contact_fidelity.gd
           )
           for test_script in "${tests[@]}"; do
             echo "=== ${test_script} ==="
