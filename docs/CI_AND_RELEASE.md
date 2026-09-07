@@ -21,7 +21,7 @@ The PNG files are uploaded as a workflow artifact for human review. This is inte
 
 ## Desktop packages and releases
 
-`.github/workflows/package-release.yml` is manual (`workflow_dispatch`). It always builds the macOS Universal 2 DMG and Windows x64 installer and verifies package structure/checksums. Packaging no longer runs on normal pushes or pull requests.
+`.github/workflows/package-release.yml` is manual (`workflow_dispatch`). It always builds the macOS Universal 2 DMG and Windows x64 installer and verifies package structure/checksums. Packaging no longer runs on normal pushes or pull requests. The established optional macOS Developer ID/notarization and Windows Authenticode paths are preserved when their credentials are configured.
 
 The workflow asks for a validation level:
 
@@ -29,7 +29,7 @@ The workflow asks for a validation level:
 - `smoke` — focused layout, Kenney presentation, runtime-stability and M18 side-impact checks;
 - `full` — the complete consolidated M0-M18 regression set.
 
-It also asks whether to publish a versioned GitHub release. Publishing still requires a new semantic version in `project.godot`, matching release notes under `docs/releases/<version>.md`, successful platform packages, and any validation level that was explicitly selected. Existing release tags are never overwritten.
+It also asks whether to publish a versioned GitHub release. Publishing requires `smoke` or `full` validation to succeed, successful macOS and Windows packages, a new semantic version in `project.godot`, and matching release notes under `docs/releases/<version>.md`. `validation=none` deliberately cannot publish; it produces artifacts only. Existing release tags are never overwritten.
 
 A package produced with `validation=none` is an **unvalidated diagnostic artifact**. It may be useful for local visual inspection when regression capacity is constrained, but it must not be described as having passed CrashVector's regression suite.
 
