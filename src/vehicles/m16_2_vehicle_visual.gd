@@ -15,7 +15,7 @@ var kenney_skin: KenneyVehicleSkin3D
 
 func configure(target: CompactHatchback) -> void:
 	super.configure(target)
-	kenney_skin = KenneyVehicleSkin3D.new()
+	kenney_skin = KenneyVehiclePresentation3D.new()
 	add_child(kenney_skin)
 	kenney_skin.configure(self)
 
