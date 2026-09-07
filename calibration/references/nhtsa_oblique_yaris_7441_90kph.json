@@ -1,0 +1,35 @@
+{
+  "id": "nhtsa_oblique_yaris_7441_90kph",
+  "title": "NHTSA oblique offset frontal research reference — test 7441",
+  "source": {
+    "agency": "National Highway Traffic Safety Administration",
+    "report": "Integrated Vehicle and Occupant Modeling for Crashworthiness",
+    "report_number": "DOT HS 812 087",
+    "publication_date": "2015-01",
+    "url": "https://www.nhtsa.gov/DOT/NHTSA/NVS/Crashworthiness/Vehicle%20Aggressivity%20and%20Fleet%20Compatibility%20Research/812087_IVOCrashworthiness.pdf",
+    "laboratory_test_id": "7441"
+  },
+  "reference_vehicle": {
+    "usage": "External protocol/load-case evidence only; the named test vehicle is not exposed as a CrashVector production model.",
+    "body_class": "small passenger car",
+    "source_vehicle": "2011 Toyota Yaris"
+  },
+  "test_condition": {
+    "impact": "oblique offset frontal impact with research moving deformable barrier",
+    "impact_speed_kmh": 90.0,
+    "source_speed_mph": 56.0,
+    "angle_deg": 15.0,
+    "overlap_percent": 35.0
+  },
+  "published_observations": {
+    "notes": "DOT HS 812 087 identifies the 90 km/h, 15-degree, 35-percent-overlap oblique load case and NHTSA test 7441. CrashVector does not import occupant injury measures or use them as structural acceptance corridors."
+  },
+  "source_correlation_corridors": {},
+  "project_regression_corridors": {},
+  "scope": {
+    "evidence_role": "protocol_geometry_only",
+    "production_runnable": false,
+    "required_model_gap": "A research moving deformable barrier and validated oblique/offset contact geometry are not implemented as a production target.",
+    "warning": "This reference records a public NHTSA load case. It is not evidence that CrashVector currently reproduces test 7441 outcomes, occupant response, or manufacturer-specific structure."
+  }
+}
