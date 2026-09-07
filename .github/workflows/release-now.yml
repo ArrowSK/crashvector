@@ -11,7 +11,7 @@ permissions:
   actions: write
   contents: read
 
-# Retry against main 5ffface0e4e0ee08a2d595423f8caf4d8e799767.
+# Retry against main 47cd3b7c929a158d5f8a9dac11cf52a771741965.
 jobs:
   dispatch:
     runs-on: ubuntu-latest
