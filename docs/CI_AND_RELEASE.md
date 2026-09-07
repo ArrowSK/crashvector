@@ -4,7 +4,7 @@ CrashVector separates code validation, rendered presentation review and desktop 
 
 ## Normal code changes
 
-`.github/workflows/ci.yml` is the normal automated gate for `main` and pull requests. It uses one Ubuntu/Godot job, imports the project once, then runs the unique M0-M20 regression scripts sequentially. The old milestone-specific workflows were removed because they repeatedly imported the same project and re-ran overlapping tests on separate runners.
+`.github/workflows/ci.yml` is the normal automated gate for `main` and pull requests. It uses one Ubuntu/Godot job, imports the project once, then runs the unique M0-M22 regression scripts sequentially. The old milestone-specific workflows were removed because they repeatedly imported the same project and re-ran overlapping tests on separate runners.
 
 Documentation-only changes under `docs/` or Markdown files do not start CI.
 
@@ -28,10 +28,10 @@ This review is intentionally not a per-push workload because rendered acceptance
 The workflow asks for a validation level:
 
 - `none` — package-only diagnostic build; no regression suite is run;
-- `smoke` — focused layout, Kenney presentation, runtime-stability, M18 passenger-car side impact, dedicated M19 contact diagnostics and the M20 heavy/lorry/motorcycle production-impact gate;
-- `full` — the consolidated historical/package regression set plus dedicated M19 and M20 production checks.
+- `smoke` — focused layout, Kenney presentation, runtime-stability, M18 passenger-car side impact, dedicated M19 contact diagnostics, M20 heavy/lorry/motorcycle impact, M21 fifth-wheel articulation and M22 cyclist/moving-pedestrian production gates;
+- `full` — the consolidated historical/package regression set through M22, including the dedicated M19-M22 production checks.
 
-The expensive four-case M19 observation matrix remains in the manual visual-review workflow because it is intended for evidence inspection rather than pass/fail external correlation. M20's new production capability is different: its dedicated regression is part of both `smoke` and `full`, so a release cannot gain heavy/lorry/motorcycle broadside support while the corresponding production gate is omitted.
+The expensive four-case M19 observation matrix remains in the manual visual-review workflow because it is intended for evidence inspection rather than pass/fail external correlation. M20-M22 add production capabilities, so their dedicated regressions are part of both `smoke` and `full`: a publishable release cannot gain heavy/other-vehicle deformation, articulated fifth-wheel dynamics or cyclist/moving-pedestrian scope while omitting the corresponding production gate.
 
 It also asks whether to publish a versioned GitHub release. Publishing requires `smoke` or `full` validation to succeed, successful macOS and Windows packages, a new semantic version in `project.godot`, and matching release notes under `docs/releases/<version>.md`. `validation=none` deliberately cannot publish; it produces artifacts only. Existing release tags are never overwritten.
 
