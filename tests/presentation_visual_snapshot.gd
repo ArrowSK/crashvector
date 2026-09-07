@@ -5,7 +5,11 @@
 extends SceneTree
 
 const OUTPUT_DIR := "res://build/presentation_visual_review"
-const VIEWPORT_SIZE := Vector2i(1280, 720)
+const VIEWPORT_SIZES := [
+	Vector2i(1280, 720),
+	Vector2i(1920, 1080),
+	Vector2i(2560, 1440),
+]
 
 var packed: PackedScene
 var failures: Array[String] = []
@@ -14,7 +18,6 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
-	root.size = VIEWPORT_SIZE
 	var absolute_dir := ProjectSettings.globalize_path(OUTPUT_DIR)
 	var dir_error := DirAccess.make_dir_recursive_absolute(absolute_dir)
 	if dir_error != OK and dir_error != ERR_ALREADY_EXISTS:
@@ -25,8 +28,15 @@ func _run() -> void:
 		_fail("Could not load production scene for presentation snapshots")
 		return
 
-	for preset_id in PassengerCarCatalog.preset_ids():
-		await _capture_pristine_views(preset_id)
+	# All six production passenger-car classes are reviewed at the same three
+	# desktop resolutions. This is intentionally a manual/release visual gate,
+	# not a per-push CI workload.
+	for viewport_size in VIEWPORT_SIZES:
+		root.size = viewport_size
+		for _frame in range(3):
+			await process_frame
+		for preset_id in PassengerCarCatalog.preset_ids():
+			await _capture_pristine_views(preset_id, viewport_size)
 
 	if failures.is_empty():
 		print("CrashVector presentation acceptance snapshots captured in %s" % absolute_dir)
@@ -36,7 +46,7 @@ func _run() -> void:
 		push_error(failure)
 	quit(1)
 
-func _capture_pristine_views(preset_id: StringName) -> void:
+func _capture_pristine_views(preset_id: StringName, viewport_size: Vector2i) -> void:
 	var editor := packed.instantiate()
 	root.add_child(editor)
 	for _frame in range(12):
@@ -61,11 +71,19 @@ func _capture_pristine_views(preset_id: StringName) -> void:
 		failures.append("%s: Kenney presentation skin unavailable" % String(preset_id))
 	else:
 		if not visual.kenney_skin is KenneyVehiclePresentation3D:
-			failures.append("%s: production scene is not using the wheel-aligned Kenney presentation adapter" % String(preset_id))
+			failures.append("%s: production scene is not using the presentation adapter" % String(preset_id))
+		else:
+			var presentation := visual.kenney_skin as KenneyVehiclePresentation3D
+			if not presentation.source_wheel_alignment_complete:
+				failures.append("%s: source wheel-opening alignment did not resolve all four wheels" % String(preset_id))
 		if visual.kenney_skin.wheel_nodes.size() != 4:
 			failures.append("%s: expected four Kenney presentation wheels" % String(preset_id))
+		if not bool(visual.kenney_skin.get_meta("presentation_pristine_body", false)):
+			failures.append("%s: pristine-body presentation contract metadata missing" % String(preset_id))
+		_verify_body_finish(visual.kenney_skin, preset_id)
 
-	var stem := String(preset_id)
+	var resolution := "%dx%d" % [viewport_size.x, viewport_size.y]
+	var stem := "%s_%s" % [String(preset_id), resolution]
 	editor.call("_frame_scenario")
 	for _frame in range(4):
 		await process_frame
@@ -84,6 +102,22 @@ func _capture_pristine_views(preset_id: StringName) -> void:
 	editor.queue_free()
 	for _frame in range(3):
 		await process_frame
+
+func _verify_body_finish(skin: KenneyVehicleSkin3D, preset_id: StringName) -> void:
+	var found_material := false
+	for material in skin.surface_materials:
+		if not material is BaseMaterial3D:
+			continue
+		found_material = true
+		var base := material as BaseMaterial3D
+		if base.roughness > KenneyVehiclePresentation3D.BODY_PRESENTATION_ROUGHNESS + 0.001:
+			failures.append("%s: body finish roughness was not presentation-tuned" % String(preset_id))
+			return
+		if base.metallic + 0.001 < KenneyVehiclePresentation3D.BODY_PRESENTATION_METALLIC:
+			failures.append("%s: body finish metallic response was not presentation-tuned" % String(preset_id))
+			return
+	if not found_material:
+		failures.append("%s: no imported body material available for presentation review" % String(preset_id))
 
 func _save_frame(file_name: String) -> void:
 	await process_frame
