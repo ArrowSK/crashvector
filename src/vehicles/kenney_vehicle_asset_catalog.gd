@@ -17,11 +17,11 @@ static func passenger_car_body_path(preset_id: StringName) -> String:
 		PassengerCarCatalog.A_SEGMENT_CITY:
 			return ROOT + "hatchback-sports.glb"
 		PassengerCarCatalog.B_SEGMENT_HATCHBACK:
-			return ROOT + "hatchback-sports.glb"
+			return ROOT + "sedan-sports.glb"
 		PassengerCarCatalog.C_SEGMENT_COMPACT:
 			return ROOT + "sedan.glb"
 		PassengerCarCatalog.D_SEGMENT_MIDSIZE:
-			return ROOT + "sedan-sports.glb"
+			return ROOT + "taxi.glb"
 		PassengerCarCatalog.J_SEGMENT_SUV:
 			return ROOT + "suv.glb"
 		PassengerCarCatalog.M_SEGMENT_MPV:
