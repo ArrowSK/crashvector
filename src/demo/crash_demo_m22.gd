@@ -12,6 +12,9 @@ extends "res://src/demo/crash_demo_m21.gd"
 func _is_road_user_target() -> bool:
 	return scenario.target_type == ScenarioConfig.TARGET_CYCLIST or super._is_road_user_target()
 
+func _target_is_dynamic() -> bool:
+	return scenario.target_type == ScenarioConfig.TARGET_CYCLIST or super._target_is_dynamic()
+
 func _replace_legacy_road_user_with_rigid_proxy() -> void:
 	if scenario.target_type != ScenarioConfig.TARGET_CYCLIST:
 		super._replace_legacy_road_user_with_rigid_proxy()
@@ -122,6 +125,66 @@ func _rebuild_inspector() -> void:
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inspector_column.add_child(note)
 	_sync_current_object_fields()
+
+func _sync_m10_from_scenario() -> void:
+	if m10_target_mass != null and m10_target_speed != null and scenario != null:
+		match scenario.target_type:
+			ScenarioConfig.TARGET_PASSENGER_CAR:
+				_set_m22_target_spin_ranges(500.0, 5000.0, 5.0, 0.0, 300.0, 1.0)
+			ScenarioConfig.TARGET_TRUCK:
+				_set_m22_target_spin_ranges(3500.0, 60000.0, 50.0, 0.0, 140.0, 1.0)
+			ScenarioConfig.TARGET_LORRY:
+				_set_m22_target_spin_ranges(3500.0, 26000.0, 50.0, 0.0, 140.0, 1.0)
+			ScenarioConfig.TARGET_MOTORCYCLE:
+				_set_m22_target_spin_ranges(80.0, 600.0, 1.0, 0.0, 250.0, 1.0)
+			ScenarioConfig.TARGET_BICYCLE:
+				_set_m22_target_spin_ranges(5.0, 60.0, 1.0, 0.0, 80.0, 1.0)
+			ScenarioConfig.TARGET_CYCLIST:
+				_set_m22_target_spin_ranges(RoadUserCatalog.cyclist_minimum_mass_kg(scenario.target_preset_id), 220.0, 1.0, 0.0, 80.0, 1.0)
+			ScenarioConfig.TARGET_PEDESTRIAN:
+				_set_m22_target_spin_ranges(15.0, 200.0, 1.0, 0.0, 20.0, 0.5)
+			_:
+				_set_m22_target_spin_ranges(0.0, 60000.0, 5.0, 0.0, 300.0, 1.0)
+	super._sync_m10_from_scenario()
+	# M10 historically hid pedestrian speed because M15 forced it to zero. M22
+	# exposes the now-supported initial translation speed without changing layout.
+	if m10_target_speed_row != null and scenario != null and scenario.target_type == ScenarioConfig.TARGET_PEDESTRIAN:
+		m10_target_speed_row.visible = true
+
+func _set_m22_target_spin_ranges(mass_min: float, mass_max: float, mass_step: float, speed_min: float, speed_max: float, speed_step: float) -> void:
+	m10_target_mass.min_value = mass_min
+	m10_target_mass.max_value = mass_max
+	m10_target_mass.step = mass_step
+	m10_target_speed.min_value = speed_min
+	m10_target_speed.max_value = speed_max
+	m10_target_speed.step = speed_step
+
+func _refresh_m10_target_preset_options() -> void:
+	if scenario == null or scenario.target_type != ScenarioConfig.TARGET_CYCLIST:
+		super._refresh_m10_target_preset_options()
+		return
+	if m10_target_preset == null:
+		return
+	m10_target_preset.clear()
+	var ids := RoadUserCatalog.bicycle_ids()
+	m10_target_preset_row.visible = true
+	for id in ids:
+		m10_target_preset.add_item(RoadUserCatalog.display_name(id))
+		m10_target_preset.set_item_metadata(m10_target_preset.item_count - 1, id)
+	_select_metadata(m10_target_preset, scenario.target_preset_id)
+
+func _on_m10_target_preset_selected(index: int) -> void:
+	if scenario.target_type != ScenarioConfig.TARGET_CYCLIST:
+		super._on_m10_target_preset_selected(index)
+		return
+	if m10_syncing or m10_target_preset == null or index < 0 or index >= m10_target_preset.item_count:
+		return
+	var id := StringName(String(m10_target_preset.get_item_metadata(index)))
+	scenario.target_preset_id = id
+	scenario.target_mass_kg = RoadUserCatalog.cyclist_default_mass_kg(id)
+	selected_object = &"target"
+	_request_preview_rebuild()
+	_sync_m10_from_scenario()
 
 func _on_target_preset_selected(index: int) -> void:
 	if scenario.target_type != ScenarioConfig.TARGET_CYCLIST:
