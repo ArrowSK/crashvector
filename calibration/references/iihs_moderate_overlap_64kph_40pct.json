@@ -1,0 +1,34 @@
+{
+  "id": "iihs_moderate_overlap_64kph_40pct",
+  "title": "IIHS moderate-overlap 2.0 frontal protocol reference",
+  "source": {
+    "agency": "Insurance Institute for Highway Safety",
+    "report": "Moderate Overlap 2.0 Test Protocol",
+    "version": "II",
+    "publication_date": "2025-05",
+    "url": "https://www.iihs.org/media/0e3c2eb2-f3ef-4340-9f1f-e8b041526d8b/9U5siw/Ratings/Protocols/current/Moderate_overlap_2.0_test_protocol.pdf"
+  },
+  "reference_vehicle": {
+    "usage": "Protocol geometry and test-condition evidence only; no manufacturer-specific CrashVector vehicle is implied.",
+    "body_class": "passenger vehicle"
+  },
+  "test_condition": {
+    "impact": "moderate-overlap frontal impact into deformable barrier",
+    "impact_speed_kmh": 64.4,
+    "impact_speed_tolerance_kmh": 1.0,
+    "overlap_percent": 40.0,
+    "overlap_tolerance_percent": 1.0,
+    "barrier": "IIHS deformable moderate-overlap barrier"
+  },
+  "published_observations": {
+    "notes": "Version II specifies 64.4 ± 1 km/h and 40 ± 1 percent overlap. CrashVector stores only the public protocol condition here; no IIHS rating, dummy injury measure, or intrusion outcome is used as a CrashVector acceptance corridor."
+  },
+  "source_correlation_corridors": {},
+  "project_regression_corridors": {},
+  "scope": {
+    "evidence_role": "protocol_geometry_only",
+    "production_runnable": false,
+    "required_model_gap": "The IIHS deformable barrier face and validated 40-percent overlap alignment are not implemented as a production protocol target.",
+    "warning": "This reference records the IIHS test condition only. It does not mean CrashVector results are IIHS-correlated or suitable for ratings, injury prediction, or vehicle-specific safety assessment."
+  }
+}
