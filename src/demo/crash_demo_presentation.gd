@@ -6,8 +6,8 @@ extends "res://src/demo/crash_demo_m17.gd"
 
 # Presentation-only production layer. M12-M18 physics, collision geometry,
 # replay, analysis and scenario behaviour remain in the inherited production
-# stack. This layer only improves lighting, road presentation, selection chrome
-# and camera composition.
+# stack. This layer only improves lighting, road/target presentation, selection
+# chrome, camera composition and small spacing details in the existing M16 UI.
 
 var cv_fill_light: DirectionalLight3D
 
@@ -16,7 +16,20 @@ func _ready() -> void:
 	_cv_polish_environment()
 	_cv_polish_road()
 	_cv_polish_selection_marker()
+	_cv_polish_ui()
+	_cv_polish_target_visuals()
 	call_deferred("_frame_scenario")
+
+func _rebuild_preview() -> void:
+	super._rebuild_preview()
+	# Obstacles are rebuilt when the scenario changes. Re-apply presentation-only
+	# material/overlay decisions after the authoritative preview has been created.
+	if is_inside_tree():
+		call_deferred("_cv_polish_target_visuals")
+
+func _on_structure_toggled(value: bool) -> void:
+	super._on_structure_toggled(value)
+	_cv_polish_target_visuals()
 
 func _cv_polish_environment() -> void:
 	var world_environment := _find_world_environment()
@@ -78,12 +91,36 @@ func _cv_set_environment_material(node_name: String, color: Color, roughness: fl
 func _cv_set_mesh_material(instance: MeshInstance3D, color: Color, roughness: float) -> void:
 	if instance == null or instance.mesh == null:
 		return
-	var material := instance.mesh.surface_get_material(0) as StandardMaterial3D
-	if material == null:
+	var source := instance.mesh.surface_get_material(0) as StandardMaterial3D
+	if source == null:
 		return
+	# Duplicate before polishing so a shared source material elsewhere in the
+	# production scene cannot be changed by this presentation layer.
+	var material := source.duplicate(true) as StandardMaterial3D
 	material.albedo_color = color
 	material.metallic = 0.0
 	material.roughness = roughness
+	instance.material_override = material
+
+func _cv_polish_target_visuals() -> void:
+	if obstacle == null or not is_instance_valid(obstacle):
+		return
+	var stripe := obstacle.find_child("ImpactReferenceStripe", true, false) as MeshInstance3D
+	if stripe != null:
+		# The bright red impact stripe is useful engineering reference geometry but
+		# looked like accidental debug output in the normal scenario view. Keep it
+		# available with Structure rather than displaying it by default.
+		stripe.visible = scenario != null and scenario.show_structure
+	var wall := obstacle.find_child("RigidWall", true, false) as MeshInstance3D
+	_cv_set_mesh_material(wall, Color("aeb4b4"), 0.88)
+	var foot := obstacle.find_child("WallFoot", true, false) as MeshInstance3D
+	_cv_set_mesh_material(foot, Color("51585a"), 0.94)
+	for child in obstacle.find_children("WallJoint", "MeshInstance3D", true, false):
+		_cv_set_mesh_material(child as MeshInstance3D, Color("6d7475"), 0.94)
+	for name in ["BarrierBase", "BarrierLower", "BarrierUpper"]:
+		_cv_set_mesh_material(obstacle.find_child(name, true, false) as MeshInstance3D, Color("a4aaa8"), 0.91)
+	for child in obstacle.find_children("BarrierJoint", "MeshInstance3D", true, false):
+		_cv_set_mesh_material(child as MeshInstance3D, Color("686e6d"), 0.95)
 
 func _cv_polish_selection_marker() -> void:
 	if m10_selection_ring == null:
@@ -102,6 +139,20 @@ func _cv_polish_selection_marker() -> void:
 	m10_selection_ring.scale = Vector3.ONE
 	m10_selection_ring.position.y = 0.045
 	m10_selection_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+func _cv_polish_ui() -> void:
+	# Preserve the existing M16 desktop. Only reclaim a little chrome and keep the
+	# central 3D view visually dominant; this is deliberately not another redesign.
+	if m16_action_slot != null:
+		m16_action_slot.custom_minimum_size.x = 158.0
+	if m10_status_label != null:
+		m10_status_label.add_theme_font_size_override("font_size", 11)
+	if m16_viewport_toolbar != null:
+		for child in m16_viewport_toolbar.get_children():
+			if child is MarginContainer:
+				child.add_theme_constant_override("margin_left", 4)
+				child.add_theme_constant_override("margin_right", 4)
+	_layout_m10()
 
 func _frame_scenario() -> void:
 	_cv_apply_camera(false, true)
@@ -127,7 +178,7 @@ func _cv_frame_impact() -> void:
 		return
 	var primary := _m161_primary_center()
 	var target := _m161_target_center()
-	var toward_primary := (primary - target)
+	var toward_primary := primary - target
 	var focus := target
 	if toward_primary.length() > 0.01:
 		focus += toward_primary.normalized() * minf(toward_primary.length() * 0.22, 1.6)
