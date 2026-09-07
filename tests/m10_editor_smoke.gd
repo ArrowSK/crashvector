@@ -18,7 +18,7 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 
-	var m10 := instance.get_node_or_null("M10UI")
+	var m10 := instance.get_node_or_null("M10UI") as CanvasLayer
 	if m10 == null:
 		_fail("M10 UI CanvasLayer is missing")
 		return
@@ -40,7 +40,7 @@ func _run() -> void:
 		return
 
 	var lab_canvas := instance.get_node_or_null("RoadUserComparisonLabUI")
-	var update_canvas := instance.get_node_or_null("M9UpdateUI")
+	var update_canvas := instance.get_node_or_null("M9UpdateUI") as CanvasLayer
 	if lab_canvas == null or update_canvas == null:
 		_fail("M10 regressed an existing M8/M9 service CanvasLayer")
 		return
@@ -49,6 +49,9 @@ func _run() -> void:
 		return
 	if _find_named(update_canvas, "UpdatesButton") == null or _find_named(update_canvas, "CheckForUpdatesButton") == null:
 		_fail("M10 regressed updater hierarchy")
+		return
+	if update_canvas.layer <= m10.layer:
+		_fail("M10 update modal layer is not above the current desktop UI")
 		return
 
 	instance.call("_on_m10_compare_mode")
@@ -72,6 +75,15 @@ func _run() -> void:
 		return
 	if update_panel.get_parent() != update_canvas:
 		_fail("M10 moved the M9 update panel out of its proven hierarchy")
+		return
+	var check_button := _find_named(update_panel, "CheckForUpdatesButton") as Button
+	if check_button == null or check_button.disabled:
+		_fail("M10 update modal lost its interactive Check for updates button")
+		return
+	var viewport_size := instance.get_viewport().get_visible_rect().size
+	var panel_rect := update_panel.get_global_rect()
+	if panel_rect.position.x < -0.5 or panel_rect.position.y < -0.5 or panel_rect.end.x > viewport_size.x + 0.5 or panel_rect.end.y > viewport_size.y + 0.5:
+		_fail("M10 update modal no longer fits inside the supported desktop viewport")
 		return
 
 	instance.queue_free()
