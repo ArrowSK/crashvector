@@ -5,40 +5,45 @@
 class_name M20HeavyTruckVisual
 extends M17HeavyTruckVisual
 
-# Presentation bridge for the M20 heavy-truck side-deformation state. The M17
-# visual already follows longitudinal front/rear collapse from structural nodes;
-# this layer adds bounded lateral width/centre changes from M20 without changing
-# any physics or collision geometry.
+# Presentation bridge for M20 heavy-truck side deformation. M17 already derives
+# longitudinal front/rear collapse from the structural model. M20 does the same
+# for lateral presentation: width and centre are reconstructed from the current
+# structural nodes instead of the live scalar crush accumulators. That matters
+# for replay, because StructuralSnapshot restores historical node positions while
+# the live peak-crush scalars intentionally remain monotonic for the completed
+# simulation. Presentation therefore follows the replayed structure, not the
+# final live deformation state.
 
 func _update_pose() -> void:
 	super._update_pose()
-	if not (truck is M20HeavyTruck):
+	if not (truck is M20HeavyTruck) or truck.model == null:
 		return
-	var target := truck as M20HeavyTruck
-	_m20_resize_box_side(trailer_instance, 2.42, 3.55, 3.8, 1.55, 0.88, target)
-	_m20_resize_box_side(chassis_instance, 1.76, 4.72, 5.3, 1.15, 0.52, target)
-	_m20_resize_box_side(trailer_front_trim, 2.34, 6.34, 3.0, 1.50, 0.82, target)
-	_m20_resize_box_side(trailer_rear_trim, 2.34, 0.62, 3.0, 1.50, 0.82, target)
-	_m20_resize_cab_side(target)
 
-func _m20_resize_box_side(
+	# The authored presentation widths are slightly smaller than the structural
+	# envelopes. Preserve those visual proportions while following the current
+	# structural lateral span/centre. All values are presentation-only.
+	_m20_resize_box_from_stations(trailer_instance, [1, 2, 3, 4], 2.42, 2.44, 1.55)
+	_m20_resize_box_from_stations(chassis_instance, [0, 1, 2, 3, 4, 5, 6, 7], 1.76, 2.44, 1.15)
+	_m20_resize_box_from_stations(trailer_front_trim, [4], 2.34, 2.44, 1.50)
+	_m20_resize_box_from_stations(trailer_rear_trim, [1], 2.34, 2.44, 1.50)
+	_m20_resize_cab_from_structure()
+
+func _m20_resize_box_from_stations(
 	instance: MeshInstance3D,
+	stations: Array[int],
 	base_width_m: float,
-	local_x_m: float,
-	influence_radius_m: float,
-	minimum_width_m: float,
-	fraction: float,
-	target: M20HeavyTruck
+	reference_span_m: float,
+	minimum_width_m: float
 ) -> void:
 	if instance == null:
 		return
 	var mesh := instance.mesh as BoxMesh
 	if mesh == null:
 		return
-	var negative_weight := clampf(1.0 - absf(local_x_m - target.hybrid_side_negative_z_contact_x_m) / maxf(influence_radius_m, 0.1), 0.0, 1.0)
-	var positive_weight := clampf(1.0 - absf(local_x_m - target.hybrid_side_positive_z_contact_x_m) / maxf(influence_radius_m, 0.1), 0.0, 1.0)
-	var negative_face := -base_width_m * 0.5 + target.hybrid_side_negative_z_crush_m * fraction * negative_weight
-	var positive_face := base_width_m * 0.5 - target.hybrid_side_positive_z_crush_m * fraction * positive_weight
+	var bounds := _m20_lateral_bounds(stations)
+	var scale := base_width_m / maxf(reference_span_m, 0.01)
+	var negative_face := bounds.x * scale
+	var positive_face := bounds.y * scale
 	if positive_face - negative_face < minimum_width_m:
 		var center := (positive_face + negative_face) * 0.5
 		negative_face = center - minimum_width_m * 0.5
@@ -48,28 +53,56 @@ func _m20_resize_box_side(
 	mesh.size = size
 	instance.position.z = (positive_face + negative_face) * 0.5
 
-func _m20_resize_cab_side(target: M20HeavyTruck) -> void:
+func _m20_resize_cab_from_structure() -> void:
 	if cab_instance == null:
 		return
-	var local_x := 8.20
-	var influence := 2.10
-	var negative_weight := clampf(1.0 - absf(local_x - target.hybrid_side_negative_z_contact_x_m) / influence, 0.0, 1.0)
-	var positive_weight := clampf(1.0 - absf(local_x - target.hybrid_side_positive_z_contact_x_m) / influence, 0.0, 1.0)
+	var bounds := _m20_lateral_bounds([5, 6, 7])
 	var base_width := 2.24
-	var negative_face := -base_width * 0.5 + target.hybrid_side_negative_z_crush_m * 0.88 * negative_weight
-	var positive_face := base_width * 0.5 - target.hybrid_side_positive_z_crush_m * 0.88 * positive_weight
-	var width := maxf(positive_face - negative_face, 1.45)
+	var reference_span := 2.36
+	var scale := base_width / reference_span
+	var negative_face := bounds.x * scale
+	var positive_face := bounds.y * scale
+	if positive_face - negative_face < 1.45:
+		var center := (positive_face + negative_face) * 0.5
+		negative_face = center - 1.45 * 0.5
+		positive_face = center + 1.45 * 0.5
+	var width := positive_face - negative_face
 	var center_z := (positive_face + negative_face) * 0.5
 	var scale_value := cab_instance.scale
 	scale_value.z = width / base_width
 	cab_instance.scale = scale_value
 	cab_instance.position.z = center_z
+
 	for detail in [windshield_instance, grille_instance, bumper_instance]:
 		if detail == null:
 			continue
 		var detail_mesh := detail.mesh as BoxMesh
 		if detail_mesh != null:
 			var size := detail_mesh.size
-			size.z = maxf(size.z * 0.0 + width * 0.82, 1.18)
+			size.z = maxf(width * 0.82, 1.18)
 			detail_mesh.size = size
 		detail.position.z = center_z
+
+func _m20_lateral_bounds(stations: Array[int]) -> Vector2:
+	if truck == null or truck.model == null:
+		return Vector2(-1.0, 1.0)
+	var inverse := global_transform.affine_inverse()
+	var found := false
+	var minimum_z := 0.0
+	var maximum_z := 0.0
+	for station in stations:
+		for corner in range(4):
+			var index := HeavyTruckBuilder.node_index(station, corner)
+			if index < 0 or index >= truck.model.nodes.size():
+				continue
+			var local := inverse * truck.model.nodes[index].position_m
+			if not found:
+				minimum_z = local.z
+				maximum_z = local.z
+				found = true
+			else:
+				minimum_z = minf(minimum_z, local.z)
+				maximum_z = maxf(maximum_z, local.z)
+	if not found:
+		return Vector2(-1.0, 1.0)
+	return Vector2(minimum_z, maximum_z)
