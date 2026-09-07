@@ -50,6 +50,8 @@ jobs:
               kenney_car_kit_visuals.gd
               runtime_presentation_stability.gd
               m18_side_impacts.gd
+              m19_contact_fidelity.gd
+              m20_heavy_other_impacts.gd
             )
           else
             tests=(
@@ -89,6 +91,8 @@ jobs:
               m17_production_integration.gd
               runtime_presentation_stability.gd
               m18_side_impacts.gd
+              m19_contact_fidelity.gd
+              m20_heavy_other_impacts.gd
             )
           fi
           for test_script in "${tests[@]}"; do
