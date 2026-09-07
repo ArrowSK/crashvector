@@ -15,7 +15,7 @@ The submodule is commit-pinned. A normal `git submodule update --init --recursiv
 
 ## Passenger-car mapping
 
-Each CrashVector passenger-car class now has its own pinned Kenney body asset instead of sharing a presentation body with another class.
+Each CrashVector passenger-car class has its own pinned Kenney body asset instead of sharing a presentation body with another class.
 
 | CrashVector class | Kenney body |
 | --- | --- |
@@ -28,13 +28,13 @@ Each CrashVector passenger-car class now has its own pinned Kenney body asset in
 
 The Car Kit has only one dedicated hatchback body and a limited set of ordinary passenger-car silhouettes. The D-segment therefore uses the additional Kenney passenger-sedan/taxi asset as a distinct presentation source rather than reusing the compact or sports-sedan body. These asset choices are visual class proxies only; they do not imply manufacturer-specific geometry or physics.
 
-Passenger cars use Kenney `wheel-default.glb` for all four presentation wheels. The existing wheel-anchor groups remain authoritative for wheel location and rolling motion.
+Passenger cars use Kenney `wheel-default.glb` for all four presentation wheels. CrashVector's established wheel-anchor groups remain authoritative for suspension position and rolling motion. `KenneyVehiclePresentation3D` additionally reads the four named wheel centres from the selected body asset and applies bounded presentation-only local offsets so the rendered wheels sit closer to that body's original wheel openings without moving the authoritative suspension anchors.
 
 ## Physics and deformation boundary
 
 The Kenney meshes are not collision geometry and do not replace CrashVector's structural model.
 
-`M162VehicleVisual` creates a `KenneyVehicleSkin3D`. On initial load, the Kenney body is converted into CrashVector's vehicle axes, fitted with one **uniform** scale and positioned inside the neutral presentation envelope. The source body proportions are not stretched independently and are not forced into the procedural cross-section cage before the crash starts.
+`M162VehicleVisual` creates a `KenneyVehiclePresentation3D`, which extends the neutral/deformation behaviour in `KenneyVehicleSkin3D`. On initial load, the Kenney body is converted into CrashVector's vehicle axes, fitted with one **uniform** scale and positioned inside the neutral presentation envelope. The source body proportions are not stretched independently and are not forced into the procedural cross-section cage before the crash starts.
 
 The neutral M16.2 cage is captured once when the presentation skin is installed. During simulation, the Kenney body receives only the displacement between the live structural cage and that neutral cage at the current rigid-body pose. Consequently:
 
@@ -45,15 +45,19 @@ The neutral M16.2 cage is captured once when the presentation skin is installed.
 - rigid-body pose, collision shapes, masses, contact impulses, replay snapshots and analysis remain unchanged;
 - switching paint colours changes the imported presentation material without changing simulation state.
 
-If the Car Kit assets are absent in an ordinary developer checkout, the established procedural passenger-car skin remains a development fallback. CI and release packaging deliberately do **not** accept that fallback: they initialise the pinned submodule and fail if the required Kenney files are unavailable.
+`KenneyVehiclePresentation3D` also applies conservative satin body-response bounds to the imported material while preserving the Kenney colour-map texture and CrashVector paint multiplier. This material tuning is presentation-only.
+
+If the Car Kit assets are absent in an ordinary developer checkout, the established procedural passenger-car skin remains a development fallback. CI and release packaging deliberately do **not** accept that fallback: they initialise the pinned submodule and fail if the required Kenney files are unavailable. Packaging explicitly requires all six mapped body assets, including `taxi.glb`, plus the presentation wheel asset.
 
 ## Scope limits
 
-Kenney Car Kit does not contain a semantically appropriate articulated heavy tractor-trailer, motorcycle, bicycle or pedestrian model matching CrashVector's current simulated classes. Those objects retain their existing purpose-built presentation rather than being replaced by a visually convenient but physically misleading Car Kit asset. Static obstacle presentation is also unchanged.
+Kenney Car Kit does not contain a semantically appropriate articulated heavy tractor-trailer, motorcycle, bicycle or pedestrian model matching CrashVector's current simulated classes. Those objects retain their existing purpose-built presentation rather than being replaced by a visually convenient but physically misleading Car Kit asset.
+
+Static targets retain their existing simulation/collision geometry. The production presentation layer may mute materials or hide engineering reference overlays such as the rigid-wall impact stripe during the normal scenario view; those changes do not alter target physics.
 
 This is a presentation limitation only; the corresponding M14-M18 simulation paths are unchanged.
 
-## Regression gate
+## Regression and visual-review gates
 
 `tests/kenney_car_kit_visuals.gd` verifies:
 
@@ -65,5 +69,7 @@ This is a presentation limitation only; the corresponding M14-M18 simulation pat
 - existing CrashVector paint selection;
 - direct coupling to front, rear and lateral structural displacement;
 - class-specific rebuild to the SUV asset.
+
+The manual `tests/presentation_visual_snapshot.gd` review additionally covers all six classes at 1280x720, 1920x1080 and 2560x1440 in three camera views and checks the production presentation adapter, body finish and source wheel-opening alignment. `tests/presentation_deformation_snapshot.gd` renders representative frontal, rear and broadside production crashes for human review.
 
 The pre-existing M17 and M18 regressions remain responsible for reciprocal-impact and side-impact physics. The Kenney integration does not weaken or replace those gates.
