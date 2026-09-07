@@ -39,7 +39,7 @@ CrashVector is an open-source desktop crash-simulation sandbox for people who wa
 
 The current M12–M22 source architecture separates whole-object world motion, permanent structural deformation and presentation. Godot `RigidBody3D` owns supported vehicle/target world motion; CrashVector's structural graphs remain local deformation/presentation state. M13 extends severe passenger-car failure beyond the nose, M14 adds vulnerable-target trajectories and yielding pole/tree targets, M15 adds articulated pedestrian and bicycle dynamics, M16 reorganises the desktop workflow, M17 restores Comparison on the production rigid-body scene, M18 adds passenger-car broadside deformation, M19 adds real-contact diagnostics and offset/oblique front-probe coverage, M20 adds bounded heavy-truck/lorry/motorcycle deformation for broadside/oblique layouts, M21 splits the heavy truck into tractor and trailer rigid bodies connected by a constrained fifth wheel, and M22 adds a generic cyclist plus configurable initial pedestrian translation.
 
-> **Current source state:** `main` is implemented through **M22**. M19–M22 were committed while GitHub-hosted Actions capacity was exhausted, so they are **implemented but runtime-unvalidated** until Godot executes the current regression stack. Do not treat the M19–M22 source state as a tested public release yet.
+> **Current source state:** `main` is implemented through **M22** and is versioned as the **`0.9.0-beta.1` release candidate**. M19–M22 were committed while GitHub-hosted Actions capacity was exhausted, so they are **implemented but runtime-unvalidated** until Godot executes the current regression stack. Do not treat `0.9.0-beta.1` as a tested public release until those gates pass and the release is actually published.
 
 > **Packaged release:** **`0.8.0-beta.3`** remains the current verified public desktop beta. It predates M19–M22 and packages the completed M17/M18 production stack together with the working Updates modal and Kenney Car Kit 3.1 passenger-car presentation for macOS Universal 2 and Windows x64.
 
@@ -312,6 +312,7 @@ Or open `project.godot` directly in Godot and run the project.
 | [Roadmap](docs/ROADMAP.md) | Implementation history, current validation state and future physics work |
 | [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, distribution and presentation layers |
 | [CI and release flow](docs/CI_AND_RELEASE.md) | Consolidated regression, visual review, package validation and Actions-quota behaviour |
+| [0.9.0-beta.1 candidate notes](docs/releases/0.9.0-beta.1.md) | Prepared M19–M22 feature-beta notes; publication remains gated on current runtime/visual/native validation |
 | [0.8.0-beta.3 release notes](docs/releases/0.8.0-beta.3.md) | Current verified packaged beta with the Updates modal correction and Kenney passenger-car presentation |
 | [Kenney Car Kit presentation](docs/KENNEY_CAR_KIT.md) | Asset provenance, passenger-car mapping, neutral-body preservation, deformation coupling and scope limits |
 | [M22 cyclist and moving pedestrian](docs/M22_CYCLIST_MOVING_PEDESTRIAN.md) | Generic rider+bicycle coupling, pedestrian initial translation, replay and evidence boundaries |
@@ -334,11 +335,11 @@ Or open `project.godot` directly in Godot and run the project.
 
 ## Development status
 
-**M22 is the current source milestone; M18 is the current verified packaged milestone.** M19–M22 are implemented on `main` but remain runtime-unvalidated until the current Godot regression stack runs successfully. The public `project.godot` version intentionally remains `0.8.0-beta.3` while that validation is unavailable, so the updater and download links continue to point only at the last verified package.
+**M22 is the current source milestone; M18 is the current verified packaged milestone.** M19–M22 are implemented on `main` but remain runtime-unvalidated until the current Godot regression stack runs successfully. `project.godot` is now **`0.9.0-beta.1`** as the prepared release candidate; the updater and public download links continue to point only at **`0.8.0-beta.3`** until the candidate passes the release gates and is published.
 
 The current public installers are **`v0.8.0-beta.3`**, verified through canonical Core CI, macOS Universal 2 packaging, Windows x64 packaging, M10 updater regression, M16 Kenney presentation regression and the preserved M17/M18 production gates. Checksum sidecars and `update-manifest.json` are attached to the release.
 
-Before a new beta is published, the current source must pass at least the publishable package `smoke` validation, successful macOS/Windows package construction and the manual presentation/contact-fidelity review. A full M0–M22 run remains the preferred release candidate gate once Actions capacity is available. Until then the correct next step is validation and visual inspection, not another physics milestone.
+Before `0.9.0-beta.1` is published, the current source must pass at least the publishable package `smoke` validation, successful macOS/Windows package construction and the manual presentation/contact-fidelity review. A full M0–M22 run remains the preferred release candidate gate once Actions capacity is available. Until then the correct next step is validation and visual inspection, not another physics milestone.
 
 ## Licence
 
