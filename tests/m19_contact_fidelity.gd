@@ -14,6 +14,8 @@ func _initialize() -> void:
 func _run() -> void:
 	_check_contact_manifold_helper()
 	_check_validation_reference_catalog()
+	_check_contact_scenario_catalog()
+	await _check_front_probe_layout()
 	await _check_production_replay_diagnostics()
 	_finish()
 
@@ -57,6 +59,43 @@ func _check_validation_reference_catalog() -> void:
 		_expect(not ValidationReferenceCatalog.production_runnable(reference), "M19 reference %s must not claim production validation" % reference.id())
 	for reference in geometry_refs:
 		_expect(reference.source_corridors().is_empty(), "Protocol-only reference %s must not invent source outcome corridors" % reference.id())
+
+func _check_contact_scenario_catalog() -> void:
+	var ids := ContactFidelityScenarioCatalog.ids()
+	_expect(ids.size() == 4, "M19 contact observation catalog must contain four generic cases")
+	for id in ids:
+		var config := ContactFidelityScenarioCatalog.make_config(id)
+		var metadata := ContactFidelityScenarioCatalog.metadata(id)
+		_expect(config.validation_errors().is_empty(), "M19 contact observation case %s failed production preflight" % String(id))
+		_expect(String(metadata.get("diagnostic_role", "")) == "production_contact_observation_only", "M19 contact case %s lost its diagnostic-only role" % String(id))
+		_expect(not bool(metadata.get("external_protocol_replica", true)), "M19 generic case %s must not be labelled as an external protocol replica" % String(id))
+
+func _check_front_probe_layout() -> void:
+	# M19 keeps the original centre-line crush ray as the compatibility handle and
+	# adds two symmetric lateral observation rays. They measure the same front
+	# crush zone and do not add collision shapes or impulses themselves.
+	var vehicle := M17CompactHatchback.new()
+	vehicle.name = "M19ProbeLayoutCar"
+	vehicle.auto_step = false
+	root.add_child(vehicle)
+	for _frame in range(3):
+		await process_frame
+	var chassis := vehicle.rigid_chassis
+	_expect(chassis != null, "M19 probe-layout check could not build the production rigid chassis")
+	if chassis != null:
+		_expect(chassis.front_crush_probe_count() == 3, "M19 passenger car must expose centre plus two lateral front-crush probes")
+		if chassis.front_crush_probes.size() == 3:
+			var centre := chassis.front_crush_probes[0]
+			var negative := chassis.front_crush_probes[1]
+			var positive := chassis.front_crush_probes[2]
+			_expect(centre != null and negative != null and positive != null, "M19 front-crush probe set contains a null ray")
+			if centre != null and negative != null and positive != null:
+				_expect(absf(centre.position.z) < 0.001, "M19 compatibility front-crush probe must remain on the centre line")
+				_expect(negative.position.z < -0.05 and positive.position.z > 0.05, "M19 lateral front-crush probes must straddle the centre line")
+				_expect(absf(negative.position.z + positive.position.z) < 0.001, "M19 lateral front-crush probes must be symmetric")
+				_expect(absf(centre.position.x - negative.position.x) < 0.001 and absf(centre.position.x - positive.position.x) < 0.001, "M19 front-crush probes must share one authoritative longitudinal mount")
+	vehicle.queue_free()
+	await process_frame
 
 func _check_production_replay_diagnostics() -> void:
 	var packed := load("res://app/main.tscn") as PackedScene
