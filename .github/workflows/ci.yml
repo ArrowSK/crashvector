@@ -24,7 +24,7 @@ env:
 
 jobs:
   regression:
-    name: Consolidated M0-M21 regression
+    name: Consolidated M0-M22 regression
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.4.1
@@ -80,6 +80,7 @@ jobs:
             m19_contact_fidelity.gd
             m20_heavy_other_impacts.gd
             m21_articulated_truck.gd
+            m22_cyclist_moving_pedestrian.gd
           )
           for test_script in "${tests[@]}"; do
             echo "=== ${test_script} ==="
