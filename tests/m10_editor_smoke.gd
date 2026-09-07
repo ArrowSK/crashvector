@@ -67,6 +67,12 @@ func _run() -> void:
 		_fail("M10 could not return to Scenario workspace")
 		return
 
+	# Validate the legacy updater at the supported 1280x720 desktop floor rather
+	# than relying on the headless runner's incidental initial viewport size.
+	root.size = Vector2i(1280, 720)
+	await process_frame
+	instance.call("_layout_m10")
+	await process_frame
 	instance.call("_on_updates_button_pressed")
 	await process_frame
 	var update_panel := _find_named(update_canvas, "UpdatePanel") as Control
@@ -80,10 +86,14 @@ func _run() -> void:
 	if check_button == null or check_button.disabled:
 		_fail("M10 update modal lost its interactive Check for updates button")
 		return
-	var viewport_size := instance.get_viewport().get_visible_rect().size
-	var panel_rect := update_panel.get_global_rect()
-	if panel_rect.position.x < -0.5 or panel_rect.position.y < -0.5 or panel_rect.end.x > viewport_size.x + 0.5 or panel_rect.end.y > viewport_size.y + 0.5:
-		_fail("M10 update modal no longer fits inside the supported desktop viewport")
+	var viewport_size := root.size
+	var panel_rect := Rect2(update_panel.position, update_panel.size)
+	if panel_rect.position.x < -0.5 or panel_rect.position.y < -0.5 or panel_rect.end.x > float(viewport_size.x) + 0.5 or panel_rect.end.y > float(viewport_size.y) + 0.5:
+		_fail("M10 update modal escaped 1280x720: pos=%s size=%s" % [update_panel.position, update_panel.size])
+		return
+	var expected_center := Vector2(viewport_size) * 0.5
+	if update_panel.get_rect().get_center().distance_to(expected_center) > 1.0:
+		_fail("M10 update modal is not centred in the current viewport")
 		return
 
 	instance.queue_free()
