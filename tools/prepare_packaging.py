@@ -17,8 +17,9 @@ KENNEY_ROOT = ROOT / "third_party" / "kenney_car_kit"
 KENNEY_REQUIRED = (
     KENNEY_ROOT / "License.txt",
     KENNEY_ROOT / "Models" / "GLB format" / "hatchback-sports.glb",
-    KENNEY_ROOT / "Models" / "GLB format" / "sedan.glb",
     KENNEY_ROOT / "Models" / "GLB format" / "sedan-sports.glb",
+    KENNEY_ROOT / "Models" / "GLB format" / "sedan.glb",
+    KENNEY_ROOT / "Models" / "GLB format" / "taxi.glb",
     KENNEY_ROOT / "Models" / "GLB format" / "suv.glb",
     KENNEY_ROOT / "Models" / "GLB format" / "van.glb",
     KENNEY_ROOT / "Models" / "GLB format" / "wheel-default.glb",
