@@ -140,7 +140,10 @@ func _check_truck_strikes_and_deforms_car(packed: PackedScene) -> void:
 	_expect(truck != null, "Reciprocal case did not preserve M17HeavyTruck compatibility")
 	if car != null and truck != null:
 		_expect(car.rigid_chassis.non_ground_contact_events > 0, "Truck->car case produced no real car contact")
-		_expect(truck.rigid_chassis.non_ground_contact_events > 0, "Truck->car case produced no real truck contact")
+		var truck_contacts := truck.rigid_chassis.non_ground_contact_events
+		if truck is M21HeavyTruck:
+			truck_contacts += (truck as M21HeavyTruck).tractor_chassis.non_ground_contact_events
+		_expect(truck_contacts > 0, "Truck->car case produced no real truck contact")
 		_expect(car.hybrid_rear_impact_crush_m > 0.02, "Truck striking from behind did not produce direct passenger-car rear crush: %.3f m" % car.hybrid_rear_impact_crush_m)
 		_expect(truck.hybrid_front_crush_m > 0.005, "Striking truck did not receive bounded front collapse: %.3f m" % truck.hybrid_front_crush_m)
 		_expect(_finite_vector(car.rigid_chassis.global_position) and _finite_vector(truck.rigid_chassis.global_position), "Reciprocal impact produced non-finite rigid-body positions")
