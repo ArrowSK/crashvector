@@ -164,9 +164,10 @@ func _m161_apply_camera(three_quarter: bool) -> void:
 	_cv_apply_camera(false, three_quarter)
 
 func _m161_frame_aftermath() -> void:
-	if not _m161_has_replay():
-		return
-	_cv_apply_camera(true, true)
+	# M16.2 selects the impact-result replay frame and composes its camera around
+	# the collision cluster. Keep that later production behaviour instead of
+	# reverting to this layer's older whole-scene camera path.
+	super._m161_frame_aftermath()
 
 func _on_simulate_pressed() -> void:
 	super._on_simulate_pressed()
