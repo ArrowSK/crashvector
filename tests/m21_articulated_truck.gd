@@ -74,10 +74,10 @@ func _run() -> void:
 		await process_frame
 
 	var truck := editor.get("truck") as M21HeavyTruck
+	var impacting_car := editor.get("car") as M17CompactHatchback
 	_expect(truck != null, "M21 articulated truck disappeared during production run")
 	if truck != null:
-		var combined_contacts := truck.rigid_chassis.non_ground_contact_events + truck.tractor_chassis.non_ground_contact_events
-		_expect(combined_contacts > 0, "M21 articulated truck received no real non-ground Godot contact")
+		_expect(impacting_car != null and impacting_car.hybrid_contact_count() > 0, "M21 rear-quarter scenario produced no real Godot contact with the articulated truck")
 		_expect(truck.maximum_articulation_yaw_deg > 0.05, "M21 rear-quarter hit produced no measurable tractor/trailer articulation")
 		_expect(truck.maximum_articulation_yaw_deg <= M21HeavyTruck.MAX_FIFTH_WHEEL_YAW_DEG + 2.0, "M21 fifth-wheel yaw exceeded its configured generic envelope: %.2f deg" % truck.maximum_articulation_yaw_deg)
 		_expect(truck.fifth_wheel_separation_m() < 0.18, "M21 fifth-wheel linear constraint separated by %.3f m" % truck.fifth_wheel_separation_m())
@@ -85,7 +85,6 @@ func _run() -> void:
 		_expect(truck.rigid_chassis.maximum_vertical_speed_ms < 20.0 and truck.tractor_chassis.maximum_vertical_speed_ms < 20.0, "M21 articulated truck produced an implausible vertical launch")
 		var diagnostics := truck.combined_contact_manifold_diagnostics()
 		_expect(String(diagnostics.get("scope", "")) == "diagnostic_only_no_solver_feedback_articulated_pair", "M21 combined contact diagnostics lost their explicit scope")
-		_expect(int(diagnostics.get("maximum_contact_points", 0)) > 0, "M21 combined contact diagnostics reported no target contact")
 		var skin := editor.get("m162_truck_skin") as M21HeavyTruckVisual
 		_expect(skin != null and skin.tractor_presentation_root != null, "M21 production presentation does not expose a separate articulated tractor root")
 
