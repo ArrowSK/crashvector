@@ -30,7 +30,7 @@ func _check_preflight_scope() -> void:
 	var bicycle_errors := bicycle.validation_errors()
 	var bicycle_broadside_blocked := false
 	for error in bicycle_errors:
-		if error.contains("not broadside impacts yet"):
+		if error.contains("M22 Cyclist target"):
 			bicycle_broadside_blocked = true
 			break
 	_expect(bicycle_broadside_blocked, "M20 must not silently enable the still-unmodelled bicycle broadside path")
@@ -105,7 +105,7 @@ func _check_truck_oblique() -> void:
 	config.car_mass_kg = PassengerCarCatalog.default_mass_kg(config.car_preset_id)
 	config.car_position_m = Vector3(-9.0, 0.0, 0.0)
 	config.car_heading_deg = 0.0
-	config.car_speed_kmh = 65.0
+	config.car_speed_kmh = 140.0
 	config.apply_target_defaults(ScenarioConfig.TARGET_TRUCK)
 	# Approximate the centre of the 9.5 m one-piece target on the primary lane
 	# while rotating its long axis by 45 degrees. This is a generic CrashVector
@@ -143,7 +143,11 @@ func _broadside_config(target_type: StringName) -> ScenarioConfig:
 	config.car_mass_kg = PassengerCarCatalog.default_mass_kg(config.car_preset_id)
 	config.car_position_m = Vector3(-8.0, 0.0, 0.0)
 	config.car_heading_deg = 0.0
-	config.car_speed_kmh = 60.0
+	# The primary car's established front-crush probe starts applying equal and
+	# opposite resistance before rigid volumes overlap. Keep each M20 fixture
+	# within its supported range, but above that probe-only threshold so this
+	# regression continues to exercise real Godot contacts and M20 side crush.
+	config.car_speed_kmh = 120.0
 	config.apply_target_defaults(target_type)
 	config.target_heading_deg = -90.0
 	config.target_speed_kmh = 0.0
@@ -152,6 +156,10 @@ func _broadside_config(target_type: StringName) -> ScenarioConfig:
 		target_length = 7.35
 	elif target_type == ScenarioConfig.TARGET_MOTORCYCLE:
 		target_length = 1.95
+		config.car_speed_kmh = 180.0
+		config.target_mass_kg = 600.0
+	elif target_type == ScenarioConfig.TARGET_TRUCK:
+		config.car_speed_kmh = 140.0
 	elif target_type == ScenarioConfig.TARGET_BICYCLE:
 		target_length = 1.70
 	# With -90 degrees the target's local +X points across world +Z. Offset the
