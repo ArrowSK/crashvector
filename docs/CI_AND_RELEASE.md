@@ -37,17 +37,14 @@ It also asks whether to publish a versioned GitHub release. Publishing requires 
 
 A package produced with `validation=none` is an **unvalidated diagnostic artifact**. It may be useful for local visual inspection when regression capacity is constrained, but it must not be described as having passed CrashVector's regression suite.
 
-## Current M22 release-readiness state
+## Current M22 release state
 
-The current `main` source is implemented through M22. The canonical source version has now been advanced to the **`0.9.0-beta.1` release candidate**, with matching notes under `docs/releases/0.9.0-beta.1.md`.
-
-M19-M22 were implemented with `[skip ci]` while GitHub-hosted Actions capacity was exhausted, so the version bump does not make them runtime-validated. Therefore:
+The current `main` source is implemented through M22 and versioned as the published **`0.9.0-beta.2` desktop beta**. The full M0–M22 gate, production visual/contact review and macOS/Windows package checks succeeded before release. Therefore:
 
 - source routing, tests and package gates are wired through M22;
-- M19-M22 must still be treated as runtime-unvalidated until Godot executes the current gates;
-- `0.9.0-beta.1` is a source/release candidate only and must not be described as a published validated beta yet;
-- the current verified public installers and updater manifest remain `0.8.0-beta.3` until a new release is actually published;
-- no public release should claim M19-M22 support until the required Godot and native package gates execute successfully.
+- public installers and the updater manifest resolve to `0.9.0-beta.2`;
+- package checksums use portable LF-terminated sidecars;
+- future releases must still complete the same gates before publication.
 
 Once runner capacity is available, use this order:
 
@@ -55,7 +52,7 @@ Once runner capacity is available, use this order:
 2. If a quicker first diagnostic is needed, package `smoke` is the minimum publishable regression subset because it includes M19-M22.
 3. Run `Presentation visual review` and inspect the pristine passenger-car frames, representative deformation frames and M19 contact matrix rather than treating artifact generation itself as visual acceptance.
 4. Build macOS Universal 2 and Windows x64 packages and retain the existing signature/install/uninstall/checksum checks.
-5. If the source/runtime/visual/package gates are acceptable, keep the already-prepared `0.9.0-beta.1` version/notes unchanged and publish with `publish_release=true`.
+5. If the source/runtime/visual/package gates are acceptable, publish a new version with matching release notes using `publish_release=true`.
 6. The workflow will refuse publication if validation is `none`, if either native package fails, or if the release tag already exists.
 
 If validation uncovers a code defect after packages or release metadata have escaped into a published release, do not replace that release in place: fix the defect and bump to a new prerelease version.

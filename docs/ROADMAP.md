@@ -5,10 +5,9 @@ CrashVector's roadmap distinguishes **implemented source**, **runtime-validated 
 Current state:
 
 - **M0–M18:** complete and historically runtime/package validated through the published `0.8.0-beta.3` line.
-- **M19–M22:** implemented on `main`, with regression/package gates wired, but runtime validation is still pending.
-- **Current source release candidate:** `0.9.0-beta.1`.
-- **Current verified public package:** `0.8.0-beta.3`.
-- **Next required work:** run current Godot validation + visual review + native packages before publishing `0.9.0-beta.1`. Do not start another physics milestone merely because source work exists through M22.
+- **M19–M22:** implemented on `main` and validated by the full M0–M22 suite, visual/contact review and native package checks.
+- **Current public package:** `0.9.0-beta.2`.
+- **Next required work:** retain the established validation, review and package gates for the next physics milestone.
 
 ## M0 — Physics skeleton — complete
 
@@ -165,9 +164,9 @@ These corrections are presentation-only unless explicitly documented otherwise.
 
 The historical reference regression uses a stationary C-segment car struck by a B-segment car at 55 km/h and records roughly 0.058 m lateral intrusion and 0.305 m striker front deformation. These are project regression values, not external validation data.
 
-`0.8.0-beta.3` remains the current verified public package on the M17/M18 line.
+`0.8.0-beta.3` is the earlier verified public package on the M17/M18 line.
 
-## M19 — Contact fidelity and external-validation foundation — implemented, runtime validation pending
+## M19 — Contact fidelity and external-validation foundation — complete and runtime validated
 
 M19 deliberately starts with observation rather than another solver.
 
@@ -182,7 +181,7 @@ Important boundary: reported contact spread is not physical contact-patch area, 
 
 See `docs/M19_CONTACT_FIDELITY_VALIDATION.md`.
 
-## M20 — Heavy and other-vehicle deformation — implemented, runtime validation pending
+## M20 — Heavy and other-vehicle deformation — complete and runtime validated
 
 M20 closes the broadside/oblique target gap for three generic target families while preserving Godot rigid-body world motion.
 
@@ -196,7 +195,7 @@ Generic caps remain project assumptions, not manufacturer crashworthiness data.
 
 See `docs/M20_HEAVY_OTHER_IMPACTS.md`.
 
-## M21 — Articulated heavy truck — implemented, runtime validation pending
+## M21 — Articulated heavy truck — complete and runtime validated
 
 M21 removes the largest remaining truck-architecture simplification.
 
@@ -211,7 +210,7 @@ Fifth-wheel limits, mass split and suspension split remain generic educational a
 
 See `docs/M21_ARTICULATED_HEAVY_TRUCK.md`.
 
-## M22 — Cyclist coupling and moving pedestrians — implemented, runtime validation pending
+## M22 — Cyclist coupling and moving pedestrians — complete and runtime validated
 
 M22 extends vulnerable-road-user trajectory/contact scope without turning it into a biomechanics package.
 
@@ -229,18 +228,16 @@ See `docs/M22_CYCLIST_MOVING_PEDESTRIAN.md`.
 
 ## Release/validation gate after M22
 
-No M23 physics milestone is currently scheduled. The next work is evidence and runtime validation.
+No M23 physics milestone is currently scheduled. The v0.9 beta has completed its evidence and runtime-validation release gate.
 
-`project.godot` is now bumped to `0.9.0-beta.1` and matching release-candidate notes exist. This is preparation only; `0.8.0-beta.3` remains the current verified public package until the new candidate passes the gates below and is actually published.
-
-Before `0.9.0-beta.1` is published:
+`project.godot` is now versioned as `0.9.0-beta.2`, the current verified public M22 package. Future release candidates must pass the gates below before publication:
 
 1. Godot must import/parse the current `main` source successfully.
 2. At minimum the publishable package `smoke` set must pass, including M19, M20, M21 and M22 production regressions.
 3. Preferably the consolidated M0–M22 full suite should pass on the release candidate.
 4. The manual presentation visual review must be inspected, including pristine A/B/C/D/J/M views, representative crash frames and the M19 contact-observation matrix.
 5. macOS Universal 2 and Windows x64 packages must build and pass their existing package/install/checksum checks.
-6. Only after those gates should the already-prepared `0.9.0-beta.1` candidate be published. If validation requires code changes after publication, bump again rather than replacing an immutable release.
+6. Only after those gates should a candidate be published. If validation requires code changes after publication, bump again rather than replacing an immutable release.
 
 A package built with `validation=none` is a diagnostic artifact only and cannot be presented as a validated release.
 

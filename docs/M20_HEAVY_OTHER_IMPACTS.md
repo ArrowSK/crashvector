@@ -83,7 +83,7 @@ The test is included in consolidated M0-M20 CI. It is deliberately a production-
 
 ## Validation status
 
-The current M20 implementation and regression were committed with `[skip ci]` while hosted GitHub Actions capacity was constrained. The code therefore must be treated as **implemented but runtime-unvalidated** until Godot successfully parses and executes the M20 regression together with the inherited M12-M19 suite.
+The M20 implementation has passed its dedicated regression together with the inherited M12-M19 suite, the full M0–M22 gate and native package validation. Its generic modelling boundaries remain unchanged.
 
 No release should strengthen evidence claims for heavy/lorry/motorcycle side impacts on the basis of this implementation alone. M19's stored public protocol geometry does not provide outcome corridors for these target classes.
 
