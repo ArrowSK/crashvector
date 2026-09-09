@@ -355,7 +355,7 @@ jobs:
           if (Test-Path (Join-Path $installDir "CrashVector.exe")) { throw "Uninstall left CrashVector executable behind" }
           $hash = (Get-FileHash -Algorithm SHA256 $setup).Hash.ToLowerInvariant()
           $name = [IO.Path]::GetFileName($setup)
-          "$hash  $name" | Set-Content -Encoding ascii "$setup.sha256"
+          [System.IO.File]::WriteAllText("$setup.sha256", "$hash  $name`n", [System.Text.ASCIIEncoding]::new())
           if ((Get-FileHash -Algorithm SHA256 $setup).Hash.ToLowerInvariant() -ne $hash) { throw "SHA-256 verification failed" }
       - uses: actions/upload-artifact@v4
         with:

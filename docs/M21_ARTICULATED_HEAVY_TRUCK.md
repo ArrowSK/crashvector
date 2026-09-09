@@ -63,7 +63,7 @@ The existing M20 broadside/oblique production regression still runs through `mai
 
 ## Validation status
 
-M21 was implemented while GitHub-hosted Actions capacity was constrained and commits therefore use `[skip ci]`. Until Godot successfully imports the project and executes the M12-M21 regression stack, M21 must be treated as **implemented but runtime-unvalidated**.
+M21 has passed the M12-M21 regression stack, the full M0–M22 gate and native package validation. Its generic fifth-wheel modelling boundaries remain unchanged.
 
 No external accident-reconstruction or regulatory correlation claim follows from adding fifth-wheel articulation. The joint limits, mass split, suspension split and local deformation parameters remain generic CrashVector assumptions.
 

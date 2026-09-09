@@ -115,6 +115,6 @@ M19's public protocol references and contact diagnostics do not validate M22 cyc
 
 ## Validation status
 
-The M22 implementation and regression were committed with `[skip ci]` while GitHub-hosted Actions capacity was constrained. They must therefore be treated as **implemented but runtime-unvalidated** until Godot successfully parses and executes the M0-M22 suite.
+The M22 implementation has passed the full M0–M22 Godot suite, production visual/contact review and native package checks.
 
-The current public packaged beta remains `0.8.0-beta.3`, which predates M19-M22. No public release should claim M22 support until the current production source has passed at least the publishable smoke gate and the desktop packages have been built successfully.
+The current public packaged beta is `0.9.0-beta.2`, which includes M19–M22. The modelling boundaries above remain unchanged.

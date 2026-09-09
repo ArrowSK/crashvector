@@ -2,7 +2,7 @@
 
 CrashVector is an educational simulator. Numerical outputs must be labelled according to the confidence of the underlying model and must not be presented as certified accident reconstruction, manufacturer crash performance, biomechanics or injury prediction.
 
-The current `main` source is implemented through M22. M19–M22 were committed while GitHub-hosted Actions capacity was exhausted, so those layers are **implemented but runtime-unvalidated** until Godot executes the current regression stack. The verified public package remains `0.8.0-beta.3` and predates M19–M22.
+The current `main` source is implemented through M22. The full current regression stack has executed successfully, and the verified public package is `0.9.0-beta.2`.
 
 ## Passenger-car presets
 

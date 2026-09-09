@@ -4,7 +4,7 @@
 
 CrashVector separates structural mechanics, Godot world motion, target-specific deformation, scenario data, replay/analysis, comparison/export, evidence, presentation and desktop distribution.
 
-The current `main` source is implemented through M22. M19–M22 were committed with `[skip ci]` while GitHub-hosted Actions capacity was exhausted, so those layers are implemented but runtime-unvalidated until Godot executes the current regression stack. The current verified public package remains `0.8.0-beta.3`, which predates M19–M22.
+The current `main` source is implemented through M22. The full current regression stack, visual/contact review and native package gates have run successfully; the current verified public package is `0.9.0-beta.2`.
 
 The governing production rule since M12 is unchanged: **Godot rigid bodies own whole-object world motion; CrashVector structural graphs own local deformation/presentation state.** Historical reduced-order solvers remain only where explicitly retained for regression continuity and do not secretly replace the current production trajectory.
 
@@ -273,7 +273,7 @@ Packaging is generated from repository sources:
 - optional Developer ID/notarization and Authenticode paths when credentials are configured;
 - checksum sidecars and generated update manifest.
 
-The current public packaged version remains `0.8.0-beta.3`. `project.godot` intentionally remains at that version while M19–M22 are runtime-unvalidated, preventing the source-only capabilities from being presented as an already verified updater release.
+The current public packaged version is `0.9.0-beta.2`, matching the M22 source and updater discovery.
 
 `.github/workflows/package-release.yml` now requires M21 and M22 production regressions in both publishable validation levels. `validation=none` can build diagnostic artifacts but cannot publish a release.
 
