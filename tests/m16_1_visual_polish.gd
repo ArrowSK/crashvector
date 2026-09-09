@@ -17,8 +17,7 @@ func _run() -> void:
 	for _frame in range(8):
 		await process_frame
 
-	var production_script: String = String(instance.get_script().resource_path)
-	if not (production_script.ends_with("crash_demo_m16_1.gd") or production_script.ends_with("crash_demo_m16_2.gd") or production_script.ends_with("crash_demo_m17.gd")):
+	if not _inherits_script(instance, "res://src/demo/crash_demo_m16_1.gd"):
 		_fail("Production scene is not routed through the M16.1 presentation lineage")
 		return
 
@@ -167,6 +166,14 @@ func _run() -> void:
 	await process_frame
 	print("CrashVector M16.1 visual polish, camera and UI regression test passed.")
 	quit(0)
+
+func _inherits_script(node: Node, expected_path: String) -> bool:
+	var script := node.get_script() as Script
+	while script != null:
+		if script.resource_path == expected_path:
+			return true
+		script = script.get_base_script()
+	return false
 
 func _metadata_index(option: OptionButton, wanted: StringName) -> int:
 	if option == null:

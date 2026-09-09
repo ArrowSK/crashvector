@@ -17,7 +17,11 @@ const SOURCE_TO_HOST_WHEEL := {
 	"wheel-front-left": 2,
 	"wheel-front-right": 3,
 }
-const MAX_WHEEL_ALIGNMENT_OFFSET_M := 0.70
+# The pinned source bodies and CrashVector's authoritative suspension anchors
+# have different wheelbases. The largest source-opening adjustment is 1.332 m;
+# retain a finite margin for imported-scene variation without allowing an
+# unbounded presentation displacement.
+const MAX_WHEEL_ALIGNMENT_OFFSET_M := 1.50
 const BODY_PRESENTATION_METALLIC := 0.18
 const BODY_PRESENTATION_ROUGHNESS := 0.34
 
@@ -56,6 +60,18 @@ func _capture_and_apply_source_wheel_alignment() -> bool:
 	if not body_resource is PackedScene:
 		return false
 	var imported_root := (body_resource as PackedScene).instantiate()
+	var source_body := _find_mesh_named(imported_root, "body")
+	if source_body == null:
+		source_body = _largest_non_wheel_mesh(imported_root)
+	if source_body == null:
+		imported_root.free()
+		return false
+	# _capture_body_mesh() maps vertices in the body mesh's local space. Wheel
+	# centres are collected in the imported scene's root space, so convert them
+	# through the body node before using the same pristine mapping. Otherwise a
+	# parent transform is counted for the wheels but not for the body mesh.
+	var root_to_body := _transform_from_ancestor(imported_root, source_body)
+	var body_to_root := root_to_body.affine_inverse()
 	var source_centres: Dictionary = {}
 	_collect_named_source_wheels(imported_root, Transform3D.IDENTITY, source_centres)
 	imported_root.free()
@@ -72,7 +88,7 @@ func _capture_and_apply_source_wheel_alignment() -> bool:
 		var host_index: int = int(SOURCE_TO_HOST_WHEEL[source_name])
 		if host_index < 0 or host_index >= wheel_nodes.size() or host_index >= host.wheel_groups.size():
 			continue
-		var source_point: Vector3 = source_centres[source_name]
+		var source_point: Vector3 = body_to_root * (source_centres[source_name] as Vector3)
 		var desired_world: Vector3 = reference * _pristine_source_point_local(source_point)
 		var wheel_group := host.wheel_groups[host_index]
 		var local_offset: Vector3 = wheel_group.global_transform.affine_inverse() * desired_world

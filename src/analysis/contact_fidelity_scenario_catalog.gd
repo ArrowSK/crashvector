@@ -63,7 +63,9 @@ static func make_config(id: StringName) -> ScenarioConfig:
 			config.car_position_m = Vector3(-7.0, 0.0, 0.0)
 			config.car_heading_deg = 0.0
 			config.car_speed_kmh = 55.0
-			config.target_position_m = Vector3(7.0, 0.0, 0.90)
+			# The initial offset accounts for the lateral component of the target's
+			# 15° approach, so the two configured trajectories intersect.
+			config.target_position_m = Vector3(7.0, 0.0, 1.65)
 			config.target_heading_deg = 165.0
 			config.target_speed_kmh = 45.0
 		BROADSIDE:

@@ -12,6 +12,14 @@ extends "res://src/demo/crash_demo_m21.gd"
 func _is_road_user_target() -> bool:
 	return scenario.target_type == ScenarioConfig.TARGET_CYCLIST or super._is_road_user_target()
 
+func _target_supports_hybrid_world() -> bool:
+	# The cyclist reuses M14's articulated road-user world path. Add it to the
+	# M14 support gate so the preview is not left runnable-looking but blocked
+	# before simulation, replay capture, and probe-contact release can begin.
+	if scenario != null and scenario.target_type == ScenarioConfig.TARGET_CYCLIST:
+		return true
+	return super._target_supports_hybrid_world()
+
 func _target_is_dynamic() -> bool:
 	return scenario.target_type == ScenarioConfig.TARGET_CYCLIST or super._target_is_dynamic()
 
