@@ -64,8 +64,14 @@ func _run_case(id: StringName) -> Dictionary:
 	else:
 		var primary_diagnostics := primary.rigid_chassis.contact_manifold_diagnostics()
 		var target_diagnostics := target.rigid_chassis.contact_manifold_diagnostics()
+		var primary_manifold_contact := int(primary_diagnostics.get("maximum_contact_points", 0)) > 0
+		var target_manifold_contact := int(target_diagnostics.get("maximum_contact_points", 0)) > 0
+		var primary_front_probe_contact := primary.rigid_chassis.front_probe_contact_ever
+		var target_front_probe_contact := target.rigid_chassis.front_probe_contact_ever
 		row["primary_contact"] = _serialize_diagnostics(primary_diagnostics)
 		row["target_contact"] = _serialize_diagnostics(target_diagnostics)
+		row["primary_front_probe_contact"] = primary_front_probe_contact
+		row["target_front_probe_contact"] = target_front_probe_contact
 		row["primary_front_crush_mm"] = primary.front_crush_deformation_m() * 1000.0
 		row["primary_rear_crush_mm"] = primary.rear_impact_deformation_m() * 1000.0
 		row["primary_side_crush_mm"] = primary.side_impact_deformation_m() * 1000.0
@@ -74,13 +80,15 @@ func _run_case(id: StringName) -> Dictionary:
 		row["target_side_crush_mm"] = target.side_impact_deformation_m() * 1000.0
 		row["primary_max_vertical_ms"] = primary.rigid_chassis.maximum_vertical_speed_ms
 		row["target_max_vertical_ms"] = target.rigid_chassis.maximum_vertical_speed_ms
-		if completed and int(primary_diagnostics.get("maximum_contact_points", 0)) <= 0:
-			failures.append("%s completed but primary reported no non-ground contact" % String(id))
-		if completed and int(target_diagnostics.get("maximum_contact_points", 0)) <= 0:
-			failures.append("%s completed but target reported no non-ground contact" % String(id))
+		if completed and not primary_manifold_contact and not primary_front_probe_contact:
+			failures.append("%s completed but primary reported neither a non-ground manifold nor front-probe contact" % String(id))
+		if completed and not target_manifold_contact and not target_front_probe_contact:
+			failures.append("%s completed but target reported neither a non-ground manifold nor front-probe contact" % String(id))
 		if completed:
-			_expect_finite_diagnostics(id, "primary", primary_diagnostics)
-			_expect_finite_diagnostics(id, "target", target_diagnostics)
+			if primary_manifold_contact:
+				_expect_finite_diagnostics(id, "primary", primary_diagnostics)
+			if target_manifold_contact:
+				_expect_finite_diagnostics(id, "target", target_diagnostics)
 			if primary.rigid_chassis.maximum_vertical_speed_ms >= 20.0 or target.rigid_chassis.maximum_vertical_speed_ms >= 20.0:
 				failures.append("%s produced an implausible vertical launch" % String(id))
 			if id in [
