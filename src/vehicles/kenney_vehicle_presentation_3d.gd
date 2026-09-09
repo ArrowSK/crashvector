@@ -17,7 +17,11 @@ const SOURCE_TO_HOST_WHEEL := {
 	"wheel-front-left": 2,
 	"wheel-front-right": 3,
 }
-const MAX_WHEEL_ALIGNMENT_OFFSET_M := 0.70
+# The pinned source bodies and CrashVector's authoritative suspension anchors
+# have different wheelbases. The largest source-opening adjustment is 1.332 m;
+# retain a finite margin for imported-scene variation without allowing an
+# unbounded presentation displacement.
+const MAX_WHEEL_ALIGNMENT_OFFSET_M := 1.50
 const BODY_PRESENTATION_METALLIC := 0.18
 const BODY_PRESENTATION_ROUGHNESS := 0.34
 
