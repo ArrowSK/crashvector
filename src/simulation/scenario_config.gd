@@ -18,6 +18,7 @@ const TARGET_WALL: StringName = &"rigid_wall"
 const TARGET_BARRIER: StringName = &"concrete_barrier"
 const TARGET_POLE: StringName = &"pole"
 const TARGET_TREE: StringName = &"tree"
+const TARGET_TANK: StringName = &"tank"
 
 var title: String = "Car vs Truck"
 var target_type: StringName = TARGET_TRUCK
@@ -51,6 +52,7 @@ static func target_ids() -> Array[StringName]:
 		TARGET_BARRIER,
 		TARGET_POLE,
 		TARGET_TREE,
+		TARGET_TANK,
 	]
 
 static func target_display_name(id: StringName) -> String:
@@ -77,6 +79,8 @@ static func target_display_name(id: StringName) -> String:
 			return "Pole"
 		TARGET_TREE:
 			return "Tree"
+		TARGET_TANK:
+			return "Tank (generic tracked vehicle)"
 		_:
 			return "Unknown target"
 
@@ -138,6 +142,9 @@ func apply_target_defaults(id: StringName) -> void:
 		TARGET_PEDESTRIAN:
 			target_preset_id = RoadUserCatalog.PEDESTRIAN_ADULT
 			target_mass_kg = RoadUserCatalog.default_mass_kg(target_preset_id)
+		TARGET_TANK:
+			target_preset_id = &""
+			target_mass_kg = 55000.0
 		_:
 			target_preset_id = &""
 			target_mass_kg = 0.0
@@ -215,6 +222,11 @@ func validation_errors() -> Array[String]:
 			errors.append("Pedestrian mass must be between 15 and 200 kg")
 		if target_speed_kmh < 0.0 or target_speed_kmh > 20.0:
 			errors.append("Pedestrian initial translation speed must be between 0 and 20 km/h")
+	elif target_type == TARGET_TANK:
+		if target_mass_kg < 20000.0 or target_mass_kg > 80000.0:
+			errors.append("Generic tank reference mass must be between 20,000 and 80,000 kg")
+		if not is_zero_approx(target_speed_kmh):
+			errors.append("The generic tank target is fixed and must have zero initial speed")
 	if contact_friction < 0.0 or contact_friction > 1.5:
 		errors.append("Contact friction must be between 0 and 1.5")
 	if restitution < 0.0 or restitution > 0.5:

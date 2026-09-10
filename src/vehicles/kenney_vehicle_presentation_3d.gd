@@ -17,11 +17,10 @@ const SOURCE_TO_HOST_WHEEL := {
 	"wheel-front-left": 2,
 	"wheel-front-right": 3,
 }
-# The pinned source bodies and CrashVector's authoritative suspension anchors
-# have different wheelbases. The largest source-opening adjustment is 1.332 m;
-# retain a finite margin for imported-scene variation without allowing an
-# unbounded presentation displacement.
-const MAX_WHEEL_ALIGNMENT_OFFSET_M := 1.50
+# Wheel groups are the authoritative suspension anchors. A source asset may
+# need a tiny local centring correction, but accepting metre-scale imported
+# offsets detaches a rendered front wheel from its chassis during a run.
+const MAX_WHEEL_ALIGNMENT_OFFSET_M := 0.20
 const BODY_PRESENTATION_METALLIC := 0.18
 const BODY_PRESENTATION_ROUGHNESS := 0.34
 
@@ -92,9 +91,8 @@ func _capture_and_apply_source_wheel_alignment() -> bool:
 		var desired_world: Vector3 = reference * _pristine_source_point_local(source_point)
 		var wheel_group := host.wheel_groups[host_index]
 		var local_offset: Vector3 = wheel_group.global_transform.affine_inverse() * desired_world
-		# A malformed imported hierarchy must never throw a wheel metres away from
-		# the authoritative suspension anchor. Fall back to the proven anchor for
-		# that wheel instead of accepting an obviously invalid presentation offset.
+		# Fall back to the proven suspension anchor whenever an imported hierarchy
+		# asks to move a wheel visibly away from it.
 		if local_offset.length() > MAX_WHEEL_ALIGNMENT_OFFSET_M:
 			push_warning("Ignoring implausible Kenney wheel alignment offset %.3f m for %s" % [local_offset.length(), source_name])
 			continue

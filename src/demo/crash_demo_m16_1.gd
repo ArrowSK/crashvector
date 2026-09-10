@@ -235,6 +235,8 @@ func _m161_target_half_length() -> float:
 			return 0.40
 		ScenarioConfig.TARGET_BARRIER:
 			return 0.45
+		ScenarioConfig.TARGET_TANK:
+			return 3.4
 		ScenarioConfig.TARGET_POLE, ScenarioConfig.TARGET_TREE:
 			return 0.45
 		_:

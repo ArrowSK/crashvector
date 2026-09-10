@@ -54,6 +54,12 @@ func _run() -> void:
 		if skin.wheel_nodes[index].get_parent() != visual.wheel_groups[index]:
 			_fail("Kenney wheel is not attached to the authoritative wheel anchor group")
 			return
+		if skin.wheel_nodes[index].position.length() > KenneyVehiclePresentation3D.MAX_WHEEL_ALIGNMENT_OFFSET_M + 0.001:
+			_fail("Kenney wheel is visibly detached from its authoritative suspension anchor")
+			return
+	if vehicle.front_bumper != null and vehicle.front_bumper.visible:
+		_fail("Legacy front-bumper helper remained visible beside the complete vehicle skin")
+		return
 
 	if not _verify_pristine_baseline(skin):
 		return

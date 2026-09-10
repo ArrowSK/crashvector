@@ -37,6 +37,7 @@ const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/vehicles/motorcycle_builder.gd",
 	"res://src/vehicles/motorcycle.gd",
 	"res://src/vehicles/m20_motorcycle.gd",
+	"res://src/vehicles/static_obstacle_3d.gd",
 	"res://src/road_users/road_user_catalog.gd",
 	"res://src/road_users/road_user_rigid_proxy_3d.gd",
 	"res://src/road_users/road_user_articulated_proxy_3d.gd",

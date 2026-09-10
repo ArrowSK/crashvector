@@ -21,6 +21,7 @@ func _run() -> void:
 	await _check_scene_routing_and_long_road(packed)
 	_check_reciprocal_scenario_validation()
 	await _check_new_rigid_targets(packed)
+	await _check_tank_target_and_live_camera(packed)
 	await _check_truck_strikes_and_deforms_car(packed)
 	await _check_production_comparison(packed)
 	_finish()
@@ -42,7 +43,7 @@ func _check_scene_routing_and_long_road(packed: PackedScene) -> void:
 		_expect(box != null, "M17 Road must use a box collision surface")
 		if box != null:
 			_expect(box.size.x >= 3990.0, "M17 road is too short for high-speed supported runs: %.1f m" % box.size.x)
-			_expect(box.size.z >= 19.5, "M17 road is narrower than the production proving surface: %.1f m" % box.size.z)
+		_expect(box.size.z >= 599.5, "M17 road support is too narrow for a 200 km/h side-impact departure: %.1f m" % box.size.z)
 	editor.queue_free()
 	await process_frame
 
@@ -98,6 +99,52 @@ func _check_new_rigid_targets(packed: PackedScene) -> void:
 				_expect((motorcycle as M17Motorcycle).rigid_chassis is RigidBody3D, "Motorcycle must own a Godot RigidBody3D chassis")
 		editor.queue_free()
 		await process_frame
+
+func _check_tank_target_and_live_camera(packed: PackedScene) -> void:
+	var editor := packed.instantiate()
+	editor.set("m10_first_run_applied", true)
+	var config := ScenarioConfig.new()
+	config.title = "M23 generic tank camera regression"
+	config.car_position_m = Vector3(-8.0, 0.0, 0.0)
+	config.car_speed_kmh = 130.0
+	config.apply_target_defaults(ScenarioConfig.TARGET_TANK)
+	config.target_position_m = Vector3(6.0, 0.0, 0.0)
+	config.duration_s = 0.9
+	config.solver_substeps = 10
+	_expect(config.validation_errors().is_empty(), "Generic fixed tank target failed preflight: %s" % "; ".join(config.validation_errors()))
+	editor.set("scenario", config)
+	root.add_child(editor)
+	for _frame in range(8):
+		await process_frame
+	var obstacle := editor.get("obstacle") as StaticObstacle3D
+	_expect(obstacle != null and obstacle.physics_body is StaticBody3D, "Tank target must use a fixed static collision body")
+	if obstacle != null:
+		_expect(obstacle.get_node_or_null("TankHull") != null and obstacle.get_node_or_null("TankTurret") != null, "Tank target must build its hull and turret presentation")
+		_expect(obstacle.get_node_or_null("TankMainGun") != null, "Tank target must expose its intentionally non-colliding visible barrel")
+	var camera := editor.get("camera") as Camera3D
+	var setup_camera_position := Vector3.ZERO if camera == null else camera.global_position
+	editor.call("_on_simulate_pressed")
+	for _frame in range(24):
+		await physics_frame
+	_expect(camera != null and camera.global_position.distance_to(setup_camera_position) > 0.10, "Live high-speed simulation camera did not follow the active collision scene")
+	var completed := false
+	for _frame in range(700):
+		if not bool(editor.get("simulation_running")):
+			completed = true
+			break
+		await physics_frame
+	_expect(completed, "Generic tank production run did not complete")
+	var car := editor.get("car") as M17CompactHatchback
+	_expect(car != null and car.rigid_chassis.non_ground_contact_events > 0, "Tank production run produced no passenger-car contact")
+	var run_again := editor.get("m10_reset_button") as Button
+	_expect(run_again != null and run_again.visible and not run_again.disabled, "Completed production run did not expose an enabled Run again action")
+	if run_again != null:
+		run_again.emit_signal("pressed")
+		await physics_frame
+		_expect(bool(editor.get("simulation_running")), "Run again did not start a fresh production simulation")
+		editor.call("_on_reset_pressed")
+	editor.queue_free()
+	await process_frame
 
 func _check_truck_strikes_and_deforms_car(packed: PackedScene) -> void:
 	var editor := packed.instantiate()

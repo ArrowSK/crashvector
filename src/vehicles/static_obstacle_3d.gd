@@ -124,6 +124,8 @@ func _build_visuals() -> void:
 	match obstacle_type:
 		ScenarioConfig.TARGET_BARRIER:
 			_build_concrete_barrier(self)
+		ScenarioConfig.TARGET_TANK:
+			_build_tank(self)
 		_:
 			_build_rigid_wall(self)
 	_build_static_physics_body()
@@ -165,6 +167,12 @@ func _build_static_physics_body() -> void:
 	physics_body = static_body
 	if obstacle_type == ScenarioConfig.TARGET_BARRIER:
 		_add_box_collision(static_body, Vector3(0.42, 0.96, 4.10), Vector3(0.0, 0.48, 0.0))
+	elif obstacle_type == ScenarioConfig.TARGET_TANK:
+		# The tank is a fixed, generic obstacle fixture. Its collision is deliberately
+		# limited to hull and turret volumes; the visual barrel cannot become an
+		# invisible spear in front of the target.
+		_add_box_collision(static_body, Vector3(6.8, 1.15, 3.4), Vector3(0.0, 0.72, 0.0))
+		_add_box_collision(static_body, Vector3(2.5, 0.72, 2.1), Vector3(0.25, 1.60, 0.0))
 	else:
 		_add_box_collision(static_body, Vector3(0.45, 3.25, 9.0), Vector3(0.0, 1.625, 0.0))
 
@@ -186,6 +194,18 @@ func _build_concrete_barrier(parent: Node3D) -> void:
 	_add_box(parent, "BarrierUpper", Vector3(0.32, 0.43, 4.0), concrete, Vector3(-0.04, 0.775, 0.0))
 	for z in [-1.35, 0.0, 1.35]:
 		_add_box(parent, "BarrierJoint", Vector3(0.014, 0.88, 0.022), seam, Vector3(-0.205, 0.52, z))
+
+func _build_tank(parent: Node3D) -> void:
+	var hull := _material(Color(0.18, 0.27, 0.16), 0.15, 0.78)
+	var track := _material(Color(0.10, 0.11, 0.10), 0.55, 0.48)
+	var detail := _material(Color(0.28, 0.36, 0.22), 0.12, 0.74)
+	_add_box(parent, "TankHull", Vector3(6.8, 0.92, 2.82), hull, Vector3(0.0, 0.80, 0.0))
+	_add_box(parent, "TankTrackPort", Vector3(6.45, 0.62, 0.42), track, Vector3(0.0, 0.35, -1.48))
+	_add_box(parent, "TankTrackStarboard", Vector3(6.45, 0.62, 0.42), track, Vector3(0.0, 0.35, 1.48))
+	_add_box(parent, "TankTurret", Vector3(2.45, 0.65, 1.86), detail, Vector3(0.25, 1.58, 0.0))
+	# This is visibly a barrel but is short, intentionally coloured and has no
+	# collision volume. It cannot be mistaken for the removed vehicle bumper.
+	_add_box(parent, "TankMainGun", Vector3(1.75, 0.16, 0.16), detail, Vector3(2.35, 1.70, 0.0))
 
 func _build_pole(parent: Node3D) -> void:
 	var pole_material := _material(Color(0.38, 0.41, 0.44), 0.72, 0.34)
