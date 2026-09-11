@@ -47,11 +47,13 @@ jobs:
           if [[ "${{ inputs.validation }}" == "smoke" ]]; then
             tests=(
               m10_layout.gd
+              m7_editor_smoke.gd
               kenney_car_kit_visuals.gd
               runtime_presentation_stability.gd
               m18_side_impacts.gd
               m19_contact_fidelity.gd
               m20_heavy_other_impacts.gd
+              m20_motorcycle_50_contact.gd
               m21_articulated_truck.gd
               m22_cyclist_moving_pedestrian.gd
             )

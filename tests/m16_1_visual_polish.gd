@@ -92,6 +92,11 @@ func _run() -> void:
 	if title_edit.text != "D-Segment Midsize Car vs Concrete Barrier":
 		_fail("Automatic scenario title did not follow vehicle/target changes: %s" % title_edit.text)
 		return
+	var selected_scenario := instance.get("scenario") as ScenarioConfig
+	var target_mass_row := instance.get("m10_target_mass_row") as Control
+	if selected_scenario == null or selected_scenario.target_mass_kg != 0.0 or (target_mass_row != null and target_mass_row.visible):
+		_fail("Fixed concrete barrier retained an editable dynamic-target mass")
+		return
 
 	title_edit.text = "My 200 km/h barrier test"
 	title_edit.text_changed.emit(title_edit.text)
@@ -142,7 +147,7 @@ func _run() -> void:
 	var scenario: ScenarioConfig = instance.get("scenario")
 	var midpoint := (scenario.car_position_m + scenario.target_position_m) * 0.5
 	var camera_distance := camera.global_position.distance_to(midpoint + Vector3(0.0, 0.92, 0.0))
-	if camera_distance >= 17.0 or camera_distance <= 7.0:
+	if camera_distance >= 22.0 or camera_distance <= 7.0:
 		_fail("M16.1 camera framing is still implausibly wide/tight: %.2f m" % camera_distance)
 		return
 

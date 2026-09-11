@@ -50,7 +50,7 @@ func _run() -> void:
 	if not skin.USE_ANCHORED_PROCEDURAL_WHEELS or not skin.wheel_nodes.is_empty():
 		_fail("Production skin must use the anchor-driven wheel rig instead of the offset imported wheel scene")
 		return
-	if String(skin.get_meta("presentation_wheel_mode", "")) != "source-body-fit" or not skin.source_wheel_alignment_complete:
+	if String(skin.get_meta("presentation_wheel_mode", "")) != "source-body-grounded-fit" or not skin.source_wheel_alignment_complete:
 		_fail("Production skin did not resolve the selected body's wheel centres")
 		return
 	if visual.wheel_tires.size() != 4 or visual.wheel_rims.size() != 4 or visual.wheel_hubs.size() != 4:
@@ -60,13 +60,21 @@ func _run() -> void:
 		if not visual.wheel_tires[index].visible or not visual.wheel_rims[index].visible or not visual.wheel_hubs[index].visible:
 			_fail("Anchor-driven passenger-car wheel is hidden at index %d" % index)
 			return
-		if visual.wheel_groups[index].global_position.distance_to(skin.fitted_wheel_world_positions[index]) > 0.01:
-			_fail("Passenger-car wheel is not fitted to the displayed Kenney body at index %d" % index)
+		if visual.wheel_groups[index].global_position.distance_to(skin.physical_wheel_world_positions[index]) > 0.01:
+			_fail("Passenger-car wheel root no longer preserves the road-supported suspension anchor at index %d" % index)
+			return
+		var visual_wheel := visual.wheel_tires[index]
+		var expected: Vector3 = skin.fitted_wheel_world_positions[index]
+		if absf(visual_wheel.global_position.x - expected.x) > 0.01 or absf(visual_wheel.global_position.z - expected.z) > 0.01:
+			_fail("Passenger-car visual wheel does not match its displayed body opening at index %d" % index)
+			return
+		if absf(visual_wheel.global_position.y - skin.physical_wheel_world_positions[index].y) > 0.01:
+			_fail("Passenger-car visual wheel lost its road-supported height at index %d" % index)
 			return
 	var body_bounds := skin.body_instance.get_aabb()
 	var body_centre_z := body_bounds.position.z + body_bounds.size.z * 0.5
 	for index in range(visual.wheel_groups.size()):
-		var wheel_position := visual.wheel_groups[index].global_position
+		var wheel_position := visual.wheel_tires[index].global_position
 		if wheel_position.x < body_bounds.position.x - 0.08 or wheel_position.x > body_bounds.end.x + 0.08:
 			_fail("Passenger-car wheel lies outside the displayed body wheelbase at index %d" % index)
 			return

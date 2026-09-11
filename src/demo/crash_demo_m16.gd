@@ -452,7 +452,14 @@ func _layout_m16_modals(size: Vector2) -> void:
 	var modal_width := minf(760.0, size.x - 80.0)
 	var modal_height := minf(540.0, size.y - 80.0)
 	_set_centered_rect(m10_about_panel, minf(520.0, size.x - 80.0), minf(390.0, size.y - 80.0))
-	for panel in [update_panel, export_settings_panel, calibration_panel, comparison_lab_panel]:
+	# The M7 export modal is a full-window backdrop with a centred child dialog.
+	# Laying out the backdrop itself as a fixed panel caused the desktop shell to
+	# show through and clipped the export controls.
+	if export_settings_panel != null and is_instance_valid(export_settings_panel):
+		export_settings_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		if export_dialog_panel != null and is_instance_valid(export_dialog_panel):
+			_set_centered_rect(export_dialog_panel, modal_width, modal_height)
+	for panel in [update_panel, calibration_panel, comparison_lab_panel]:
 		if panel != null and is_instance_valid(panel):
 			_set_centered_rect(panel, modal_width, modal_height)
 

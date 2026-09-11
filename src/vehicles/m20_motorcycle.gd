@@ -34,6 +34,10 @@ func _ready() -> void:
 	frame_collision = rigid_chassis.get_node_or_null("MotorcycleFrameCollision") as CollisionShape3D
 	rear_wheel_collision = rigid_chassis.get_node_or_null("MotorcycleRearWheelCollision") as CollisionShape3D
 	front_wheel_collision = rigid_chassis.get_node_or_null("MotorcycleFrontWheelCollision") as CollisionShape3D
+	# At ordinary speeds a full chassis contact is required before this light
+	# target is driven away. The passenger car therefore defers its probe-only
+	# resistance for this pair and Godot reports the impact manifold.
+	rigid_chassis.defer_front_probe_resistance_to_rigid_contact = true
 
 func begin_simulation() -> void:
 	hybrid_rear_energy_j = 0.0

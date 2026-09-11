@@ -23,6 +23,10 @@ var active_suspension_contacts: int = 0
 var initial_forward_world := Vector3.RIGHT
 var stored_linear_velocity := Vector3.ZERO
 var stored_angular_velocity := Vector3.ZERO
+# Some light targets need the normal rigid-body contact to occur before the
+# primary car adds its probe-only resistance. This remains false for all
+# established passenger-car, truck and obstacle paths.
+var defer_front_probe_resistance_to_rigid_contact := false
 
 # M19 diagnostics only. These values summarize the real Godot contacts already
 # reported to the production chassis. They never feed back into the solver,

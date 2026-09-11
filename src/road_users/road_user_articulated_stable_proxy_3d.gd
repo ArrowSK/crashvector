@@ -7,9 +7,8 @@ extends RoadUserArticulatedProxy3D
 
 # Corrective production wrapper for the established M15 articulated target.
 # The topology, joints, masses, road collision and replay API are unchanged.
-# Only the one-shot front-probe transfer is bounded at very high closing speeds
-# so the deliberately generic contact model cannot scale its synthetic upward
-# component without limit and launch a pedestrian vertically.
+# The one-shot front-probe transfer remains horizontal so the deliberately
+# generic contact model cannot manufacture an upward launch for a pedestrian.
 
 const PEDESTRIAN_MAX_TRANSFER_SPEED_MS := 18.0
 const PEDESTRIAN_MAX_VERTICAL_COM_SPEED_MS := 1.25
@@ -39,15 +38,10 @@ func apply_probe_contact(source: VehicleRigidChassis, collider: Object = null) -
 		return
 
 	# M15 deliberately uses a phenomenological one-shot probe coupling instead of
-	# rigid limb/car collision. At ordinary regression speeds the original demand
-	# remains untouched. Above that range, bound the total transfer and especially
-	# the synthetic upward component; otherwise both grow linearly with closing
-	# speed and can turn a 130 km/h contact into an artificial vertical jump.
+	# rigid limb/car collision. Keep its longitudinal transfer bounded at high
+	# closing speed, but never invent an upward impulse: the former vertical term
+	# was the direct cause of pedestrians vaulting over a car without real contact.
 	transfer_impulse_ns = minf(transfer_impulse_ns, target_mass_kg * PEDESTRIAN_MAX_TRANSFER_SPEED_MS)
-	var vertical_impulse_ns := minf(
-		transfer_impulse_ns * 0.08,
-		target_mass_kg * PEDESTRIAN_MAX_VERTICAL_COM_SPEED_MS
-	)
 	# Apply the bounded one-shot demand across the complete articulated mass. The
 	# previous pelvis/torso split accelerated the small pelvis several times more
 	# than the torso, so the constraint solver had to correct a large artificial
@@ -60,7 +54,7 @@ func apply_probe_contact(source: VehicleRigidChassis, collider: Object = null) -
 	var combined_mass := 0.0
 	for body in bodies:
 		combined_mass += body.mass
-	var total_impulse := forward * transfer_impulse_ns + Vector3.UP * vertical_impulse_ns
+	var total_impulse := forward * transfer_impulse_ns
 	for body in bodies:
 		body.apply_central_impulse(total_impulse * (body.mass / maxf(combined_mass, 0.001)))
 	impact_received = true

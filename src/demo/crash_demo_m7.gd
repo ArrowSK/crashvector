@@ -11,6 +11,7 @@ var export_cancel_button: Button
 var export_progress: ProgressBar
 var export_status: Label
 var export_settings_panel: PanelContainer
+var export_dialog_panel: PanelContainer
 var resolution_option: OptionButton
 var fps_option: OptionButton
 var camera_option: OptionButton
@@ -113,28 +114,50 @@ func _build_m7_ui() -> void:
 	export_progress.visible = false
 	launch_column.add_child(export_progress)
 
+	# M10 adopts this full-window control into its root CanvasLayer. Keeping the
+	# backdrop and dialog together prevents the legacy panel from sitting beneath
+	# the Scenario/Properties shell or being clipped by the crash viewport.
 	export_settings_panel = PanelContainer.new()
-	export_settings_panel.anchor_left = 0.5
-	export_settings_panel.anchor_right = 0.5
-	export_settings_panel.offset_left = -330.0
-	export_settings_panel.offset_top = 92.0
-	export_settings_panel.offset_right = 330.0
-	export_settings_panel.offset_bottom = 660.0
+	export_settings_panel.name = "CinematicExportModal"
+	export_settings_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	export_settings_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	export_settings_panel.z_index = 100
+	var backdrop := StyleBoxFlat.new()
+	backdrop.bg_color = Color(0.015, 0.025, 0.040, 0.82)
+	export_settings_panel.add_theme_stylebox_override("panel", backdrop)
 	export_settings_panel.visible = false
 	export_canvas.add_child(export_settings_panel)
+
+	export_dialog_panel = PanelContainer.new()
+	export_dialog_panel.name = "CinematicExportDialog"
+	export_dialog_panel.set_anchors_preset(Control.PRESET_CENTER)
+	export_dialog_panel.offset_left = -330.0
+	export_dialog_panel.offset_top = -282.0
+	export_dialog_panel.offset_right = 330.0
+	export_dialog_panel.offset_bottom = 282.0
+	export_dialog_panel.custom_minimum_size = Vector2(560.0, 420.0)
+	export_settings_panel.add_child(export_dialog_panel)
 	var settings_margin := MarginContainer.new()
 	settings_margin.add_theme_constant_override("margin_left", 18)
 	settings_margin.add_theme_constant_override("margin_top", 15)
 	settings_margin.add_theme_constant_override("margin_right", 18)
 	settings_margin.add_theme_constant_override("margin_bottom", 15)
-	export_settings_panel.add_child(settings_margin)
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 8)
-	settings_margin.add_child(column)
+	export_dialog_panel.add_child(settings_margin)
+	var dialog_column := VBoxContainer.new()
+	dialog_column.add_theme_constant_override("separation", 10)
+	settings_margin.add_child(dialog_column)
 	var heading := Label.new()
 	heading.text = "Cinematic Video Export"
 	heading.add_theme_font_size_override("font_size", 22)
-	column.add_child(heading)
+	dialog_column.add_child(heading)
+	var settings_scroll := ScrollContainer.new()
+	settings_scroll.name = "CinematicExportSettingsScroll"
+	settings_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	dialog_column.add_child(settings_scroll)
+	var column := VBoxContainer.new()
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_theme_constant_override("separation", 8)
+	settings_scroll.add_child(column)
 	var intro := Label.new()
 	intro.text = "Offline rendering uses the recorded crash, so video quality and timing are independent of live simulation frame rate. Auto cinematic mode moves from tracking to impact close-up and aftermath orbit."
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -182,7 +205,7 @@ func _build_m7_ui() -> void:
 	column.add_child(ffmpeg_status_label)
 	var button_row := HBoxContainer.new()
 	button_row.alignment = BoxContainer.ALIGNMENT_END
-	column.add_child(button_row)
+	dialog_column.add_child(button_row)
 	var close_button := Button.new()
 	close_button.text = "Cancel"
 	close_button.pressed.connect(_on_close_export_settings)
