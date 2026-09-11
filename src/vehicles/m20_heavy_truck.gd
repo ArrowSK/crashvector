@@ -84,6 +84,7 @@ func _m20_consume_contacts() -> void:
 			0.5 * reduced_mass * lateral_speed * lateral_speed,
 			lateral_impulse * lateral_impulse / maxf(2.0 * reduced_mass, 1.0)
 		)
+		lateral_energy = _m20_confirmed_lateral_energy(collider, lateral_energy, lateral)
 
 		# Keep M17 front/rear behaviour for the longitudinal component. A pure
 		# broadside impulse has almost no projected longitudinal demand, while an
@@ -125,6 +126,23 @@ func _m20_consume_contacts() -> void:
 		hybrid_side_positive_z_crush_m,
 		minf(_m17_energy_to_crush(hybrid_side_positive_z_energy_j, 610000.0, 1450000.0), 0.52)
 	)
+
+func _m20_confirmed_lateral_energy(collider: Object, measured_energy_j: float, lateral_world: Vector3) -> float:
+	# Rigid-body callbacks expose post-solve impulses. After a genuine target
+	# contact, preserve the striker's already-observed pre-impact demand for the
+	# portion aligned with this target's side axis. This never creates damage from
+	# a probe alone: this method is called only from a real contact sample.
+	if not collider is VehicleRigidChassis:
+		return measured_energy_j
+	var source_chassis := collider as VehicleRigidChassis
+	var source := source_chassis.get_parent()
+	if source == null or not source.has_method("hybrid_collision_energy_j"):
+		return measured_energy_j
+	var source_energy := float(source.call("hybrid_collision_energy_j"))
+	if source_energy <= 0.0:
+		return measured_energy_j
+	var lateral_fraction := absf(source_chassis.initial_forward_world.dot(lateral_world.normalized()))
+	return maxf(measured_energy_j, source_energy * lateral_fraction * lateral_fraction)
 
 func _m20_enforce_side_crush(delta: float) -> void:
 	if rigid_chassis == null or model == null:
