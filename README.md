@@ -18,12 +18,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.2/CrashVector-0.9.0-beta.2-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.2/CrashVector-0.9.0-beta.2-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.3/CrashVector-0.9.0-beta.3-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.3/CrashVector-0.9.0-beta.3-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.2">Release notes & checksums</a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.3">Release notes & checksums</a>
   ·
   <a href="docs/DISTRIBUTION.md">Installation & updates</a>
 </p>
@@ -37,11 +37,11 @@
 
 CrashVector is an open-source desktop crash-simulation sandbox for people who want to **see what speed, mass and impact configuration change** without turning the exercise into specialist engineering software.
 
-The current M12–M22 source architecture separates whole-object world motion, permanent structural deformation and presentation. Godot `RigidBody3D` owns supported vehicle/target world motion; CrashVector's structural graphs remain local deformation/presentation state. M13 extends severe passenger-car failure beyond the nose, M14 adds vulnerable-target trajectories and yielding pole/tree targets, M15 adds articulated pedestrian and bicycle dynamics, M16 reorganises the desktop workflow, M17 restores Comparison on the production rigid-body scene, M18 adds passenger-car broadside deformation, M19 adds real-contact diagnostics and offset/oblique front-probe coverage, M20 adds bounded heavy-truck/lorry/motorcycle deformation for broadside/oblique layouts, M21 splits the heavy truck into tractor and trailer rigid bodies connected by a constrained fifth wheel, and M22 adds a generic cyclist plus configurable initial pedestrian translation.
+The current M12–M23 source architecture separates whole-object world motion, permanent structural deformation and presentation. Godot `RigidBody3D` owns supported vehicle/target world motion; CrashVector's structural graphs remain local deformation/presentation state. M13 extends severe passenger-car failure beyond the nose, M14 adds vulnerable-target trajectories and yielding pole/tree targets, M15 adds articulated pedestrian and bicycle dynamics, M16 reorganises the desktop workflow, M17 restores Comparison on the production rigid-body scene, M18 adds passenger-car broadside deformation, M19 adds real-contact diagnostics and offset/oblique front-probe coverage, M20 adds bounded heavy-truck/lorry/motorcycle deformation for broadside/oblique layouts, M21 splits the heavy truck into tractor and trailer rigid bodies connected by a constrained fifth wheel, M22 adds a generic cyclist plus configurable initial pedestrian translation, and M23 corrects runtime presentation, camera tracking and static-target coverage.
 
-> **Current source state:** the source is implemented through **M22** and versioned as the **`0.9.0-beta.2` public desktop beta**. The full M0–M22 GitHub Actions regression suite and the production visual/contact review passed before packaging; the macOS and Windows packages are rebuilt, verified and published through the release workflow.
+> **Current source state:** **`0.9.0-beta.3`** adds M23 runtime stability and presentation corrections, including reruns, wheel anchoring, target-car broadside collapse, bounded pedestrian responses, tank support and adaptive framing.
 
-> **Packaged release:** **`0.9.0-beta.2`** is the current verified public desktop beta. It packages the completed M22 production stack, including the working Updates modal and Kenney Car Kit 3.1 passenger-car presentation, for macOS Universal 2 and Windows x64.
+> **Packaged release:** **`0.9.0-beta.3`** is the current verified public desktop beta. It packages the M23 corrections together with the completed M22 production stack for macOS Universal 2 and Windows x64.
 
 > **Important boundaries:** M20 permits generic broadside/oblique heavy-truck, rigid-lorry and riderless-motorcycle deformation, while the old riderless-bicycle broadside path remains intentionally rejected. M21 fifth-wheel articulation is generic and not a manufacturer truck model. M22's cyclist and moving-pedestrian additions remain trajectory/contact models only; they do not add biomechanics, injury prediction, gait, steering, tyre-force or forensic-reconstruction validity.
 
@@ -53,10 +53,10 @@ No Git, Godot, Python, Terminal or PowerShell is required for the packaged deskt
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.2/CrashVector-0.9.0-beta.2-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
-| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.2/CrashVector-0.9.0-beta.2-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
+| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.3/CrashVector-0.9.0-beta.3-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
+| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.3/CrashVector-0.9.0-beta.3-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
 
-The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.9.0-beta.2 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.2)**.
+The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.9.0-beta.3 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.3)**.
 
 This beta is ad-hoc signed on macOS and unsigned on Windows when paid signing credentials are not configured, so Gatekeeper or SmartScreen may warn about an unknown developer/publisher. Use only the files attached to the official `ArrowSK/crashvector` release.
 
@@ -102,18 +102,20 @@ Defaults exist for normal scenarios, so mass and solver parameters are not manda
 | Progressive structural failure | Front crush followed, when demand is sufficient, by firewall/cowl intrusion, floor/rocker and A-pillar/roof deformation, passenger-cell shortening and rear-body buckling |
 | Reciprocal longitudinal impacts | Supported dynamic actors may strike from ahead or behind; passenger cars have bounded direct rear deformation and heavy/other targets use their current target-specific deformation paths |
 | Passenger-car side impacts | Passenger-car pairs support arbitrary heading deltas including perpendicular T-bone layouts, with bounded lateral protected-cell deformation and physical collision-face retreat |
+| Runtime stability and framing | Re-run starts a fresh simulation; passenger-car wheels stay anchored to their suspension presentation; live simulation and replay camera follow the active major bodies; a 600 m grass support plane surrounds the 20 m asphalt road |
 | Contact fidelity | M19 records real non-ground Godot contact-manifold diagnostics and adds two lateral front-crush observation rays while keeping Godot collision impulses authoritative |
 | Heavy articulated truck | M21 uses separate trailer and tractor `RigidBody3D` assemblies connected by a constrained generic fifth wheel; inherited M20 front/rear/side local deformation remains bounded and contact-driven |
 | Rigid lorry / box truck | Production Godot rigid-body world motion plus bounded generic M20 front/rear/side deformation; not manufacturer-specific crashworthiness |
 | Riderless motorcycle | Production Godot rigid-body world motion plus bounded generic M20 frame/fork deformation; no rider or tyre/steering model |
 | Vulnerable road users | M15 articulated pedestrians and riderless bicycles remain available; M22 adds pedestrian initial translation and a separate generic cyclist composed of an articulated rider plus bicycle with temporary pre-impact coupling |
 | Static / narrow targets | Wall and concrete barrier remain rigid; generic pole and tree targets can yield and move permanently at severe collision demand |
+| Generic tank target | A fixed generic tracked-vehicle obstacle with separate hull and turret collision volumes. It is an educational static fixture with no armour, weapons, ballistic or manufacturer-specific claims |
 | Car vs car | Rear-end, near head-on and broadside passenger-car layouts using rigid-body world motion |
 | Replay & analysis | 120 Hz recorded replay, timeline scrubbing, rigid-body velocity/momentum, structural diagnostics, contact-manifold diagnostics and target-specific deformation/articulation state where present |
 | Comparison | Visual Compare and Comparison Lab execute each variant through the current production scene in an isolated `SubViewport` / `World3D` and replay the resulting production recordings |
 | Video export | 1080p / 1440p / 4K offline replay rendering at 30/60 fps with external FFmpeg H.264 encoding |
 | Calibration | Historical M8 evidence labels/reference check retained separately; it does not validate the M12–M22 production source architecture |
-| Desktop distribution | Current verified public package is `0.9.0-beta.2` (M22 source), with macOS Universal 2 DMG and Windows x64 Setup installer, portable checksums and update manifest |
+| Desktop distribution | Current verified public package is `0.9.0-beta.3` (M23 source), with macOS Universal 2 DMG and Windows x64 Setup installer, portable checksums and update manifest |
 
 ## Passenger-car classes
 
@@ -312,7 +314,8 @@ Or open `project.godot` directly in Godot and run the project.
 | [Roadmap](docs/ROADMAP.md) | Implementation history, current validation state and future physics work |
 | [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, distribution and presentation layers |
 | [CI and release flow](docs/CI_AND_RELEASE.md) | Consolidated regression, visual review, package validation and Actions-quota behaviour |
-| [0.9.0-beta.2 release notes](docs/releases/0.9.0-beta.2.md) | Current M22 desktop beta, with portable macOS/Windows checksum sidecars |
+| [0.9.0-beta.3 release notes](docs/releases/0.9.0-beta.3.md) | Current M23 desktop beta, with runtime stability and presentation corrections |
+| [0.9.0-beta.2 release notes](docs/releases/0.9.0-beta.2.md) | Previous M22 desktop beta, with portable macOS/Windows checksum sidecars |
 | [0.9.0-beta.1 release notes](docs/releases/0.9.0-beta.1.md) | Initial M19–M22 public beta |
 | [0.8.0-beta.3 release notes](docs/releases/0.8.0-beta.3.md) | Earlier M17/M18 packaged beta with the Updates modal correction and Kenney passenger-car presentation |
 | [Kenney Car Kit presentation](docs/KENNEY_CAR_KIT.md) | Asset provenance, passenger-car mapping, neutral-body preservation, deformation coupling and scope limits |
@@ -336,11 +339,11 @@ Or open `project.godot` directly in Godot and run the project.
 
 ## Development status
 
-**M22 is the current source and verified packaged milestone.** The M0–M22 regression stack, visual/contact review and native package checks have passed. `project.godot` is now **`0.9.0-beta.2`**; the updater and public download links point to the current M22 desktop beta.
+**M23 is the current source and verified packaged milestone.** The full regression stack, runtime presentation review and native package checks have passed. `project.godot` is now **`0.9.0-beta.3`**; the updater and public download links point to the current M23 desktop beta.
 
-The current public installers are **`v0.9.0-beta.2`**, verified through full M0–M22 CI, production visual/contact review, macOS Universal 2 packaging, Windows x64 packaging, installer install/uninstall checks and release-side checksum verification. Portable checksum sidecars and `update-manifest.json` are attached to the release.
+The current public installers are **`v0.9.0-beta.3`**, verified through full regression CI, runtime presentation review, macOS Universal 2 packaging, Windows x64 packaging, installer install/uninstall checks and release-side checksum verification. Portable checksum sidecars and `update-manifest.json` are attached to the release.
 
-For the next release, retain the same order: full M0–M22 validation, manual presentation/contact-fidelity review, native package checks, then immutable publication. The current v0.9 beta completed those gates before release.
+For the next release, retain the same order: full regression validation, manual presentation/contact-fidelity review, native package checks, then immutable publication. The current v0.9 beta completed those gates before release.
 
 ## Licence
 

@@ -74,8 +74,10 @@ func _capture_pristine_views(preset_id: StringName, viewport_size: Vector2i) -> 
 			failures.append("%s: production scene is not using the presentation adapter" % String(preset_id))
 		else:
 			var presentation := visual.kenney_skin as KenneyVehiclePresentation3D
-			if not presentation.source_wheel_alignment_complete:
-				failures.append("%s: source wheel-opening alignment did not resolve all four wheels" % String(preset_id))
+			for wheel_offset in presentation.neutral_wheel_offsets:
+				if wheel_offset.length() > KenneyVehiclePresentation3D.MAX_WHEEL_ALIGNMENT_OFFSET_M + 0.001:
+					failures.append("%s: a presentation wheel drifted from its suspension anchor" % String(preset_id))
+					break
 		if visual.kenney_skin.wheel_nodes.size() != 4:
 			failures.append("%s: expected four Kenney presentation wheels" % String(preset_id))
 		if not bool(visual.kenney_skin.get_meta("presentation_pristine_body", false)):

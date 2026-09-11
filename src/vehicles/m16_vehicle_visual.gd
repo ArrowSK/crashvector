@@ -69,6 +69,11 @@ func _hide_legacy_visuals() -> void:
 		vehicle.body_shell.visible = false
 	if vehicle.wheel_rig != null:
 		vehicle.wheel_rig.visible = false
+	# The early procedural presentation also built a detached black front-bumper
+	# mesh. The complete vehicle skin has its own nose treatment, so rendering the
+	# helper beside it leaves a metal bar in front of every car.
+	if vehicle.front_bumper != null:
+		vehicle.front_bumper.visible = false
 
 func _build_materials() -> void:
 	body_material.metallic = 0.38

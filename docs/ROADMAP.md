@@ -6,7 +6,8 @@ Current state:
 
 - **M0–M18:** complete and historically runtime/package validated through the published `0.8.0-beta.3` line.
 - **M19–M22:** implemented on `main` and validated by the full M0–M22 suite, visual/contact review and native package checks.
-- **Current public package:** `0.9.0-beta.2`.
+- **M23:** runtime stability, scene framing and static-target corrections, validated by the full regression suite and native package checks.
+- **Current public package:** `0.9.0-beta.3`.
 - **Next required work:** retain the established validation, review and package gates for the next physics milestone.
 
 ## M0 — Physics skeleton — complete
@@ -228,9 +229,9 @@ See `docs/M22_CYCLIST_MOVING_PEDESTRIAN.md`.
 
 ## Release/validation gate after M22
 
-No M23 physics milestone is currently scheduled. The v0.9 beta has completed its evidence and runtime-validation release gate.
+No M24 physics milestone is currently scheduled. The v0.9 beta has completed its evidence and runtime-validation release gate.
 
-`project.godot` is now versioned as `0.9.0-beta.2`, the current verified public M22 package. Future release candidates must pass the gates below before publication:
+`project.godot` is now versioned as `0.9.0-beta.3`, the current verified public M23 package. Future release candidates must pass the gates below before publication:
 
 1. Godot must import/parse the current `main` source successfully.
 2. At minimum the publishable package `smoke` set must pass, including M19, M20, M21 and M22 production regressions.

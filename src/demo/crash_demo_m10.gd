@@ -314,6 +314,7 @@ func _build_scenario_panel() -> void:
 	_add_quick_target(quick, "Car", ScenarioConfig.TARGET_PASSENGER_CAR)
 	_add_quick_target(quick, "Truck", ScenarioConfig.TARGET_TRUCK)
 	_add_quick_target(quick, "Lorry", ScenarioConfig.TARGET_LORRY)
+	_add_quick_target(quick, "Tank", ScenarioConfig.TARGET_TANK)
 	_add_quick_target(quick, "Pedestrian", ScenarioConfig.TARGET_PEDESTRIAN)
 	_add_quick_target(quick, "Bicycle", ScenarioConfig.TARGET_BICYCLE)
 
@@ -725,7 +726,7 @@ func _build_m10_environment() -> void:
 			child.light_color = Color("fff1dc")
 			child.shadow_enabled = true
 
-	_add_visual_box("TechnicalGround", Vector3(2.0, -0.10, 0.0), Vector3(82.0, 0.16, 46.0), Color("6e7776"), 1.0)
+	_add_visual_box("TechnicalGround", Vector3(2.0, -0.10, 0.0), Vector3(82.0, 0.16, 46.0), Color("60794b"), 1.0)
 	_add_visual_box("AsphaltSurface", Vector3(2.0, 0.006, 0.0), Vector3(54.0, 0.012, 12.2), Color("30353b"), 0.92)
 	_add_visual_box("LeftShoulder", Vector3(2.0, 0.012, -6.35), Vector3(54.0, 0.022, 0.55), Color("9b9d96"), 0.88)
 	_add_visual_box("RightShoulder", Vector3(2.0, 0.012, 6.35), Vector3(54.0, 0.022, 0.55), Color("9b9d96"), 0.88)
@@ -1198,6 +1199,7 @@ func _update_selection_ring() -> void:
 		match scenario.target_type:
 			ScenarioConfig.TARGET_TRUCK: radius = 3.8
 			ScenarioConfig.TARGET_LORRY: radius = 3.1
+			ScenarioConfig.TARGET_TANK: radius = 3.7
 			ScenarioConfig.TARGET_WALL: radius = 2.6
 			ScenarioConfig.TARGET_BARRIER: radius = 1.8
 			ScenarioConfig.TARGET_PEDESTRIAN: radius = 0.75

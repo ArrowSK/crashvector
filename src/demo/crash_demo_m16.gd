@@ -94,7 +94,7 @@ func _build_top_bar() -> void:
 	row.add_child(m16_action_slot)
 	m10_pause_button = _add_button(m16_action_slot, "⏸ Pause", _on_pause_pressed, "Pause or resume simulation")
 	m10_pause_button.visible = false
-	m10_reset_button = _add_button(m16_action_slot, "↻ Run again", _on_reset_pressed, "Return to editable preview")
+	m10_reset_button = _add_button(m16_action_slot, "↻ Run again", _on_m16_run_again_pressed, "Run the current scenario again")
 	m10_reset_button.visible = false
 	m10_simulate_button = _add_button(m16_action_slot, "▶ Run simulation", _on_simulate_pressed, "Run the current scenario")
 	CrashVectorM16Theme.accent_button(m10_simulate_button)
@@ -508,6 +508,14 @@ func _refresh_m10_runtime_state() -> void:
 		m16_more_menu.text = "More •"
 	elif m16_more_menu != null:
 		m16_more_menu.text = "More ⋯"
+
+func _on_m16_run_again_pressed() -> void:
+	# This completed-run action used to be labelled “Run again” but only reset
+	# the preview. Start a fresh production run; the established simulation path
+	# rebuilds the preview before motion begins.
+	if simulation_running or comparison_active:
+		return
+	_on_simulate_pressed()
 
 func _on_m16_file_action(id: int) -> void:
 	match id:

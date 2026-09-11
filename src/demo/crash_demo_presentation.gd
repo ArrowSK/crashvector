@@ -72,7 +72,7 @@ func _cv_polish_environment() -> void:
 		add_child(cv_fill_light)
 
 func _cv_polish_road() -> void:
-	_cv_set_environment_material("TechnicalGround", Color("4d5958"), 1.0)
+	_cv_set_environment_material("TechnicalGround", Color("60794b"), 1.0)
 	_cv_set_environment_material("AsphaltSurface", Color("272d32"), 0.94)
 	_cv_set_environment_material("LeftShoulder", Color("858983"), 0.90)
 	_cv_set_environment_material("RightShoulder", Color("858983"), 0.90)

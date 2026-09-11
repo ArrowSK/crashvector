@@ -31,6 +31,7 @@ func _target_supports_hybrid_world() -> bool:
 		ScenarioConfig.TARGET_BARRIER,
 		ScenarioConfig.TARGET_POLE,
 		ScenarioConfig.TARGET_TREE,
+		ScenarioConfig.TARGET_TANK,
 		ScenarioConfig.TARGET_PASSENGER_CAR,
 		ScenarioConfig.TARGET_TRUCK,
 	]

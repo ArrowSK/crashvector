@@ -37,6 +37,42 @@ func side_impact_deformation_m() -> float:
 func side_impact_energy_j() -> float:
 	return maxf(hybrid_side_negative_z_energy_j, hybrid_side_positive_z_energy_j)
 
+func receive_broadside_probe_impact(source: M17CompactHatchback) -> void:
+	# The nose crush model applies resistance when its forward probes enter the
+	# target volume. During a broadside strike this can happen before the two
+	# protected-cell boxes report a direct contact. Transfer only that measured
+	# demand so the struck passenger car uses its existing bounded side-collapse
+	# path and collision-face retreat.
+	if source == null or source == self or rigid_chassis == null or source.rigid_chassis == null:
+		return
+	var source_local := rigid_chassis.to_local(source.rigid_chassis.global_position)
+	var half_width := maxf(safety_cell_base_size_m.z * 0.5, 0.45)
+	if absf(source_local.z) < half_width * 0.35 or absf(source_local.z) <= absf(source_local.x - safety_cell_base_position_m.x) * 0.60:
+		return
+	var lateral := rigid_chassis.global_transform.basis.z.normalized()
+	var lateral_speed := absf((source.rigid_chassis.linear_velocity - rigid_chassis.linear_velocity).dot(lateral))
+	if lateral_speed <= 0.05:
+		return
+	var reduced_mass := source.rigid_chassis.mass * rigid_chassis.mass / maxf(source.rigid_chassis.mass + rigid_chassis.mass, 1.0)
+	var impact_energy := 0.5 * reduced_mass * lateral_speed * lateral_speed
+	impact_energy = minf(minf(impact_energy, source.hybrid_peak_collision_energy_j), 300000.0)
+	if impact_energy <= 0.0:
+		return
+	if source_local.z < 0.0:
+		hybrid_side_negative_z_energy_j = maxf(hybrid_side_negative_z_energy_j, impact_energy)
+	else:
+		hybrid_side_positive_z_energy_j = maxf(hybrid_side_positive_z_energy_j, impact_energy)
+
+func _update_hybrid_crush_target() -> void:
+	super._update_hybrid_crush_target()
+	if rigid_chassis == null or not rigid_chassis.front_crush_overlap_active():
+		return
+	var collider := rigid_chassis.front_crush_collider()
+	if collider is VehicleRigidChassis:
+		var target_node := (collider as VehicleRigidChassis).get_parent()
+		if target_node is M17CompactHatchback:
+			(target_node as M17CompactHatchback).receive_broadside_probe_impact(self)
+
 func _consume_real_contact_impulses() -> void:
 	if rigid_chassis == null:
 		return

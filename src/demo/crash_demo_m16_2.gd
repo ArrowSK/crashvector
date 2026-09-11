@@ -23,8 +23,15 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	var was_running := simulation_running
 	super._physics_process(delta)
+	if simulation_running and not simulation_paused:
+		_m162_follow_active_scene()
 	if was_running and not simulation_running:
 		_m162_restore_scenario_definition()
+
+func _apply_replay_time(time_s: float, from_playback: bool) -> void:
+	super._apply_replay_time(time_s, from_playback)
+	if from_playback:
+		_m162_follow_active_scene()
 
 func _rebuild_preview() -> void:
 	_m162_dispose_presentation_skins()
@@ -274,6 +281,8 @@ func _m162_aftermath_target_extent() -> float:
 			return 1.05
 		ScenarioConfig.TARGET_BARRIER:
 			return 0.70
+		ScenarioConfig.TARGET_TANK:
+			return 3.5
 		_:
 			return 0.55
 
@@ -282,6 +291,33 @@ func _m162_limit_vector(value: Vector3, maximum: float) -> Vector3:
 	if length <= maximum or length < 0.0001:
 		return value
 	return value / length * maximum
+
+func _m162_follow_active_scene() -> void:
+	# While the simulation or replay is moving, frame the actual major bodies,
+	# rather than their setup positions. This keeps high-speed runs visible and
+	# makes the timeline show the selected replay frame instead of a static shot.
+	if camera == null or scenario == null:
+		return
+	var forward := scenario.car_forward()
+	if forward.is_zero_approx():
+		forward = Vector3.RIGHT
+	var lateral := forward.cross(Vector3.UP).normalized()
+	if lateral.is_zero_approx():
+		lateral = Vector3.FORWARD
+	var car_center := _m161_primary_center()
+	var target_center := _m161_target_center()
+	var focus := car_center.lerp(target_center, 0.46)
+	focus.y = clampf(focus.y + 0.55, 0.85, 4.2)
+	var primary_extent := float(PassengerCarCatalog.data(scenario.car_preset_id).get("representative_length_m", 4.1)) * 0.52
+	var span := maxf(primary_extent + _m162_aftermath_target_extent() + 1.8, car_center.distance_to(target_center) + primary_extent + _m162_aftermath_target_extent())
+	var aspect := 1.55
+	if m10_viewport_frame != null and m10_viewport_frame.size.y > 1.0:
+		aspect = maxf(m10_viewport_frame.size.x / m10_viewport_frame.size.y, 1.0)
+	camera.fov = 50.0
+	var horizontal_fov := 2.0 * atan(tan(deg_to_rad(camera.fov) * 0.5) * aspect)
+	var distance := clampf((span * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.72, 0.10), 6.0, 160.0)
+	camera.global_position = focus - forward * distance * 0.10 + Vector3.UP * clampf(distance * 0.22, 2.2, 16.0) + lateral * distance
+	camera.look_at(focus, Vector3.UP)
 
 func _m162_refresh_presentation_skins() -> void:
 	if road_user_proxy != null and is_instance_valid(road_user_proxy):

@@ -151,6 +151,8 @@ func _sync_m10_from_scenario() -> void:
 				_set_m22_target_spin_ranges(RoadUserCatalog.cyclist_minimum_mass_kg(scenario.target_preset_id), 220.0, 1.0, 0.0, 80.0, 1.0)
 			ScenarioConfig.TARGET_PEDESTRIAN:
 				_set_m22_target_spin_ranges(15.0, 200.0, 1.0, 0.0, 20.0, 0.5)
+			ScenarioConfig.TARGET_TANK:
+				_set_m22_target_spin_ranges(20000.0, 80000.0, 100.0, 0.0, 0.0, 1.0)
 			_:
 				_set_m22_target_spin_ranges(0.0, 60000.0, 5.0, 0.0, 300.0, 1.0)
 	super._sync_m10_from_scenario()

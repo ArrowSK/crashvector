@@ -48,13 +48,19 @@ func apply_probe_contact(source: VehicleRigidChassis, collider: Object = null) -
 		transfer_impulse_ns * 0.08,
 		target_mass_kg * PEDESTRIAN_MAX_VERTICAL_COM_SPEED_MS
 	)
-	var pelvis_vertical := vertical_impulse_ns * 0.4375
-	var torso_vertical := vertical_impulse_ns * 0.5625
-
-	apply_central_impulse(forward * transfer_impulse_ns * 0.48 + Vector3.UP * pelvis_vertical)
-	if _pedestrian_torso != null:
-		_pedestrian_torso.apply_central_impulse(forward * transfer_impulse_ns * 0.44 + Vector3.UP * torso_vertical)
-	var contacted := _owned_body_from_collider(collider)
-	if contacted != null and contacted != self and contacted != _pedestrian_torso:
-		contacted.apply_central_impulse(forward * transfer_impulse_ns * 0.08)
+	# Apply the bounded one-shot demand across the complete articulated mass. The
+	# previous pelvis/torso split accelerated the small pelvis several times more
+	# than the torso, so the constraint solver had to correct a large artificial
+	# mismatch and could launch the figure. A mass-proportional transfer preserves
+	# the same centre-of-mass impulse without creating that internal energy spike.
+	var bodies: Array[RigidBody3D] = [self]
+	for body in articulated_bodies:
+		if body != null and is_instance_valid(body):
+			bodies.append(body)
+	var combined_mass := 0.0
+	for body in bodies:
+		combined_mass += body.mass
+	var total_impulse := forward * transfer_impulse_ns + Vector3.UP * vertical_impulse_ns
+	for body in bodies:
+		body.apply_central_impulse(total_impulse * (body.mass / maxf(combined_mass, 0.001)))
 	impact_received = true

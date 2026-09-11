@@ -12,7 +12,8 @@ extends "res://src/demo/crash_demo_m16_2.gd"
 # and makes the proving road long enough for the supported speed/time envelope.
 
 const M17_ROAD_LENGTH_M := 4000.0
-const M17_ROAD_WIDTH_M := 20.0
+const M17_ROAD_WIDTH_M := 600.0
+const M17_ASPHALT_WIDTH_M := 20.0
 const M17_COMPARISON_BATCH_SIZE := 3
 
 var m17_lorry: M17RigidLorry
@@ -46,14 +47,15 @@ func _build_environment() -> void:
 	camera.current = true
 
 	# 4 km gives a 300 km/h vehicle more than the full 20 s supported simulation
-	# window in either longitudinal direction while keeping one continuous road
-	# collision surface under the scene.
+	# window in either longitudinal direction. The 600 m support width keeps a
+	# vehicle on solid ground after an extreme side impact, while M10 renders only
+	# the central 20 m as asphalt and the rest as grass.
 	_create_static_box("Road", Vector3(0.0, -0.25, 0.0), Vector3(M17_ROAD_LENGTH_M, 0.5, M17_ROAD_WIDTH_M), Color(0.10, 0.11, 0.13))
 
 func _build_m10_environment() -> void:
 	super._build_m10_environment()
-	_m17_resize_presentation_box("TechnicalGround", Vector3(M17_ROAD_LENGTH_M + 160.0, 0.16, 120.0), Vector3(0.0, -0.10, 0.0))
-	_m17_resize_presentation_box("AsphaltSurface", Vector3(M17_ROAD_LENGTH_M, 0.012, M17_ROAD_WIDTH_M), Vector3(0.0, 0.006, 0.0))
+	_m17_resize_presentation_box("TechnicalGround", Vector3(M17_ROAD_LENGTH_M + 160.0, 0.16, M17_ROAD_WIDTH_M), Vector3(0.0, -0.10, 0.0))
+	_m17_resize_presentation_box("AsphaltSurface", Vector3(M17_ROAD_LENGTH_M, 0.012, M17_ASPHALT_WIDTH_M), Vector3(0.0, 0.006, 0.0))
 	_m17_resize_presentation_box("LeftShoulder", Vector3(M17_ROAD_LENGTH_M, 0.022, 0.70), Vector3(0.0, 0.012, -10.35))
 	_m17_resize_presentation_box("RightShoulder", Vector3(M17_ROAD_LENGTH_M, 0.022, 0.70), Vector3(0.0, 0.012, 10.35))
 	_m17_resize_presentation_box("EdgeLineL", Vector3(M17_ROAD_LENGTH_M, 0.018, 0.08), Vector3(0.0, 0.024, -9.45))

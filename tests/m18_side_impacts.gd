@@ -14,6 +14,7 @@ func _initialize() -> void:
 func _run() -> void:
 	_check_broadside_preflight()
 	await _check_perpendicular_car_to_car_impact()
+	await _check_primary_strikes_target_car_broadside()
 	_finish()
 
 func _check_broadside_preflight() -> void:
@@ -145,6 +146,58 @@ func _check_perpendicular_car_to_car_impact() -> void:
 		var contact_value: Variant = (analysis_value as Dictionary).get("primary_contact_manifold", {})
 		_expect(contact_value is Dictionary and int((contact_value as Dictionary).get("maximum_contact_points", 0)) > 0, "M19 analysis did not aggregate the primary contact manifold")
 
+	editor.queue_free()
+	await process_frame
+
+func _check_primary_strikes_target_car_broadside() -> void:
+	var packed := load("res://app/main.tscn") as PackedScene
+	if packed == null:
+		return
+	var editor := packed.instantiate()
+	editor.set("m10_first_run_applied", true)
+	var config := ScenarioConfig.new()
+	config.title = "M23 target passenger-car broadside regression"
+	config.car_preset_id = PassengerCarCatalog.C_SEGMENT_COMPACT
+	config.car_mass_kg = PassengerCarCatalog.default_mass_kg(config.car_preset_id)
+	config.car_position_m = Vector3(-7.0, 0.0, 0.0)
+	config.car_heading_deg = 0.0
+	config.car_speed_kmh = 55.0
+	config.apply_target_defaults(ScenarioConfig.TARGET_PASSENGER_CAR)
+	config.target_car_preset_id = PassengerCarCatalog.B_SEGMENT_HATCHBACK
+	config.target_mass_kg = PassengerCarCatalog.default_mass_kg(config.target_car_preset_id)
+	config.target_position_m = Vector3(1.7, 0.0, 0.0)
+	config.target_heading_deg = 90.0
+	config.duration_s = 1.8
+	config.solver_substeps = 12
+	_expect(config.validation_errors().is_empty(), "Target-car broadside regression failed preflight: %s" % "; ".join(config.validation_errors()))
+	editor.set("scenario", config)
+	root.add_child(editor)
+	for _frame in range(8):
+		await process_frame
+	# Both free passenger-car bodies must enter a physics tick before motion
+	# starts, otherwise a headless run can begin before the newly rotated target
+	# collider has registered with the physics broadphase.
+	await physics_frame
+	editor.call("_on_simulate_pressed")
+	var completed := false
+	for _frame in range(1050):
+		if not bool(editor.get("simulation_running")):
+			completed = true
+			break
+		await physics_frame
+	_expect(completed, "Primary-to-target passenger-car broadside production run did not complete")
+	for _frame in range(4):
+		await process_frame
+	var primary := editor.get("car") as M17CompactHatchback
+	var target := editor.get("target_car") as M17CompactHatchback
+	_expect(primary != null and target != null, "Target-car broadside case did not create both passenger cars")
+	if primary != null and target != null:
+		_expect(primary.rigid_chassis.front_probe_contact_ever, "Target-car broadside case did not register the production front-crush contact")
+		var target_side_crush := target.side_impact_deformation_m()
+		_expect(target_side_crush > 0.02, "Passenger-car impact target did not collapse on its struck side: %.3f m" % target_side_crush)
+		_expect(target_side_crush < 0.70, "Passenger-car impact-target side collapse exceeded its bounded envelope: %.3f m" % target_side_crush)
+		var target_cell := target.safety_cell_collision.shape as BoxShape3D if target.safety_cell_collision != null else null
+		_expect(target_cell != null and target_cell.size.z < target.safety_cell_base_size_m.z - 0.005, "Passenger-car target collision shape did not recede with struck-side deformation")
 	editor.queue_free()
 	await process_frame
 
