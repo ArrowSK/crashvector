@@ -348,26 +348,29 @@ func _consume_real_contact_impulses() -> void:
 	if rigid_chassis == null:
 		return
 	for sample in rigid_chassis.drain_contact_samples():
-		var collider_name: StringName = sample.get("collider_name", StringName(""))
-		if collider_name == &"Road" or collider_name == &"Ground" or collider_name == &"ProvingGround":
-			continue
-		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
-		hybrid_crush_impulse_ns += impulse.length()
-		# A distance probe intentionally sees an obstacle before the collision
-		# shapes meet. It may prepare the resistance force, but it must never be
-		# used as evidence that the visible body has already begun to crush.
-		# Godot's reported non-ground manifold is the first authoritative contact.
-		hybrid_real_front_contact_ever = true
-		var collider: Object = sample.get("collider", null)
-		if hybrid_primary_collider == null:
-			hybrid_primary_collider = collider
-		var local_position: Vector3 = sample.get("position_local", Vector3.ZERO)
-		if local_position.x > 0.0 and absf(local_position.z) > 0.03:
-			hybrid_front_lateral_bias = clampf(local_position.z / 0.72, -1.0, 1.0)
-		if collider != null:
-			hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _normal_collision_energy_j(collider))
-			if not collider is RigidBody3D and not _is_yielding_obstacle_collider(collider):
-				hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _initial_fixed_obstacle_energy_j())
+		_consume_front_contact_sample(sample)
+
+func _consume_front_contact_sample(sample: Dictionary) -> void:
+	var collider_name: StringName = sample.get("collider_name", StringName(""))
+	if collider_name == &"Road" or collider_name == &"Ground" or collider_name == &"ProvingGround":
+		return
+	var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
+	hybrid_crush_impulse_ns += impulse.length()
+	# A distance probe intentionally sees an obstacle before the collision
+	# shapes meet. It may prepare the resistance force, but it must never be
+	# used as evidence that the visible body has already begun to crush.
+	# Godot's reported non-ground manifold is the first authoritative contact.
+	hybrid_real_front_contact_ever = true
+	var collider: Object = sample.get("collider", null)
+	if hybrid_primary_collider == null:
+		hybrid_primary_collider = collider
+	var local_position: Vector3 = sample.get("position_local", Vector3.ZERO)
+	if local_position.x > 0.0 and absf(local_position.z) > 0.03:
+		hybrid_front_lateral_bias = clampf(local_position.z / 0.72, -1.0, 1.0)
+	if collider != null:
+		hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _normal_collision_energy_j(collider))
+		if not collider is RigidBody3D and not _is_yielding_obstacle_collider(collider):
+			hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _initial_fixed_obstacle_energy_j())
 
 func _update_hybrid_crush_target() -> void:
 	if rigid_chassis == null:

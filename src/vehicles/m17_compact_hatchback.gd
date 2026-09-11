@@ -83,7 +83,11 @@ func _consume_real_contact_impulses() -> void:
 		if collider_name == &"Road" or collider_name == &"Ground" or collider_name == &"ProvingGround":
 			continue
 		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
-		hybrid_crush_impulse_ns += impulse.length()
+		# M17 owns the rear/side classification below, but the base class owns
+		# front-contact evidence and energy capture. Keep both paths on the same
+		# authoritative Godot manifold rather than allowing M17 to bypass the
+		# beta.7 visual-contact gate.
+		_consume_front_contact_sample(sample)
 		var collider: Object = sample.get("collider", null)
 		var local_position: Vector3 = sample.get("position_local", Vector3.ZERO)
 		var other_velocity := Vector3.ZERO
