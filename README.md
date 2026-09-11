@@ -18,12 +18,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.5/CrashVector-0.9.0-beta.5-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.5/CrashVector-0.9.0-beta.5-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.6/CrashVector-0.9.0-beta.6-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.6/CrashVector-0.9.0-beta.6-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.5">Release notes & checksums</a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.6">Release notes & checksums</a>
   ·
   <a href="docs/DISTRIBUTION.md">Installation & updates</a>
 </p>
@@ -41,7 +41,7 @@ The current M12–M23 source architecture separates whole-object world motion, p
 
 > **Current source state:** **`0.9.0-beta.6`** is the corrective candidate for wheel-ground contact, central-viewport camera safe framing, fixed-target inspector defaults, a root-level cinematic-export dialog, horizontal-only pedestrian transfer, and real 50 km/h motorcycle contact/deformation.
 
-> **Packaged release:** **`0.9.0-beta.5`** remains the current verified public desktop beta while `0.9.0-beta.6` completes packaging and release checks.
+> **Packaged release:** **`0.9.0-beta.6`** is the current verified public desktop beta, with macOS Universal 2 and Windows x64 packages.
 
 > **Important boundaries:** M20 permits generic broadside/oblique heavy-truck, rigid-lorry and riderless-motorcycle deformation, while the old riderless-bicycle broadside path remains intentionally rejected. M21 fifth-wheel articulation is generic and not a manufacturer truck model. M22's cyclist and moving-pedestrian additions remain trajectory/contact models only; they do not add biomechanics, injury prediction, gait, steering, tyre-force or forensic-reconstruction validity.
 
@@ -53,10 +53,10 @@ No Git, Godot, Python, Terminal or PowerShell is required for the packaged deskt
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.5/CrashVector-0.9.0-beta.5-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
-| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.5/CrashVector-0.9.0-beta.5-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
+| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.6/CrashVector-0.9.0-beta.6-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
+| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.6/CrashVector-0.9.0-beta.6-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
 
-The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.9.0-beta.5 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.5)**.
+The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.9.0-beta.6 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.6)**.
 
 This beta is ad-hoc signed on macOS and unsigned on Windows when paid signing credentials are not configured, so Gatekeeper or SmartScreen may warn about an unknown developer/publisher. Use only the files attached to the official `ArrowSK/crashvector` release.
 
@@ -115,7 +115,7 @@ Defaults exist for normal scenarios, so mass and solver parameters are not manda
 | Comparison | Visual Compare and Comparison Lab execute each variant through the current production scene in an isolated `SubViewport` / `World3D` and replay the resulting production recordings |
 | Video export | 1080p / 1440p / 4K offline replay rendering at 30/60 fps with external FFmpeg H.264 encoding; the settings dialog is an input-blocking root modal above the desktop shell |
 | Calibration | Historical M8 evidence labels/reference check retained separately; it does not validate the M12–M22 production source architecture |
-| Desktop distribution | Current verified public package is `0.9.0-beta.5` (M23 source), with macOS Universal 2 DMG and Windows x64 Setup installer, portable checksums and update manifest |
+| Desktop distribution | Current verified public package is `0.9.0-beta.6` (M23 source), with macOS Universal 2 DMG and Windows x64 Setup installer, portable checksums and update manifest |
 
 ## Passenger-car classes
 
@@ -315,7 +315,7 @@ Or open `project.godot` directly in Godot and run the project.
 | [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, distribution and presentation layers |
 | [CI and release flow](docs/CI_AND_RELEASE.md) | Consolidated regression, visual review, package validation and Actions-quota behaviour |
 | [0.9.0-beta.6 release notes](docs/releases/0.9.0-beta.6.md) | Corrective candidate for road contact, video export, real motorcycle deformation and camera-safe framing |
-| [0.9.0-beta.5 release notes](docs/releases/0.9.0-beta.5.md) | Current public M23 corrective desktop beta, with fitted passenger-car wheels and a collidable generic tank |
+| [0.9.0-beta.5 release notes](docs/releases/0.9.0-beta.5.md) | Previous M23 corrective desktop beta, with fitted passenger-car wheels and a collidable generic tank |
 | [0.9.0-beta.4 release notes](docs/releases/0.9.0-beta.4.md) | Previous M23 desktop beta |
 | [0.9.0-beta.2 release notes](docs/releases/0.9.0-beta.2.md) | Previous M22 desktop beta, with portable macOS/Windows checksum sidecars |
 | [0.9.0-beta.1 release notes](docs/releases/0.9.0-beta.1.md) | Initial M19–M22 public beta |
@@ -341,9 +341,9 @@ Or open `project.godot` directly in Godot and run the project.
 
 ## Development status
 
-**M23 remains the current source milestone; beta.6 is the corrective candidate.** `project.godot` is now **`0.9.0-beta.6`**. Its release gate includes the full regression stack, runtime presentation/contact review, macOS Universal 2 packaging, Windows x64 packaging, installer checks and release-side checksum verification.
+**M23 remains the current source milestone; beta.6 is the corrective desktop package.** `project.godot` is now **`0.9.0-beta.6`**. Its release gate includes the full regression stack, runtime presentation/contact review, macOS Universal 2 packaging, Windows x64 packaging, installer checks and release-side checksum verification.
 
-The current public installers remain **`v0.9.0-beta.5`** until the beta.6 package workflow has completed successfully. Portable checksum sidecars and `update-manifest.json` are attached to the public release.
+The current public installers are **`v0.9.0-beta.6`**. Portable checksum sidecars and `update-manifest.json` are attached to the public release.
 
 For the next release, retain the same order: full regression validation, manual presentation/contact-fidelity review, native package checks, then immutable publication. The current v0.9 beta completed those gates before release.
 
