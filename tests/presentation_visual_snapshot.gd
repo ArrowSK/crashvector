@@ -75,13 +75,13 @@ func _capture_pristine_views(preset_id: StringName, viewport_size: Vector2i) -> 
 		else:
 			var presentation := visual.kenney_skin as KenneyVehiclePresentation3D
 			for wheel_offset in presentation.neutral_wheel_offsets:
-				if wheel_offset.length() > KenneyVehiclePresentation3D.MAX_WHEEL_ALIGNMENT_OFFSET_M + 0.001:
-					failures.append("%s: a presentation wheel drifted from its suspension anchor" % String(preset_id))
+				if not wheel_offset.is_zero_approx():
+					failures.append("%s: unexpected legacy wheel offset remained after source-body fitting" % String(preset_id))
 					break
 		if not visual.kenney_skin.USE_ANCHORED_PROCEDURAL_WHEELS or not visual.kenney_skin.wheel_nodes.is_empty():
 			failures.append("%s: imported wheel scene bypassed the anchor-driven production rig" % String(preset_id))
-		if String(visual.kenney_skin.get_meta("presentation_wheel_mode", "")) != "structural-anchor":
-			failures.append("%s: structural-anchor wheel presentation metadata is missing" % String(preset_id))
+		if String(visual.kenney_skin.get_meta("presentation_wheel_mode", "")) != "source-body-fit" or not visual.kenney_skin.source_wheel_alignment_complete:
+			failures.append("%s: source-body wheel-fit presentation metadata is missing" % String(preset_id))
 		for index in range(visual.wheel_tires.size()):
 			if not visual.wheel_tires[index].visible or not visual.wheel_rims[index].visible or not visual.wheel_hubs[index].visible:
 				failures.append("%s: anchor-driven wheel %d is not visible" % [String(preset_id), index])

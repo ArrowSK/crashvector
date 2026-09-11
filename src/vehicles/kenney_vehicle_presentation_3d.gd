@@ -17,14 +17,12 @@ const SOURCE_TO_HOST_WHEEL := {
 	"wheel-front-left": 2,
 	"wheel-front-right": 3,
 }
-# Wheel groups are the authoritative suspension anchors. A source asset may
-# need a tiny local centring correction, but accepting metre-scale imported
-# offsets detaches a rendered front wheel from its chassis during a run.
-const MAX_WHEEL_ALIGNMENT_OFFSET_M := 0.20
 const BODY_PRESENTATION_METALLIC := 0.18
 const BODY_PRESENTATION_ROUGHNESS := 0.34
 
 var neutral_wheel_offsets: Array[Vector3] = []
+var source_wheel_centres: Array[Vector3] = []
+var fitted_wheel_world_positions: Array[Vector3] = []
 var source_wheel_alignment_complete := false
 
 func configure(owner_visual: M162VehicleVisual) -> void:
@@ -34,16 +32,24 @@ func configure(owner_visual: M162VehicleVisual) -> void:
 	_tune_body_finish()
 	# Imported wheels are intentionally disabled because their nested mesh-space
 	# transform cannot be reconciled with the structural suspension anchors.
-	# Preserve four zero offsets for diagnostics while M16's existing rig owns
-	# every visible wheel from the authoritative anchors.
+	# The established M16 wheel meshes remain in use, but their roots are fitted
+	# to the selected Kenney body's own wheel centres each frame.
 	neutral_wheel_offsets.resize(host.wheel_groups.size())
+	source_wheel_centres.resize(host.wheel_groups.size())
+	fitted_wheel_world_positions.resize(host.wheel_groups.size())
 	for index in range(neutral_wheel_offsets.size()):
 		neutral_wheel_offsets[index] = Vector3.ZERO
-	source_wheel_alignment_complete = false
+		source_wheel_centres[index] = Vector3.ZERO
+		fitted_wheel_world_positions[index] = Vector3.ZERO
+	source_wheel_alignment_complete = _capture_source_wheel_centres()
 	set_meta("presentation_pristine_body", true)
 	set_meta("presentation_wheel_alignment", source_wheel_alignment_complete)
-	set_meta("presentation_wheel_mode", "structural-anchor")
+	set_meta("presentation_wheel_mode", "source-body-fit")
 	set_meta("presentation_body_finish", "technical_satin")
+
+func _process(delta: float) -> void:
+	super._process(delta)
+	_fit_procedural_wheels_to_body()
 
 func _tune_body_finish() -> void:
 	# Car Kit uses its colour-map texture for body/trim differentiation. Keep that
@@ -57,8 +63,8 @@ func _tune_body_finish() -> void:
 		base.metallic = maxf(base.metallic, BODY_PRESENTATION_METALLIC)
 		base.roughness = minf(base.roughness, BODY_PRESENTATION_ROUGHNESS)
 
-func _capture_and_apply_source_wheel_alignment() -> bool:
-	if host == null or vehicle == null or wheel_nodes.size() != host.wheel_groups.size():
+func _capture_source_wheel_centres() -> bool:
+	if host == null or vehicle == null or source_wheel_centres.size() != host.wheel_groups.size():
 		return false
 	var body_resource := ResourceLoader.load(body_asset_path)
 	if not body_resource is PackedScene:
@@ -81,30 +87,34 @@ func _capture_and_apply_source_wheel_alignment() -> bool:
 	imported_root.free()
 
 	if source_centres.size() < 4:
-		push_warning("Kenney wheel alignment could not resolve four source wheel centres for %s; authoritative CrashVector wheel anchors remain in use." % body_asset_path)
+		push_warning("Kenney wheel fit could not resolve four source wheel centres for %s; leaving the established CrashVector wheel anchors in use." % body_asset_path)
 		return false
 
-	var reference := vehicle.global_reference_transform()
 	var aligned_count := 0
 	for source_name in SOURCE_TO_HOST_WHEEL.keys():
 		if not source_centres.has(source_name):
 			continue
 		var host_index: int = int(SOURCE_TO_HOST_WHEEL[source_name])
-		if host_index < 0 or host_index >= wheel_nodes.size() or host_index >= host.wheel_groups.size():
+		if host_index < 0 or host_index >= source_wheel_centres.size():
 			continue
 		var source_point: Vector3 = body_to_root * (source_centres[source_name] as Vector3)
-		var desired_world: Vector3 = reference * _pristine_source_point_local(source_point)
-		var wheel_group := host.wheel_groups[host_index]
-		var local_offset: Vector3 = wheel_group.global_transform.affine_inverse() * desired_world
-		# Fall back to the proven suspension anchor whenever an imported hierarchy
-		# asks to move a wheel visibly away from it.
-		if local_offset.length() > MAX_WHEEL_ALIGNMENT_OFFSET_M:
-			push_warning("Ignoring implausible Kenney wheel alignment offset %.3f m for %s" % [local_offset.length(), source_name])
-			continue
-		neutral_wheel_offsets[host_index] = local_offset
-		wheel_nodes[host_index].position = local_offset
+		source_wheel_centres[host_index] = source_point
 		aligned_count += 1
 	return aligned_count == 4
+
+func _fit_procedural_wheels_to_body() -> void:
+	if not source_wheel_alignment_complete or host == null or vehicle == null:
+		return
+	if source_wheel_centres.size() != host.wheel_groups.size() or fitted_wheel_world_positions.size() != host.wheel_groups.size():
+		return
+	for index in range(host.wheel_groups.size()):
+		# Map each source-body wheel centre through the same pristine/deformation
+		# transform as the visible body. This retains the reliable procedural wheel
+		# mesh and spin, while matching its wheelbase, track and ride height to the
+		# actual Kenney body instead of the differently proportioned legacy shell.
+		var fitted_world := _map_vertex(source_wheel_centres[index])
+		host.wheel_groups[index].global_position = fitted_world
+		fitted_wheel_world_positions[index] = fitted_world
 
 func _collect_named_source_wheels(
 	node: Node,

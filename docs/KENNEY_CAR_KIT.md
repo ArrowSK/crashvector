@@ -28,7 +28,7 @@ Each CrashVector passenger-car class has its own pinned Kenney body asset instea
 
 The Car Kit has only one dedicated hatchback body and a limited set of ordinary passenger-car silhouettes. The D-segment therefore uses the additional Kenney passenger-sedan/taxi asset as a distinct presentation source rather than reusing the compact or sports-sedan body. These asset choices are visual class proxies only; they do not imply manufacturer-specific geometry or physics.
 
-Passenger cars use Kenney `wheel-default.glb` for all four presentation wheels. CrashVector's established wheel-anchor groups remain authoritative for suspension position and rolling motion. `KenneyVehiclePresentation3D` additionally reads the four named wheel centres from the selected body asset and applies bounded presentation-only local offsets so the rendered wheels sit closer to that body's original wheel openings without moving the authoritative suspension anchors.
+Passenger cars use CrashVector's established wheel meshes and rolling rig. `KenneyVehiclePresentation3D` reads the four named wheel centres from the selected CC0 body asset and maps the wheel roots through the same pristine/deformation transform as that body. The wheels therefore follow the displayed body's wheelbase, track and ride height without importing the separate wheel scene's incompatible internal transform.
 
 ## Physics and deformation boundary
 

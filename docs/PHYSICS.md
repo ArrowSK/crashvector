@@ -2,7 +2,7 @@
 
 CrashVector is an educational simulator. Numerical outputs must be labelled according to the confidence of the underlying model and must not be presented as certified accident reconstruction, manufacturer crash performance, biomechanics or injury prediction.
 
-The current `main` source is implemented through M23. The full current regression stack has executed successfully, and the verified public package is `0.9.0-beta.4`.
+The current `main` source is implemented through M23. The full current regression stack has executed successfully, and the verified public package is `0.9.0-beta.5`.
 
 ## Passenger-car presets
 
