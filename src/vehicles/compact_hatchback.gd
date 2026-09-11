@@ -366,7 +366,7 @@ func _consume_real_contact_impulses() -> void:
 			hybrid_front_lateral_bias = clampf(local_position.z / 0.72, -1.0, 1.0)
 		if collider != null:
 			hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _normal_collision_energy_j(collider))
-			if not collider is RigidBody3D:
+			if not collider is RigidBody3D and not _is_yielding_obstacle_collider(collider):
 				hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _initial_fixed_obstacle_energy_j())
 
 func _update_hybrid_crush_target() -> void:
@@ -379,7 +379,7 @@ func _update_hybrid_crush_target() -> void:
 		# visible structural change.
 		if collider != null:
 			hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _normal_collision_energy_j(collider))
-			if not collider is RigidBody3D:
+			if not collider is RigidBody3D and not _is_yielding_obstacle_collider(collider):
 				hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _initial_fixed_obstacle_energy_j())
 		# Keep the collider reference for resistance, but do not commit probe travel
 		# to structural deformation until a real rigid-body contact was observed.
@@ -415,6 +415,15 @@ func _initial_fixed_obstacle_energy_j() -> float:
 		return 0.0
 	var initial_speed_ms := PhysicsMetrics.kmh_to_ms(initial_speed_kmh)
 	return 0.5 * rigid_chassis.mass * initial_speed_ms * initial_speed_ms
+
+func _is_yielding_obstacle_collider(collider: Object) -> bool:
+	var node := collider as Node
+	while node != null:
+		if node is StaticObstacle3D:
+			var obstacle := node as StaticObstacle3D
+			return obstacle.obstacle_type in [ScenarioConfig.TARGET_POLE, ScenarioConfig.TARGET_TREE]
+		node = node.get_parent()
+	return false
 
 func _failure_stage_targets() -> Dictionary:
 	var preset := PassengerCarCatalog.data(vehicle_preset_id)

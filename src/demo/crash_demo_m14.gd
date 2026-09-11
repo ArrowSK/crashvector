@@ -67,7 +67,12 @@ func _physics_process(delta: float) -> void:
 			road_user_proxy.apply_probe_contact(car.rigid_chassis, collider)
 	elif obstacle != null and is_instance_valid(obstacle):
 		if scenario.target_type == ScenarioConfig.TARGET_POLE or scenario.target_type == ScenarioConfig.TARGET_TREE:
-			obstacle.apply_collision_demand(car.hybrid_collision_energy_j(), car.rigid_chassis.global_transform.basis.x.normalized())
+			# The vehicle retains its full initial fixed-obstacle energy for its own
+			# staged deformation. A narrow pole/tree only receives the bounded portion
+			# that the simplified yielding target can represent, so it bends/topples
+			# instead of skipping straight to a zero-angle failure flag.
+			var yield_cap_j := 440000.0 if scenario.target_type == ScenarioConfig.TARGET_POLE else 1200000.0
+			obstacle.apply_collision_demand(minf(car.hybrid_collision_energy_j(), yield_cap_j), car.rigid_chassis.global_transform.basis.x.normalized())
 
 func _on_simulate_pressed() -> void:
 	super._on_simulate_pressed()
