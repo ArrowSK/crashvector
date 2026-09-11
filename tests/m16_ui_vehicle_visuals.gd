@@ -113,8 +113,8 @@ func _run() -> void:
 	if articulated.articulated_body_count() < 10 or articulated.articulated_joint_count() < 9:
 		_fail("M16 production pedestrian lost the M15 articulated topology")
 		return
-	if articulated.collision_layer != 2 or articulated.collision_mask != 4:
-		_fail("M16 production pedestrian lost the isolated M15 collision channels")
+	if articulated.collision_layer != 2 or (articulated.collision_mask & 4) == 0 or (articulated.collision_mask & 1) == 0:
+		_fail("M16 production pedestrian must retain road support and collide with the primary vehicle")
 		return
 
 	instance.queue_free()

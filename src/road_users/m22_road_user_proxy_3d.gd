@@ -13,7 +13,6 @@ extends RoadUserArticulatedStableProxy3D
 # This is a contact/trajectory model only: no biomechanics or injury inference.
 
 const CYCLIST_MAX_TRANSFER_SPEED_MS := 24.0
-const CYCLIST_MAX_VERTICAL_RIDER_SPEED_MS := 0.70
 
 var cyclist_released: bool = false
 var cyclist_rider_bodies: Array[RigidBody3D] = []
@@ -140,15 +139,12 @@ func apply_probe_contact(source: VehicleRigidChassis, collider: Object = null) -
 		effective_mass * closing_speed * 0.82,
 		target_mass_kg * CYCLIST_MAX_TRANSFER_SPEED_MS
 	)
-	var rider_mass := RoadUserCatalog.cyclist_rider_mass_kg(target_mass_kg, preset_id)
-	var vertical_impulse_ns := minf(transfer_impulse_ns * 0.03, rider_mass * CYCLIST_MAX_VERTICAL_RIDER_SPEED_MS)
-
 	_release_cyclist_couplings()
 	apply_central_impulse(forward * transfer_impulse_ns * 0.44)
 	if _m22_pelvis != null:
-		_m22_pelvis.apply_central_impulse(forward * transfer_impulse_ns * 0.30 + Vector3.UP * vertical_impulse_ns * 0.45)
+		_m22_pelvis.apply_central_impulse(forward * transfer_impulse_ns * 0.30)
 	if _pedestrian_torso != null:
-		_pedestrian_torso.apply_central_impulse(forward * transfer_impulse_ns * 0.22 + Vector3.UP * vertical_impulse_ns * 0.55)
+		_pedestrian_torso.apply_central_impulse(forward * transfer_impulse_ns * 0.22)
 	var contacted := _owned_body_from_collider(collider)
 	if contacted != null and contacted != self and contacted != _m22_pelvis and contacted != _pedestrian_torso:
 		contacted.apply_central_impulse(forward * transfer_impulse_ns * 0.04)
