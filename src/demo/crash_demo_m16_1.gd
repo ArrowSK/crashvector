@@ -139,12 +139,10 @@ func _refresh_m10_runtime_state() -> void:
 func _update_selection_ring() -> void:
 	if m10_selection_ring == null:
 		return
-	if simulation_running or comparison_active or _m161_has_replay():
-		m10_selection_ring.visible = false
-		return
-	super._update_selection_ring()
-	# Keep the edit affordance useful without letting it dominate the scene.
-	m10_selection_ring.scale *= 0.72
+	# Selection is already explicit in the Properties tabs. A world-space ring
+	# reads as an unexplained orange object in screenshots and replay, so keep
+	# the viewport free of editor-only scene decoration.
+	m10_selection_ring.visible = false
 
 func _m161_has_replay() -> bool:
 	return replay_recorder != null and replay_recorder.recording != null and replay_recorder.recording.has_frames()
@@ -165,7 +163,9 @@ func _m161_apply_camera(three_quarter: bool) -> void:
 		return
 	var bounds := _m161_horizontal_bounds()
 	var center_x := (bounds.x + bounds.y) * 0.5
-	var span_x := maxf(bounds.y - bounds.x, 4.5)
+	# Keep a full passenger car plus its target inside the safe viewport region.
+	# The earlier 4.5 m minimum visibly cropped the wheels/body.
+	var span_x := maxf(bounds.y - bounds.x, 7.6)
 	var primary_center := _m161_primary_center()
 	var target_center := _m161_target_center()
 	var center_z := (primary_center.z + target_center.z) * 0.5
@@ -178,7 +178,7 @@ func _m161_apply_camera(three_quarter: bool) -> void:
 	var vertical_fov := deg_to_rad(camera.fov)
 	var horizontal_fov := 2.0 * atan(tan(vertical_fov * 0.5) * aspect)
 	var distance := (span_x * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.70, 0.10)
-	distance = clampf(distance, 5.4, 24.0)
+	distance = clampf(distance, 8.6, 24.0)
 
 	if three_quarter:
 		camera.position = Vector3(

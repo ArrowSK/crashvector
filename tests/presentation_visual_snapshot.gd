@@ -78,8 +78,14 @@ func _capture_pristine_views(preset_id: StringName, viewport_size: Vector2i) -> 
 				if wheel_offset.length() > KenneyVehiclePresentation3D.MAX_WHEEL_ALIGNMENT_OFFSET_M + 0.001:
 					failures.append("%s: a presentation wheel drifted from its suspension anchor" % String(preset_id))
 					break
-		if visual.kenney_skin.wheel_nodes.size() != 4:
-			failures.append("%s: expected four Kenney presentation wheels" % String(preset_id))
+		if not visual.kenney_skin.USE_ANCHORED_PROCEDURAL_WHEELS or not visual.kenney_skin.wheel_nodes.is_empty():
+			failures.append("%s: imported wheel scene bypassed the anchor-driven production rig" % String(preset_id))
+		if String(visual.kenney_skin.get_meta("presentation_wheel_mode", "")) != "structural-anchor":
+			failures.append("%s: structural-anchor wheel presentation metadata is missing" % String(preset_id))
+		for index in range(visual.wheel_tires.size()):
+			if not visual.wheel_tires[index].visible or not visual.wheel_rims[index].visible or not visual.wheel_hubs[index].visible:
+				failures.append("%s: anchor-driven wheel %d is not visible" % [String(preset_id), index])
+				break
 		if not bool(visual.kenney_skin.get_meta("presentation_pristine_body", false)):
 			failures.append("%s: pristine-body presentation contract metadata missing" % String(preset_id))
 		_verify_body_finish(visual.kenney_skin, preset_id)

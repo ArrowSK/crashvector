@@ -142,8 +142,15 @@ func _run() -> void:
 	var scenario: ScenarioConfig = instance.get("scenario")
 	var midpoint := (scenario.car_position_m + scenario.target_position_m) * 0.5
 	var camera_distance := camera.global_position.distance_to(midpoint + Vector3(0.0, 0.92, 0.0))
-	if camera_distance >= 17.0 or camera_distance <= 4.0:
+	if camera_distance >= 17.0 or camera_distance <= 7.0:
 		_fail("M16.1 camera framing is still implausibly wide/tight: %.2f m" % camera_distance)
+		return
+
+	instance.call("_update_selection_ring")
+	await process_frame
+	var setup_ring := instance.get("m10_selection_ring") as MeshInstance3D
+	if setup_ring == null or setup_ring.visible:
+		_fail("M16.1 leaves an editor-only selection ring in the scenario viewport")
 		return
 
 	# Reproduce the orange-oval bug without running a full crash: any completed

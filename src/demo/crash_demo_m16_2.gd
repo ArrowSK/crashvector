@@ -233,7 +233,9 @@ func _m162_apply_aftermath_camera() -> void:
 	var target_extent := _m162_aftermath_target_extent()
 	var min_projection := minf(-2.0, minf(car_projection - primary_half * 0.78, target_projection - target_extent))
 	var max_projection := maxf(2.0, maxf(car_projection + primary_half * 0.78, target_projection + target_extent))
-	var span := clampf(max_projection - min_projection, 4.5, 9.4)
+	# Reserve enough horizontal space for the whole car, its wheels and nearby
+	# target. This avoids the close aftermath crop visible with barriers.
+	var span := clampf(max_projection - min_projection, 8.0, 11.5)
 	if scenario.target_type == ScenarioConfig.TARGET_TRUCK:
 		span = minf(span, 8.8)
 
@@ -244,7 +246,7 @@ func _m162_apply_aftermath_camera() -> void:
 	var vertical_fov := deg_to_rad(camera.fov)
 	var horizontal_fov := 2.0 * atan(tan(vertical_fov * 0.5) * aspect)
 	var distance := (span * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.70, 0.10)
-	distance = clampf(distance, 5.4, 12.8)
+	distance = clampf(distance, 9.2, 14.8)
 	if scenario.target_type in [ScenarioConfig.TARGET_PEDESTRIAN, ScenarioConfig.TARGET_BICYCLE]:
 		distance = maxf(distance, 6.2)
 
@@ -315,7 +317,7 @@ func _m162_follow_active_scene() -> void:
 		aspect = maxf(m10_viewport_frame.size.x / m10_viewport_frame.size.y, 1.0)
 	camera.fov = 50.0
 	var horizontal_fov := 2.0 * atan(tan(deg_to_rad(camera.fov) * 0.5) * aspect)
-	var distance := clampf((span * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.72, 0.10), 6.0, 160.0)
+	var distance := clampf((span * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.72, 0.10), 9.0, 160.0)
 	camera.global_position = focus - forward * distance * 0.10 + Vector3.UP * clampf(distance * 0.22, 2.2, 16.0) + lateral * distance
 	camera.look_at(focus, Vector3.UP)
 

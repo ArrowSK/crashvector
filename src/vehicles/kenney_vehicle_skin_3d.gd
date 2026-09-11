@@ -36,6 +36,12 @@ var source_aabb := AABB()
 var wheel_nodes: Array[Node3D] = []
 var last_paint := Color(-1.0, -1.0, -1.0, -1.0)
 
+# The supplied wheel asset contains a mesh-space offset that cannot be removed
+# safely through the imported scene hierarchy. Use the established M16 wheel
+# rig instead: its roots are rebuilt from the structural suspension anchors on
+# every frame, so a wheel cannot visually drift from the car body.
+const USE_ANCHORED_PROCEDURAL_WHEELS := true
+
 # Neutral presentation state. These values are presentation-only and never feed
 # back into the rigid body, collision shapes or structural solver.
 var neutral_reference := Transform3D.IDENTITY
@@ -95,7 +101,8 @@ func _install_skin() -> void:
 	body_instance.name = "KenneyCarKitBody"
 	body_instance.set_meta("source_asset", body_asset_path)
 	add_child(body_instance)
-	_install_wheels()
+	if not USE_ANCHORED_PROCEDURAL_WHEELS:
+		_install_wheels()
 	active = true
 	set_meta("presentation_asset_source", "Kenney Car Kit 3.1")
 	set_meta("presentation_asset_path", body_asset_path)

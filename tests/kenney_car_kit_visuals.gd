@@ -47,15 +47,18 @@ func _run() -> void:
 	if visual.body_instance.visible or visual.glass_instance.visible or visual.trim_instance.visible:
 		_fail("Procedural passenger-car body remained visible below the Kenney replacement")
 		return
-	if skin.wheel_nodes.size() != visual.wheel_groups.size() or skin.wheel_nodes.size() != 4:
-		_fail("Kenney wheel package did not replace all four passenger-car wheels")
+	if not skin.USE_ANCHORED_PROCEDURAL_WHEELS or not skin.wheel_nodes.is_empty():
+		_fail("Production skin must use the anchor-driven wheel rig instead of the offset imported wheel scene")
 		return
-	for index in range(skin.wheel_nodes.size()):
-		if skin.wheel_nodes[index].get_parent() != visual.wheel_groups[index]:
-			_fail("Kenney wheel is not attached to the authoritative wheel anchor group")
-			return
-		if skin.wheel_nodes[index].position.length() > KenneyVehiclePresentation3D.MAX_WHEEL_ALIGNMENT_OFFSET_M + 0.001:
-			_fail("Kenney wheel is visibly detached from its authoritative suspension anchor")
+	if String(skin.get_meta("presentation_wheel_mode", "")) != "structural-anchor":
+		_fail("Production skin did not declare structural-anchor wheel presentation")
+		return
+	if visual.wheel_tires.size() != 4 or visual.wheel_rims.size() != 4 or visual.wheel_hubs.size() != 4:
+		_fail("Anchor-driven passenger-car wheel rig is incomplete")
+		return
+	for index in range(visual.wheel_groups.size()):
+		if not visual.wheel_tires[index].visible or not visual.wheel_rims[index].visible or not visual.wheel_hubs[index].visible:
+			_fail("Anchor-driven passenger-car wheel is hidden at index %d" % index)
 			return
 	if vehicle.front_bumper != null and vehicle.front_bumper.visible:
 		_fail("Legacy front-bumper helper remained visible beside the complete vehicle skin")

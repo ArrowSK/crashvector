@@ -4,7 +4,7 @@ CrashVector's desktop distribution layer was introduced in M9 and remains separa
 
 The canonical application version is `application/config/version` in `project.godot`. Packaging scripts, native package metadata, the updater and the release workflow all derive their version from that one value. Native operating-system version fields that cannot contain Semantic Version prerelease text are generated deterministically from it; they are not independent release versions.
 
-The current verified public desktop release is `0.9.0-beta.3`. It packages the M23 runtime stability and presentation corrections after full regression validation, runtime visual/contact review and native package checks. Public download and update discovery therefore resolve to the current v0.9 beta.
+The current verified public desktop release is `0.9.0-beta.4`. It packages the M23 runtime stability and presentation corrections after full regression validation, runtime visual/contact review and native package checks. Public download and update discovery therefore resolve to the current v0.9 beta.
 
 ## Install on macOS
 
@@ -111,7 +111,7 @@ A match fails the architecture audit before the regression suite is accepted.
 
 ## Current release-readiness sequence
 
-The current public package is `0.9.0-beta.3`. Future releases must not be created merely because a candidate version exists.
+The current public package is `0.9.0-beta.4`. Future releases must not be created merely because a candidate version exists.
 
 Once runner capacity is available, use this order:
 
