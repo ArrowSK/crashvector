@@ -23,6 +23,8 @@ const BODY_PRESENTATION_ROUGHNESS := 0.34
 var neutral_wheel_offsets: Array[Vector3] = []
 var source_wheel_centres: Array[Vector3] = []
 var fitted_wheel_world_positions: Array[Vector3] = []
+var physical_wheel_world_positions: Array[Vector3] = []
+var body_mount_offset := Vector3.ZERO
 var source_wheel_alignment_complete := false
 
 func configure(owner_visual: M162VehicleVisual) -> void:
@@ -32,24 +34,33 @@ func configure(owner_visual: M162VehicleVisual) -> void:
 	_tune_body_finish()
 	# Imported wheels are intentionally disabled because their nested mesh-space
 	# transform cannot be reconciled with the structural suspension anchors.
-	# The established M16 wheel meshes remain in use, but their roots are fitted
-	# to the selected Kenney body's own wheel centres each frame.
+	# The established M16 wheel roots remain authoritative for road support and
+	# spin. Fit the body to those roots; never move a suspension root to suit a
+	# source mesh, or the car visibly floats above the road.
 	neutral_wheel_offsets.resize(host.wheel_groups.size())
 	source_wheel_centres.resize(host.wheel_groups.size())
 	fitted_wheel_world_positions.resize(host.wheel_groups.size())
+	physical_wheel_world_positions.resize(host.wheel_groups.size())
 	for index in range(neutral_wheel_offsets.size()):
 		neutral_wheel_offsets[index] = Vector3.ZERO
 		source_wheel_centres[index] = Vector3.ZERO
 		fitted_wheel_world_positions[index] = Vector3.ZERO
+		physical_wheel_world_positions[index] = Vector3.ZERO
 	source_wheel_alignment_complete = _capture_source_wheel_centres()
 	set_meta("presentation_pristine_body", true)
 	set_meta("presentation_wheel_alignment", source_wheel_alignment_complete)
-	set_meta("presentation_wheel_mode", "source-body-fit")
+	set_meta("presentation_wheel_mode", "source-body-grounded-fit")
 	set_meta("presentation_body_finish", "technical_satin")
 
 func _process(delta: float) -> void:
 	super._process(delta)
-	_fit_procedural_wheels_to_body()
+	_update_grounded_body_mount()
+
+func _map_vertex(source: Vector3) -> Vector3:
+	# The body follows the same deformation mapping as before, plus one neutral
+	# mounting correction that aligns its source wheel openings vertically to the
+	# road-supported wheel roots. This is presentation-only.
+	return super._map_vertex(source) + body_mount_offset
 
 func _tune_body_finish() -> void:
 	# Car Kit uses its colour-map texture for body/trim differentiation. Keep that
@@ -102,19 +113,49 @@ func _capture_source_wheel_centres() -> bool:
 		aligned_count += 1
 	return aligned_count == 4
 
-func _fit_procedural_wheels_to_body() -> void:
+func _update_grounded_body_mount() -> void:
 	if not source_wheel_alignment_complete or host == null or vehicle == null:
 		return
-	if source_wheel_centres.size() != host.wheel_groups.size() or fitted_wheel_world_positions.size() != host.wheel_groups.size():
+	if source_wheel_centres.size() != host.wheel_groups.size() or physical_wheel_world_positions.size() != host.wheel_groups.size():
 		return
+	var accumulated_offset := Vector3.ZERO
 	for index in range(host.wheel_groups.size()):
-		# Map each source-body wheel centre through the same pristine/deformation
-		# transform as the visible body. This retains the reliable procedural wheel
-		# mesh and spin, while matching its wheelbase, track and ride height to the
-		# actual Kenney body instead of the differently proportioned legacy shell.
-		var fitted_world := _map_vertex(source_wheel_centres[index])
-		host.wheel_groups[index].global_position = fitted_world
-		fitted_wheel_world_positions[index] = fitted_world
+		# M16 rebuilds these roots from the suspension state. Preserve them exactly:
+		# they are the only presentation positions guaranteed to share the tyre/road
+		# contact plane with the production rigid chassis.
+		var physical_world := host.wheel_groups[index].global_position
+		physical_wheel_world_positions[index] = physical_world
+	for index in range(host.wheel_groups.size()):
+		var unmapped_source_world := super._map_vertex(source_wheel_centres[index])
+		accumulated_offset += physical_wheel_world_positions[index] - unmapped_source_world
+	body_mount_offset = accumulated_offset / float(host.wheel_groups.size())
+	for index in range(host.wheel_groups.size()):
+		fitted_wheel_world_positions[index] = _map_vertex(source_wheel_centres[index])
+		_fit_visual_wheel_to_body(index)
+	set_meta("presentation_wheel_alignment_error_m", _maximum_wheel_fit_error())
+
+func _fit_visual_wheel_to_body(index: int) -> void:
+	if index < 0 or index >= host.wheel_groups.size():
+		return
+	var group := host.wheel_groups[index]
+	var desired_world := fitted_wheel_world_positions[index]
+	var physical_world := physical_wheel_world_positions[index]
+	# Preserve tyre-road height from the suspension root. Only the visual wheel
+	# centre moves longitudinally/laterally into the selected body opening.
+	var world_offset := desired_world - physical_world
+	world_offset.y = 0.0
+	var local_offset := group.global_transform.basis.inverse() * world_offset
+	for wheel_part in [host.wheel_tires[index], host.wheel_rims[index], host.wheel_hubs[index]]:
+		if wheel_part != null:
+			wheel_part.position = local_offset
+	if index < host.spoke_roots.size() and host.spoke_roots[index] != null:
+		host.spoke_roots[index].position = local_offset
+
+func _maximum_wheel_fit_error() -> float:
+	var maximum := 0.0
+	for index in range(mini(fitted_wheel_world_positions.size(), physical_wheel_world_positions.size())):
+		maximum = maxf(maximum, fitted_wheel_world_positions[index].distance_to(physical_wheel_world_positions[index]))
+	return maximum
 
 func _collect_named_source_wheels(
 	node: Node,

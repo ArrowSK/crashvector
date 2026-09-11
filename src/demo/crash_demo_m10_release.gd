@@ -159,6 +159,13 @@ func _hide_legacy_ui() -> void:
 	# that avoids duplicate UI while preserving every M7-M9 path and callback.
 	if export_canvas != null:
 		export_canvas.visible = true
+		# M7 owns the video-export controls. Keep that proven hierarchy, but place
+		# its modal layer above the full-window M10 desktop shell so the backdrop
+		# intercepts input and the dialog cannot be visually clipped by sidebars.
+		if m10_canvas != null:
+			export_canvas.layer = m10_canvas.layer + 1
+		if export_settings_panel != null and m10_root != null:
+			export_settings_panel.theme = m10_root.theme
 	if export_launch_panel != null:
 		export_launch_panel.visible = false
 	if calibration_canvas != null:

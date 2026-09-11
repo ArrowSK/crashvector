@@ -215,7 +215,10 @@ func _cv_apply_camera(aftermath: bool, three_quarter: bool) -> void:
 		aspect = maxf(m10_viewport_frame.size.x / m10_viewport_frame.size.y, 1.0)
 	var vertical_fov := deg_to_rad(camera.fov)
 	var horizontal_fov := 2.0 * atan(tan(vertical_fov * 0.5) * aspect)
-	var framing := 0.84 if aftermath else 0.80
+	# The 3D camera renders to the full window while the desktop shell exposes
+	# only the centre frame. Reserve additional horizontal margin so both subjects
+	# remain visible inside that frame rather than under the side panels.
+	var framing := 0.66
 	var distance := (span_x * 0.5) / maxf(tan(horizontal_fov * 0.5) * framing, 0.10)
 	distance = clampf(distance, 5.2, 20.0 if aftermath else 18.0)
 

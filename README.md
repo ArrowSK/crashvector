@@ -39,9 +39,9 @@ CrashVector is an open-source desktop crash-simulation sandbox for people who wa
 
 The current M12–M23 source architecture separates whole-object world motion, permanent structural deformation and presentation. Godot `RigidBody3D` owns supported vehicle/target world motion; CrashVector's structural graphs remain local deformation/presentation state. M13 extends severe passenger-car failure beyond the nose, M14 adds vulnerable-target trajectories and yielding pole/tree targets, M15 adds articulated pedestrian and bicycle dynamics, M16 reorganises the desktop workflow, M17 restores Comparison on the production rigid-body scene, M18 adds passenger-car broadside deformation, M19 adds real-contact diagnostics and offset/oblique front-probe coverage, M20 adds bounded heavy-truck/lorry/motorcycle deformation for broadside/oblique layouts, M21 splits the heavy truck into tractor and trailer rigid bodies connected by a constrained fifth wheel, M22 adds a generic cyclist plus configurable initial pedestrian translation, and M23 corrects runtime presentation, camera tracking and static-target coverage.
 
-> **Current source state:** **`0.9.0-beta.5`** adds M23 runtime stability and presentation corrections, including reliable reruns, source-body-fitted passenger-car wheels, target-car broadside collapse, bounded pedestrian responses, a collidable generic tracked tank and adaptive framing.
+> **Current source state:** **`0.9.0-beta.6`** is the corrective candidate for wheel-ground contact, central-viewport camera safe framing, fixed-target inspector defaults, a root-level cinematic-export dialog, horizontal-only pedestrian transfer, and real 50 km/h motorcycle contact/deformation.
 
-> **Packaged release:** **`0.9.0-beta.5`** is the current verified public desktop beta. It packages the M23 corrections, including the fitted passenger-car wheel presentation and collidable generic tank target, together with the completed M22 production stack for macOS Universal 2 and Windows x64.
+> **Packaged release:** **`0.9.0-beta.5`** remains the current verified public desktop beta while `0.9.0-beta.6` completes packaging and release checks.
 
 > **Important boundaries:** M20 permits generic broadside/oblique heavy-truck, rigid-lorry and riderless-motorcycle deformation, while the old riderless-bicycle broadside path remains intentionally rejected. M21 fifth-wheel articulation is generic and not a manufacturer truck model. M22's cyclist and moving-pedestrian additions remain trajectory/contact models only; they do not add biomechanics, injury prediction, gait, steering, tyre-force or forensic-reconstruction validity.
 
@@ -102,18 +102,18 @@ Defaults exist for normal scenarios, so mass and solver parameters are not manda
 | Progressive structural failure | Front crush followed, when demand is sufficient, by firewall/cowl intrusion, floor/rocker and A-pillar/roof deformation, passenger-cell shortening and rear-body buckling |
 | Reciprocal longitudinal impacts | Supported dynamic actors may strike from ahead or behind; passenger cars have bounded direct rear deformation and heavy/other targets use their current target-specific deformation paths |
 | Passenger-car side impacts | Passenger-car pairs support arbitrary heading deltas including perpendicular T-bone layouts, with bounded lateral protected-cell deformation and physical collision-face retreat |
-| Runtime stability and framing | Re-run starts a fresh simulation; passenger-car wheels stay anchored to their suspension presentation; live simulation and replay camera follow the active major bodies; a 600 m grass support plane surrounds the 20 m asphalt road |
+| Runtime stability and framing | Re-run starts a fresh simulation; passenger-car suspension roots retain tyre-to-road contact while body openings fit the selected source model; live simulation and replay cameras reserve a central-viewport safe margin; a 600 m grass support plane surrounds the 20 m asphalt road |
 | Contact fidelity | M19 records real non-ground Godot contact-manifold diagnostics and adds two lateral front-crush observation rays while keeping Godot collision impulses authoritative |
 | Heavy articulated truck | M21 uses separate trailer and tractor `RigidBody3D` assemblies connected by a constrained generic fifth wheel; inherited M20 front/rear/side local deformation remains bounded and contact-driven |
 | Rigid lorry / box truck | Production Godot rigid-body world motion plus bounded generic M20 front/rear/side deformation; not manufacturer-specific crashworthiness |
-| Riderless motorcycle | Production Godot rigid-body world motion plus bounded generic M20 frame/fork deformation; no rider or tyre/steering model |
+| Riderless motorcycle | Production Godot rigid-body world motion plus bounded generic M20 frame/fork deformation driven by real contact, including the 50 km/h frontal regression; no rider or tyre/steering model |
 | Vulnerable road users | M15 articulated pedestrians and riderless bicycles remain available; M22 adds pedestrian initial translation and a separate generic cyclist composed of an articulated rider plus bicycle with temporary pre-impact coupling |
 | Static / narrow targets | Wall and concrete barrier remain rigid; generic pole and tree targets can yield and move permanently at severe collision demand |
 | Generic tank target | A fixed generic tracked-vehicle obstacle with separate hull and turret collision volumes. It is an educational static fixture with no armour, weapons, ballistic or manufacturer-specific claims |
 | Car vs car | Rear-end, near head-on and broadside passenger-car layouts using rigid-body world motion |
 | Replay & analysis | 120 Hz recorded replay, timeline scrubbing, rigid-body velocity/momentum, structural diagnostics, contact-manifold diagnostics and target-specific deformation/articulation state where present |
 | Comparison | Visual Compare and Comparison Lab execute each variant through the current production scene in an isolated `SubViewport` / `World3D` and replay the resulting production recordings |
-| Video export | 1080p / 1440p / 4K offline replay rendering at 30/60 fps with external FFmpeg H.264 encoding |
+| Video export | 1080p / 1440p / 4K offline replay rendering at 30/60 fps with external FFmpeg H.264 encoding; the settings dialog is an input-blocking root modal above the desktop shell |
 | Calibration | Historical M8 evidence labels/reference check retained separately; it does not validate the M12–M22 production source architecture |
 | Desktop distribution | Current verified public package is `0.9.0-beta.5` (M23 source), with macOS Universal 2 DMG and Windows x64 Setup installer, portable checksums and update manifest |
 
@@ -314,7 +314,8 @@ Or open `project.godot` directly in Godot and run the project.
 | [Roadmap](docs/ROADMAP.md) | Implementation history, current validation state and future physics work |
 | [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, distribution and presentation layers |
 | [CI and release flow](docs/CI_AND_RELEASE.md) | Consolidated regression, visual review, package validation and Actions-quota behaviour |
-| [0.9.0-beta.5 release notes](docs/releases/0.9.0-beta.5.md) | Current M23 corrective desktop beta, with fitted passenger-car wheels and a collidable generic tank |
+| [0.9.0-beta.6 release notes](docs/releases/0.9.0-beta.6.md) | Corrective candidate for road contact, video export, real motorcycle deformation and camera-safe framing |
+| [0.9.0-beta.5 release notes](docs/releases/0.9.0-beta.5.md) | Current public M23 corrective desktop beta, with fitted passenger-car wheels and a collidable generic tank |
 | [0.9.0-beta.4 release notes](docs/releases/0.9.0-beta.4.md) | Previous M23 desktop beta |
 | [0.9.0-beta.2 release notes](docs/releases/0.9.0-beta.2.md) | Previous M22 desktop beta, with portable macOS/Windows checksum sidecars |
 | [0.9.0-beta.1 release notes](docs/releases/0.9.0-beta.1.md) | Initial M19–M22 public beta |
@@ -340,9 +341,9 @@ Or open `project.godot` directly in Godot and run the project.
 
 ## Development status
 
-**M23 remains the current source milestone; beta.5 is the corrective desktop package.** The full regression stack, runtime presentation review and native package checks have passed. `project.godot` is now **`0.9.0-beta.5`**; the updater and public download links point to the current M23 corrective desktop beta.
+**M23 remains the current source milestone; beta.6 is the corrective candidate.** `project.godot` is now **`0.9.0-beta.6`**. Its release gate includes the full regression stack, runtime presentation/contact review, macOS Universal 2 packaging, Windows x64 packaging, installer checks and release-side checksum verification.
 
-The current public installers are **`v0.9.0-beta.5`**, verified through full regression CI, runtime presentation review, macOS Universal 2 packaging, Windows x64 packaging, installer install/uninstall checks and release-side checksum verification. Portable checksum sidecars and `update-manifest.json` are attached to the release.
+The current public installers remain **`v0.9.0-beta.5`** until the beta.6 package workflow has completed successfully. Portable checksum sidecars and `update-manifest.json` are attached to the public release.
 
 For the next release, retain the same order: full regression validation, manual presentation/contact-fidelity review, native package checks, then immutable publication. The current v0.9 beta completed those gates before release.
 

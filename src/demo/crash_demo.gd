@@ -447,14 +447,10 @@ func _on_select_car() -> void:
 func _on_target_palette_pressed(target_id: StringName) -> void:
 	selected_object = &"target"
 	if scenario.target_type != target_id:
-		scenario.target_type = target_id
-		if target_id == ScenarioConfig.TARGET_PASSENGER_CAR:
-			scenario.target_car_preset_id = PassengerCarCatalog.C_SEGMENT_COMPACT
-			scenario.target_mass_kg = PassengerCarCatalog.default_mass_kg(scenario.target_car_preset_id)
-			scenario.target_speed_kmh = 0.0
-		elif target_id == ScenarioConfig.TARGET_TRUCK:
-			scenario.target_mass_kg = 18000.0
-			scenario.target_speed_kmh = 0.0
+		# Switching target must reset every target-specific field, including fixed
+		# target mass. The former partial branch left a motorcycle's 220 kg value
+		# visible on a concrete barrier or wall.
+		scenario.apply_target_defaults(target_id)
 		_request_preview_rebuild()
 	_rebuild_inspector()
 

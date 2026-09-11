@@ -33,6 +33,22 @@ func _run_smoke() -> void:
 		push_error("M7 editor smoke did not create cinematic video button")
 		quit(1)
 		return
+	var modal := _find_named(instance, "CinematicExportModal") as Control
+	var dialog := _find_named(instance, "CinematicExportDialog") as Control
+	if modal == null or dialog == null:
+		push_error("M7 editor smoke did not create a root-level cinematic export modal")
+		quit(1)
+		return
+	var export_canvas := instance.get_node_or_null("M7ExportUI") as CanvasLayer
+	var desktop_canvas := instance.get_node_or_null("M10UI") as CanvasLayer
+	if export_canvas == null or desktop_canvas == null or export_canvas.layer <= desktop_canvas.layer or modal.z_index < 100:
+		push_error("M7 export modal is not above the desktop shell")
+		quit(1)
+		return
+	if modal.anchor_left != 0.0 or modal.anchor_top != 0.0 or modal.anchor_right != 1.0 or modal.anchor_bottom != 1.0:
+		push_error("M7 export modal no longer covers the full window")
+		quit(1)
+		return
 	instance.queue_free()
 	await process_frame
 	print("CrashVector M7 editor runtime smoke test passed.")

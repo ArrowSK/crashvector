@@ -417,6 +417,12 @@ func _apply_hybrid_crush_resistance() -> void:
 	force_n = minf(force_n, 1380000.0 * stiffness_scale * mass_scale)
 	if collider is VehicleRigidChassis:
 		var other := collider as VehicleRigidChassis
+		# A light target such as the riderless motorcycle must not be accelerated
+		# away by the geometric probe before its collision volumes meet. Its own
+		# chassis opts into rigid-contact-only resistance; all existing targets
+		# retain the established probe response.
+		if other.defer_front_probe_resistance_to_rigid_contact:
+			return
 		# Only one side applies the equal/opposite pair to avoid double counting
 		# when two passenger-car crush sensors overlap each other.
 		if rigid_chassis.get_instance_id() > other.get_instance_id():

@@ -245,7 +245,7 @@ func _m162_apply_aftermath_camera() -> void:
 		aspect = maxf(m10_viewport_frame.size.x / m10_viewport_frame.size.y, 1.0)
 	var vertical_fov := deg_to_rad(camera.fov)
 	var horizontal_fov := 2.0 * atan(tan(vertical_fov * 0.5) * aspect)
-	var distance := (span * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.70, 0.10)
+	var distance := (span * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.60, 0.10)
 	distance = clampf(distance, 9.2, 14.8)
 	if scenario.target_type in [ScenarioConfig.TARGET_PEDESTRIAN, ScenarioConfig.TARGET_BICYCLE]:
 		distance = maxf(distance, 6.2)
@@ -317,7 +317,7 @@ func _m162_follow_active_scene() -> void:
 		aspect = maxf(m10_viewport_frame.size.x / m10_viewport_frame.size.y, 1.0)
 	camera.fov = 50.0
 	var horizontal_fov := 2.0 * atan(tan(deg_to_rad(camera.fov) * 0.5) * aspect)
-	var distance := clampf((span * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.72, 0.10), 9.0, 160.0)
+	var distance := clampf((span * 0.5) / maxf(tan(horizontal_fov * 0.5) * 0.60, 0.10), 9.0, 160.0)
 	camera.global_position = focus - forward * distance * 0.10 + Vector3.UP * clampf(distance * 0.22, 2.2, 16.0) + lateral * distance
 	camera.look_at(focus, Vector3.UP)
 

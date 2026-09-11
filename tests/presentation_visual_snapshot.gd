@@ -80,7 +80,7 @@ func _capture_pristine_views(preset_id: StringName, viewport_size: Vector2i) -> 
 					break
 		if not visual.kenney_skin.USE_ANCHORED_PROCEDURAL_WHEELS or not visual.kenney_skin.wheel_nodes.is_empty():
 			failures.append("%s: imported wheel scene bypassed the anchor-driven production rig" % String(preset_id))
-		if String(visual.kenney_skin.get_meta("presentation_wheel_mode", "")) != "source-body-fit" or not visual.kenney_skin.source_wheel_alignment_complete:
+		if String(visual.kenney_skin.get_meta("presentation_wheel_mode", "")) != "source-body-grounded-fit" or not visual.kenney_skin.source_wheel_alignment_complete:
 			failures.append("%s: source-body wheel-fit presentation metadata is missing" % String(preset_id))
 		for index in range(visual.wheel_tires.size()):
 			if not visual.wheel_tires[index].visible or not visual.wheel_rims[index].visible or not visual.wheel_hubs[index].visible:
