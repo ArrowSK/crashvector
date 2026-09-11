@@ -172,7 +172,7 @@ Static wall/barrier/pole/tree targets do not use dynamic-target mass or speed. W
 
 Likewise, the original `bicycle` identifier remains riderless. M22 introduces `cyclist` as a new target type instead of changing the meaning of previously saved bicycle scenarios.
 
-M19–M22 source support is implemented and runtime-validated on `main`. The current verified packaged `0.9.0-beta.2` includes those target and scope additions.
+M19–M23 source support is implemented and runtime-validated on `main`. The current verified packaged `0.9.0-beta.3` includes those target and scope additions.
 
 ## Comparison data
 
