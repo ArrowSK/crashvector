@@ -39,10 +39,10 @@ A package produced with `validation=none` is an **unvalidated diagnostic artifac
 
 ## Current M23 release state
 
-The current `main` source is implemented through M23 and versioned as the published **`0.9.0-beta.3` desktop beta**. The full regression gate, runtime presentation review and macOS/Windows package checks succeeded before release. Therefore:
+The current `main` source is implemented through M23 and versioned as the published **`0.9.0-beta.4` desktop beta**. The full regression gate, runtime presentation review and macOS/Windows package checks succeeded before release. Therefore:
 
 - source routing, tests and package gates are wired through M23;
-- public installers and the updater manifest resolve to `0.9.0-beta.3`;
+- public installers and the updater manifest resolve to `0.9.0-beta.4`;
 - package checksums use portable LF-terminated sidecars;
 - future releases must still complete the same gates before publication.
 

@@ -32,12 +32,17 @@ func configure(owner_visual: M162VehicleVisual) -> void:
 	if not active:
 		return
 	_tune_body_finish()
-	neutral_wheel_offsets.resize(wheel_nodes.size())
+	# Imported wheels are intentionally disabled because their nested mesh-space
+	# transform cannot be reconciled with the structural suspension anchors.
+	# Preserve four zero offsets for diagnostics while M16's existing rig owns
+	# every visible wheel from the authoritative anchors.
+	neutral_wheel_offsets.resize(host.wheel_groups.size())
 	for index in range(neutral_wheel_offsets.size()):
 		neutral_wheel_offsets[index] = Vector3.ZERO
-	source_wheel_alignment_complete = _capture_and_apply_source_wheel_alignment()
+	source_wheel_alignment_complete = false
 	set_meta("presentation_pristine_body", true)
 	set_meta("presentation_wheel_alignment", source_wheel_alignment_complete)
+	set_meta("presentation_wheel_mode", "structural-anchor")
 	set_meta("presentation_body_finish", "technical_satin")
 
 func _tune_body_finish() -> void:
