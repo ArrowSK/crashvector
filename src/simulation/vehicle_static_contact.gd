@@ -66,8 +66,37 @@ func _contact_for_point(point_m: Vector3) -> Dictionary:
 			return _cylinder_contact(point_m, 0.32, 3.6)
 		ScenarioConfig.TARGET_BARRIER:
 			return _plane_contact(point_m, 2.0, 0.95)
+		ScenarioConfig.TARGET_TANK:
+			# The generic tank is a fixed, oriented hull. Use the actual visible/static
+			# collision envelope so structural contact starts at the hull face rather
+			# than only after the car has crossed target centre.
+			return _box_contact(point_m, Vector3(6.8, 1.30, 3.4), Vector3(0.0, 0.65, 0.0))
 		_:
 			return _plane_contact(point_m, 4.5, 3.2)
+
+func _box_contact(point_m: Vector3, size_m: Vector3, local_center_m: Vector3) -> Dictionary:
+	var forward := Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(obstacle_heading_deg)).normalized()
+	var lateral := Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(obstacle_heading_deg)).normalized()
+	var delta := point_m - (obstacle_position_m + forward * local_center_m.x + Vector3.UP * local_center_m.y + lateral * local_center_m.z)
+	var local_x := delta.dot(forward)
+	var local_y := delta.y
+	var local_z := delta.dot(lateral)
+	var half := size_m * 0.5
+	if absf(local_x) >= half.x or absf(local_y) >= half.y or absf(local_z) >= half.z:
+		return {}
+	var faces := [
+		{"distance": half.x + local_x, "normal": -forward},
+		{"distance": half.x - local_x, "normal": forward},
+		{"distance": half.y + local_y, "normal": -Vector3.UP},
+		{"distance": half.y - local_y, "normal": Vector3.UP},
+		{"distance": half.z + local_z, "normal": -lateral},
+		{"distance": half.z - local_z, "normal": lateral},
+	]
+	var nearest: Dictionary = faces[0]
+	for face in faces:
+		if float(face["distance"]) < float(nearest["distance"]):
+			nearest = face
+	return {"normal": nearest["normal"], "penetration": float(nearest["distance"])}
 
 func _plane_contact(point_m: Vector3, half_width_m: float, height_m: float) -> Dictionary:
 	if point_m.y < 0.0 or point_m.y > height_m:

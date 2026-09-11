@@ -168,10 +168,9 @@ func _build_static_physics_body() -> void:
 	if obstacle_type == ScenarioConfig.TARGET_BARRIER:
 		_add_box_collision(static_body, Vector3(0.42, 0.96, 4.10), Vector3(0.0, 0.48, 0.0))
 	elif obstacle_type == ScenarioConfig.TARGET_TANK:
-		# The tank is a fixed, generic obstacle fixture. Its collision is deliberately
-		# limited to hull and turret volumes; the visual barrel cannot become an
-		# invisible spear in front of the target.
-		_add_box_collision(static_body, Vector3(6.8, 1.15, 3.4), Vector3(0.0, 0.72, 0.0))
+		# Match the generic tank hull used by VehicleStaticContact. The front of the
+		# fixed collision volume is at the visible hull front, not at target centre.
+		_add_box_collision(static_body, Vector3(6.8, 1.30, 3.4), Vector3(0.0, 0.65, 0.0))
 		_add_box_collision(static_body, Vector3(2.5, 0.72, 2.1), Vector3(0.25, 1.60, 0.0))
 	else:
 		_add_box_collision(static_body, Vector3(0.45, 3.25, 9.0), Vector3(0.0, 1.625, 0.0))
@@ -196,16 +195,43 @@ func _build_concrete_barrier(parent: Node3D) -> void:
 		_add_box(parent, "BarrierJoint", Vector3(0.014, 0.88, 0.022), seam, Vector3(-0.205, 0.52, z))
 
 func _build_tank(parent: Node3D) -> void:
-	var hull := _material(Color(0.18, 0.27, 0.16), 0.15, 0.78)
-	var track := _material(Color(0.10, 0.11, 0.10), 0.55, 0.48)
-	var detail := _material(Color(0.28, 0.36, 0.22), 0.12, 0.74)
-	_add_box(parent, "TankHull", Vector3(6.8, 0.92, 2.82), hull, Vector3(0.0, 0.80, 0.0))
-	_add_box(parent, "TankTrackPort", Vector3(6.45, 0.62, 0.42), track, Vector3(0.0, 0.35, -1.48))
-	_add_box(parent, "TankTrackStarboard", Vector3(6.45, 0.62, 0.42), track, Vector3(0.0, 0.35, 1.48))
-	_add_box(parent, "TankTurret", Vector3(2.45, 0.65, 1.86), detail, Vector3(0.25, 1.58, 0.0))
-	# This is visibly a barrel but is short, intentionally coloured and has no
-	# collision volume. It cannot be mistaken for the removed vehicle bumper.
-	_add_box(parent, "TankMainGun", Vector3(1.75, 0.16, 0.16), detail, Vector3(2.35, 1.70, 0.0))
+	# Purpose-built generic tracked vehicle. It is intentionally not a replica of
+	# any real military platform, and is original CrashVector geometry under the
+	# repository licence rather than a new third-party asset dependency.
+	var hull := _material(Color(0.16, 0.25, 0.14), 0.20, 0.72)
+	var hull_highlight := _material(Color(0.25, 0.36, 0.20), 0.16, 0.68)
+	var track := _material(Color(0.075, 0.085, 0.075), 0.60, 0.42)
+	var wheel_material := _material(Color(0.12, 0.14, 0.11), 0.38, 0.50)
+	var detail := _material(Color(0.31, 0.40, 0.23), 0.14, 0.68)
+	var dark_detail := _material(Color(0.055, 0.065, 0.055), 0.30, 0.48)
+
+	_add_box(parent, "TankLowerHull", Vector3(6.80, 0.52, 2.55), hull, Vector3(0.0, 0.58, 0.0))
+	_add_box(parent, "TankHull", Vector3(5.65, 0.62, 2.28), hull_highlight, Vector3(-0.18, 1.08, 0.0))
+	var glacis := _add_box(parent, "TankGlacis", Vector3(1.25, 0.42, 2.26), hull_highlight, Vector3(2.58, 1.22, 0.0))
+	glacis.rotation_degrees.z = 17.0
+	_add_box(parent, "TankRearDeck", Vector3(1.35, 0.16, 2.18), dark_detail, Vector3(-2.48, 1.42, 0.0))
+	_add_box(parent, "TankTrackPort", Vector3(6.45, 0.66, 0.48), track, Vector3(0.0, 0.37, -1.47))
+	_add_box(parent, "TankTrackStarboard", Vector3(6.45, 0.66, 0.48), track, Vector3(0.0, 0.37, 1.47))
+	for side_value in [-1.0, 1.0]:
+		var side: float = float(side_value)
+		for wheel_index in range(5):
+			var road_wheel := _add_cylinder(parent, "TankRoadWheel_%d_%d" % [int(side), wheel_index], 0.39, 0.39, 0.18, wheel_material, Vector3(-2.20 + float(wheel_index) * 1.10, 0.39, side * 1.72))
+			road_wheel.rotation_degrees.x = 90.0
+		var idler := _add_cylinder(parent, "TankIdler_%d" % int(side), 0.30, 0.30, 0.20, detail, Vector3(2.82, 0.42, side * 1.72))
+		idler.rotation_degrees.x = 90.0
+		var sprocket := _add_cylinder(parent, "TankSprocket_%d" % int(side), 0.34, 0.34, 0.20, detail, Vector3(-2.82, 0.42, side * 1.72))
+		sprocket.rotation_degrees.x = 90.0
+
+	var turret_ring := _add_cylinder(parent, "TankTurretRing", 1.10, 1.10, 0.16, dark_detail, Vector3(0.20, 1.47, 0.0))
+	var turret := _add_cylinder(parent, "TankTurret", 0.98, 0.88, 0.52, detail, Vector3(0.32, 1.78, 0.0))
+	_add_box(parent, "TankMantlet", Vector3(0.42, 0.38, 0.60), dark_detail, Vector3(1.22, 1.82, 0.0))
+	var gun := _add_cylinder(parent, "TankMainGun", 0.105, 0.135, 3.00, detail, Vector3(2.78, 1.84, 0.0))
+	gun.rotation_degrees.z = -90.0
+	var muzzle := _add_cylinder(parent, "TankMuzzle", 0.17, 0.14, 0.30, dark_detail, Vector3(4.26, 1.84, 0.0))
+	muzzle.rotation_degrees.z = -90.0
+	var hatch := _add_cylinder(parent, "TankCommanderHatch", 0.30, 0.30, 0.13, dark_detail, Vector3(-0.05, 2.10, 0.0))
+	_add_box(parent, "TankSideSkirtPort", Vector3(4.75, 0.22, 0.10), hull_highlight, Vector3(-0.20, 0.78, -1.76))
+	_add_box(parent, "TankSideSkirtStarboard", Vector3(4.75, 0.22, 0.10), hull_highlight, Vector3(-0.20, 0.78, 1.76))
 
 func _build_pole(parent: Node3D) -> void:
 	var pole_material := _material(Color(0.38, 0.41, 0.44), 0.72, 0.34)

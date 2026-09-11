@@ -50,8 +50,8 @@ func _run() -> void:
 	if not skin.USE_ANCHORED_PROCEDURAL_WHEELS or not skin.wheel_nodes.is_empty():
 		_fail("Production skin must use the anchor-driven wheel rig instead of the offset imported wheel scene")
 		return
-	if String(skin.get_meta("presentation_wheel_mode", "")) != "structural-anchor":
-		_fail("Production skin did not declare structural-anchor wheel presentation")
+	if String(skin.get_meta("presentation_wheel_mode", "")) != "source-body-fit" or not skin.source_wheel_alignment_complete:
+		_fail("Production skin did not resolve the selected body's wheel centres")
 		return
 	if visual.wheel_tires.size() != 4 or visual.wheel_rims.size() != 4 or visual.wheel_hubs.size() != 4:
 		_fail("Anchor-driven passenger-car wheel rig is incomplete")
@@ -59,6 +59,22 @@ func _run() -> void:
 	for index in range(visual.wheel_groups.size()):
 		if not visual.wheel_tires[index].visible or not visual.wheel_rims[index].visible or not visual.wheel_hubs[index].visible:
 			_fail("Anchor-driven passenger-car wheel is hidden at index %d" % index)
+			return
+		if visual.wheel_groups[index].global_position.distance_to(skin.fitted_wheel_world_positions[index]) > 0.01:
+			_fail("Passenger-car wheel is not fitted to the displayed Kenney body at index %d" % index)
+			return
+	var body_bounds := skin.body_instance.get_aabb()
+	var body_centre_z := body_bounds.position.z + body_bounds.size.z * 0.5
+	for index in range(visual.wheel_groups.size()):
+		var wheel_position := visual.wheel_groups[index].global_position
+		if wheel_position.x < body_bounds.position.x - 0.08 or wheel_position.x > body_bounds.end.x + 0.08:
+			_fail("Passenger-car wheel lies outside the displayed body wheelbase at index %d" % index)
+			return
+		if wheel_position.y < body_bounds.position.y - 0.08 or wheel_position.y > body_bounds.end.y + 0.08:
+			_fail("Passenger-car wheel lies outside the displayed body ride-height envelope at index %d" % index)
+			return
+		if absf(wheel_position.z - body_centre_z) > body_bounds.size.z * 0.5 + 0.24:
+			_fail("Passenger-car wheel lies outside the displayed body track at index %d" % index)
 			return
 	if vehicle.front_bumper != null and vehicle.front_bumper.visible:
 		_fail("Legacy front-bumper helper remained visible beside the complete vehicle skin")

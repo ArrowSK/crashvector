@@ -117,4 +117,4 @@ M19's public protocol references and contact diagnostics do not validate M22 cyc
 
 The M22 implementation has passed the full M0–M22 Godot suite, production visual/contact review and native package checks.
 
-The current public packaged beta is `0.9.0-beta.4`, which retains M19–M22 alongside the M23 runtime presentation corrections. The modelling boundaries above remain unchanged.
+The current public packaged beta is `0.9.0-beta.5`, which retains M19–M22 alongside the M23 runtime presentation corrections. The modelling boundaries above remain unchanged.

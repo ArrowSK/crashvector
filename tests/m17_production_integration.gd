@@ -120,7 +120,11 @@ func _check_tank_target_and_live_camera(packed: PackedScene) -> void:
 	_expect(obstacle != null and obstacle.physics_body is StaticBody3D, "Tank target must use a fixed static collision body")
 	if obstacle != null:
 		_expect(obstacle.get_node_or_null("TankHull") != null and obstacle.get_node_or_null("TankTurret") != null, "Tank target must build its hull and turret presentation")
-		_expect(obstacle.get_node_or_null("TankMainGun") != null, "Tank target must expose its intentionally non-colliding visible barrel")
+		_expect(obstacle.get_node_or_null("TankMainGun") != null and obstacle.get_node_or_null("TankRoadWheel_-1_0") != null, "Tank target must build a tracked hull, turret, gun and running gear")
+	var tank_contact := VehicleStaticContact.new()
+	tank_contact.configure(ScenarioConfig.TARGET_TANK, config.target_position_m, config.target_heading_deg, 0.85, 0.0)
+	var hull_contact := tank_contact._contact_for_point(config.target_position_m + Vector3(-3.15, 0.65, 0.0))
+	_expect(not hull_contact.is_empty() and float(hull_contact.get("penetration", 0.0)) > 0.0, "Tank hull contact must begin at its visible front/rear envelope")
 	var camera := editor.get("camera") as Camera3D
 	var setup_camera_position := Vector3.ZERO if camera == null else camera.global_position
 	editor.call("_on_simulate_pressed")
@@ -136,6 +140,8 @@ func _check_tank_target_and_live_camera(packed: PackedScene) -> void:
 	_expect(completed, "Generic tank production run did not complete")
 	var car := editor.get("car") as M17CompactHatchback
 	_expect(car != null and car.rigid_chassis.non_ground_contact_events > 0, "Tank production run produced no passenger-car contact")
+	_expect(car != null and car.rigid_chassis.front_probe_contact_ever, "Tank production run did not engage the primary crush probe")
+	_expect(car != null and car.front_crush_deformation_m() > 0.02, "Tank production run did not produce visible primary-car crush")
 	var run_again := editor.get("m10_reset_button") as Button
 	_expect(run_again != null and run_again.visible and not run_again.disabled, "Completed production run did not expose an enabled Run again action")
 	if run_again != null:
