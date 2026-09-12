@@ -52,9 +52,12 @@ func _test_bicycle_target_moves_after_contact(failures: Array[String]) -> void:
 	])
 	if not bool(result.get("impact", false)):
 		failures.append("M14 bicycle production proxy never registered car contact")
-	if float(result.get("target_speed_ms", 0.0)) < 2.0:
+	# The frame, rather than the wheel rim, receives the vehicle impact. That
+	# deliberately removes the previous ramp/launch behavior while retaining a
+	# real, measurable post-contact bicycle trajectory.
+	if float(result.get("target_speed_ms", 0.0)) < 1.0:
 		failures.append("M14 bicycle remains effectively fixed after a 60 km/h impact")
-	if float(result.get("travel_m", 0.0)) < 0.35:
+	if float(result.get("travel_m", 0.0)) < 0.20:
 		failures.append("M14 bicycle does not acquire a material post-impact trajectory")
 	if float(result.get("car_y_rise_m", 0.0)) > 0.20:
 		failures.append("M14 bicycle impact makes the passenger car jump: %.3f m" % float(result.get("car_y_rise_m", 0.0)))
