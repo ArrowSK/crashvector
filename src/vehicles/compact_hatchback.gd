@@ -270,6 +270,9 @@ func _build_rigid_chassis() -> void:
 		Vector3(0.22 * scale_x, 0.56 * scale_y, 1.34 * scale_z),
 		Vector3(1.91 * scale_x, 0.72 * scale_y, 0.0)
 	)
+	# Keep the visual nose, first physical impact face and deformation origin in
+	# one coordinate system.  This replaces probe-based visual contact guesses.
+	rigid_chassis.configure_front_contact_frame(2.02 * scale_x)
 	rigid_chassis.add_front_crush_sensor(
 		Vector3(1.05 * scale_x, 0.72 * scale_y, 1.40 * scale_z),
 		Vector3(1.53 * scale_x, 0.72 * scale_y, 0.0)
@@ -354,6 +357,8 @@ func _consume_front_contact_sample(sample: Dictionary) -> void:
 	var collider_name: StringName = sample.get("collider_name", StringName(""))
 	if collider_name == &"Road" or collider_name == &"Ground" or collider_name == &"ProvingGround":
 		return
+	if StringName(sample.get("surface_region", &"body")) != &"front":
+		return
 	var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
 	hybrid_crush_impulse_ns += impulse.length()
 	# A distance probe intentionally sees an obstacle before the collision
@@ -375,22 +380,12 @@ func _consume_front_contact_sample(sample: Dictionary) -> void:
 func _update_hybrid_crush_target() -> void:
 	if rigid_chassis == null:
 		return
-	if rigid_chassis.front_crush_overlap_active():
-		var collider := rigid_chassis.front_crush_collider()
-		# The probe samples closing energy while the chassis is still approaching.
-		# It is an observation only; the real-contact gate below is what permits a
-		# visible structural change.
-		if collider != null:
-			hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _normal_collision_energy_j(collider))
-			if not collider is RigidBody3D and not _is_yielding_obstacle_collider(collider):
-				hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _initial_fixed_obstacle_energy_j())
-		# Keep the collider reference for resistance, but do not commit probe travel
-		# to structural deformation until a real rigid-body contact was observed.
-		if hybrid_real_front_contact_ever and hybrid_primary_collider == null:
-			hybrid_primary_collider = collider
 	if hybrid_real_front_contact_ever:
+		# Contact energy is captured from the real manifold in
+		# _consume_front_contact_sample.  Rays cannot add deformation before, or
+		# resistance during, the visible collision.
 		var energy_command := 0.18 + hybrid_peak_collision_energy_j / 520000.0
-		hybrid_target_front_crush_m = maxf(hybrid_target_front_crush_m, maxf(rigid_chassis.front_crush_travel_m(), energy_command))
+		hybrid_target_front_crush_m = maxf(hybrid_target_front_crush_m, energy_command)
 	var preset := PassengerCarCatalog.data(vehicle_preset_id)
 	var scale_x := float(preset.get("scale_x", 1.0))
 	# A normal 50 km/h impact must be a front-crash-box event, not an almost
@@ -452,9 +447,11 @@ func _failure_stage_targets() -> Dictionary:
 	}
 
 func _apply_hybrid_crush_resistance() -> void:
-	if rigid_chassis == null or not rigid_chassis.front_crush_overlap_active():
+	if rigid_chassis == null or not hybrid_real_front_contact_ever:
 		return
-	var collider := rigid_chassis.front_crush_collider()
+	var collider := hybrid_primary_collider
+	if collider == null:
+		return
 	var forward := rigid_chassis.global_transform.basis.x.normalized()
 	var collider_velocity := Vector3.ZERO
 	if collider is RigidBody3D:

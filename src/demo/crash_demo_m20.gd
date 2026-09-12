@@ -119,7 +119,7 @@ func _update_metrics() -> void:
 		]
 	elif m17_motorcycle is M20Motorcycle:
 		var m20_motorcycle := m17_motorcycle as M20Motorcycle
-		metrics_label.text += "\nRiderless motorcycle local deformation • rear %.0f mm • front %.0f mm • side %.0f mm" % [
+		metrics_label.text += "\nMotorcycle local deformation • rear %.0f mm • front %.0f mm • side %.0f mm" % [
 			m20_motorcycle.rear_impact_deformation_m() * 1000.0,
 			m20_motorcycle.front_crush_deformation_m() * 1000.0,
 			m20_motorcycle.side_impact_deformation_m() * 1000.0,

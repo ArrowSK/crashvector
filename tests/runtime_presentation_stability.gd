@@ -176,16 +176,17 @@ func _check_high_speed_pedestrian_vertical_transfer() -> void:
 	await physics_frame
 	car.begin_simulation()
 	target.begin_simulation()
-	target.apply_probe_contact(car.rigid_chassis)
+	# Contact state is informational: it must never inject an artificial launch.
+	target.record_physical_contact(car.rigid_chassis)
 	await physics_frame
 	var vertical_speed := absf(target.center_of_mass_velocity_ms().y)
 	var maximum_part_vertical_speed := absf(target.linear_velocity.y)
 	for body in target.articulated_bodies:
 		if body != null and is_instance_valid(body):
 			maximum_part_vertical_speed = maxf(maximum_part_vertical_speed, absf(body.linear_velocity.y))
-	_expect(target.impact_received, "High-speed pedestrian regression did not apply the production probe contact")
-	_expect(vertical_speed < 2.2, "High-speed pedestrian probe transfer still creates an artificial vertical launch: %.3f m/s" % vertical_speed)
-	_expect(maximum_part_vertical_speed < 1.4, "High-speed pedestrian transfer creates an artificial segment launch: %.3f m/s" % maximum_part_vertical_speed)
+	_expect(target.impact_received, "High-speed pedestrian regression did not record the contact")
+	_expect(vertical_speed < 0.01, "Recording physical contact must not create a vertical launch: %.3f m/s" % vertical_speed)
+	_expect(maximum_part_vertical_speed < 0.01, "Recording physical contact must not launch a segment: %.3f m/s" % maximum_part_vertical_speed)
 	car.end_simulation()
 	target.end_simulation()
 	car.queue_free()

@@ -46,11 +46,14 @@ func _test_50_kmh_wall_settles(failures: Array[String]) -> void:
 	var maximum_y_rise := 0.0
 	var maximum_pitch_deg := 0.0
 	var maximum_retreat_m := 0.0
+	var deformation_before_physical_contact := false
 	car.begin_simulation()
 	for _frame in range(360):
 		await physics_frame
 		maximum_y_rise = maxf(maximum_y_rise, car.rigid_chassis.global_position.y - initial_y)
 		maximum_pitch_deg = maxf(maximum_pitch_deg, absf(rad_to_deg(car.rigid_chassis.rotation.z)))
+		if not car.rigid_chassis.front_body_contact_ever and car.front_crush_deformation_m() > 0.001:
+			deformation_before_physical_contact = true
 		if not contact_seen and car.hybrid_contact_count() > 0:
 			contact_seen = true
 			first_contact_x = car.rigid_chassis.global_position.x
@@ -65,6 +68,8 @@ func _test_50_kmh_wall_settles(failures: Array[String]) -> void:
 	])
 	if not contact_seen:
 		failures.append("M12 real rigid-body wall test never established non-ground contact")
+	if deformation_before_physical_contact:
+		failures.append("M12 wall scenario deformed the visible nose before the physical front-contact manifold")
 	if car.hybrid_maximum_reverse_speed_ms() > 0.90:
 		failures.append("M12 50 km/h wall impact launches the car backwards: %.3f m/s" % car.hybrid_maximum_reverse_speed_ms())
 	if maximum_retreat_m > 0.25:

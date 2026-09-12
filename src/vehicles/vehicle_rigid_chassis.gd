@@ -7,6 +7,7 @@ extends RigidBody3D
 
 var contact_samples: Array[Dictionary] = []
 var suspension_points: Array[Dictionary] = []
+var suspension_contact_points_world: Array[Vector3] = []
 var front_crush_probe: RayCast3D
 var front_crush_probes: Array[RayCast3D] = []
 var front_probe_rest_length_m: float = 0.0
@@ -14,6 +15,15 @@ var front_probe_collider: Object
 var front_probe_contact_active: bool = false
 var front_probe_contact_ever: bool = false
 var maximum_front_probe_crush_m: float = 0.0
+# The front rays are retained as M19 diagnostic coverage only.  Production
+# contact decisions come from the Godot manifold and this explicit physical
+# contact frame, whose forward face is shared by the visible nose and the
+# first solid collision volume.
+var front_contact_face_x_m: float = 0.0
+var front_contact_face_tolerance_m: float = 0.08
+var front_body_contact_active: bool = false
+var front_body_contact_ever: bool = false
+var front_body_contact_collider: Object
 var non_ground_contact_events: int = 0
 var cumulative_non_ground_impulse_ns: float = 0.0
 var maximum_vertical_speed_ms: float = 0.0
@@ -73,6 +83,10 @@ func add_box_shape(node_name: String, size_m: Vector3, local_position_m: Vector3
 	collision.position = local_position_m
 	add_child(collision)
 	return collision
+
+func configure_front_contact_frame(front_face_x_m: float, tolerance_m: float = 0.08) -> void:
+	front_contact_face_x_m = front_face_x_m
+	front_contact_face_tolerance_m = maxf(tolerance_m, 0.01)
 
 func add_sphere_shape(node_name: String, radius_m: float, local_position_m: Vector3) -> CollisionShape3D:
 	var shape := SphereShape3D.new()
@@ -195,10 +209,14 @@ func begin_motion(speed_kmh: float, heading_deg: float) -> void:
 	maximum_reverse_speed_ms = 0.0
 	maximum_suspension_compression_m = 0.0
 	active_suspension_contacts = 0
+	suspension_contact_points_world.clear()
 	front_probe_collider = null
 	front_probe_contact_active = false
 	front_probe_contact_ever = false
 	maximum_front_probe_crush_m = 0.0
+	front_body_contact_active = false
+	front_body_contact_ever = false
+	front_body_contact_collider = null
 	last_non_ground_contact_manifold.clear()
 	peak_non_ground_contact_manifold.clear()
 	peak_non_ground_contact_impulse_ns = 0.0
@@ -241,13 +259,20 @@ func contact_manifold_diagnostics() -> Dictionary:
 	}
 
 func front_crush_travel_m() -> float:
-	return maximum_front_probe_crush_m
+	# Compatibility accessor: ray travel is deliberately observational.  It must
+	# not command permanent deformation or contact resistance.
+	return 0.0
 
 func front_crush_overlap_active() -> bool:
-	return front_probe_contact_active
+	return front_body_contact_active
 
 func front_crush_collider() -> Object:
-	return front_probe_collider
+	return front_body_contact_collider
+
+func classify_contact_region(local_position_m: Vector3) -> StringName:
+	if local_position_m.x >= front_contact_face_x_m - front_contact_face_tolerance_m:
+		return &"front"
+	return &"body"
 
 func _physics_process(delta: float) -> void:
 	if freeze or delta <= 0.0:
@@ -257,7 +282,11 @@ func _physics_process(delta: float) -> void:
 
 func _update_suspension() -> void:
 	active_suspension_contacts = 0
-	for point in suspension_points:
+	suspension_contact_points_world.clear()
+	suspension_contact_points_world.resize(suspension_points.size())
+	for index in range(suspension_points.size()):
+		suspension_contact_points_world[index] = Vector3.INF
+		var point: Dictionary = suspension_points[index]
 		var ray := point.get("ray") as RayCast3D
 		if ray == null or not ray.is_colliding():
 			continue
@@ -267,6 +296,7 @@ func _update_suspension() -> void:
 			collider_name = (collider as Node).name
 		if not _is_ground_contact(collider_name):
 			continue
+		suspension_contact_points_world[index] = ray.get_collision_point()
 		var distance_m := ray.global_position.distance_to(ray.get_collision_point())
 		var rest_distance := float(point.get("rest_distance_m", 0.60))
 		var compression := maxf(rest_distance - distance_m, 0.0)
@@ -284,6 +314,11 @@ func _update_suspension() -> void:
 			float(point.get("maximum_force_n", 12000.0))
 		)
 		apply_force(Vector3.UP * normal_force, offset_world)
+
+func suspension_contact_point_world(index: int) -> Vector3:
+	if index < 0 or index >= suspension_contact_points_world.size():
+		return Vector3.INF
+	return suspension_contact_points_world[index]
 
 func _update_front_crush_probe() -> void:
 	front_probe_contact_active = false
@@ -314,6 +349,7 @@ func _update_front_crush_probe() -> void:
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	contact_samples.clear()
+	front_body_contact_active = false
 	maximum_vertical_speed_ms = maxf(maximum_vertical_speed_ms, absf(state.linear_velocity.y))
 	var forward_speed := state.linear_velocity.dot(initial_forward_world)
 	maximum_reverse_speed_ms = maxf(maximum_reverse_speed_ms, maxf(-forward_speed, 0.0))
@@ -336,11 +372,16 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 			"collider_name": collider_name,
 			"collider": collider,
 			"local_shape": state.get_contact_local_shape(contact_index),
+			"surface_region": classify_contact_region(local_position),
 		}
 		contact_samples.append(sample)
 		if not _is_ground_contact(collider_name):
 			non_ground_contact_events += 1
 			cumulative_non_ground_impulse_ns += impulse.length()
+			if StringName(sample["surface_region"]) == &"front":
+				front_body_contact_active = true
+				front_body_contact_ever = true
+				front_body_contact_collider = collider
 
 	# Summarize after collecting the step's contacts and before any consumer drains
 	# contact_samples. The summary is observational only.

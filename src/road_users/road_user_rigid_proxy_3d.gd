@@ -468,49 +468,17 @@ func owns_collider(collider: Object) -> bool:
 			return true
 	return false
 
-func apply_probe_contact(source: VehicleRigidChassis, collider: Object = null) -> void:
-	if impact_received or source == null or not simulation_active:
+func record_physical_contact(source: VehicleRigidChassis) -> void:
+	# All momentum transfer belongs to Godot's rigid-body solver.  This method
+	# records an already-observed physical contact for replay/analysis only; it
+	# deliberately does not add a second, synthetic impulse to the body chain.
+	if source == null or not simulation_active:
 		return
-	var forward := source.global_transform.basis.x.normalized()
-	var target_velocity := center_of_mass_velocity_ms()
-	var closing_speed := maxf((source.linear_velocity - target_velocity).dot(forward), 0.0)
-	if closing_speed < 0.25:
-		return
-	var effective_mass := source.mass * target_mass_kg / maxf(source.mass + target_mass_kg, 1.0)
-	var transfer_impulse_ns := effective_mass * closing_speed * 0.88
-	if target_type == ScenarioConfig.TARGET_BICYCLE:
-		# Put most of the nose impulse into the frame and a smaller share into the
-		# contacted wheel/body. Hub joints then generate wheel/frame relative motion.
-		apply_central_impulse(forward * transfer_impulse_ns * 0.72 + Vector3.UP * transfer_impulse_ns * 0.025)
-		var contacted := _owned_body_from_collider(collider)
-		if contacted != null and contacted != self:
-			contacted.apply_central_impulse(forward * transfer_impulse_ns * 0.28)
-		elif not _bicycle_wheels.is_empty():
-			_bicycle_wheels[0].apply_central_impulse(forward * transfer_impulse_ns * 0.14)
-			_bicycle_wheels[1].apply_central_impulse(forward * transfer_impulse_ns * 0.14)
-	else:
-		# Split the impulse across pelvis and torso rather than using the old fixed
-		# artificial tumble torque. The articulated chain itself produces the body
-		# rotation and limb lag after contact.
-		apply_central_impulse(forward * transfer_impulse_ns * 0.48 + Vector3.UP * transfer_impulse_ns * 0.035)
-		if _pedestrian_torso != null:
-			_pedestrian_torso.apply_central_impulse(forward * transfer_impulse_ns * 0.44 + Vector3.UP * transfer_impulse_ns * 0.045)
-		var contacted := _owned_body_from_collider(collider)
-		if contacted != null and contacted != self and contacted != _pedestrian_torso:
-			contacted.apply_central_impulse(forward * transfer_impulse_ns * 0.08)
 	impact_received = true
-
-func _owned_body_from_collider(collider: Object) -> RigidBody3D:
-	if collider == self:
-		return self
-	for body in articulated_bodies:
-		if collider == body:
-			return body
-	return null
 
 func _on_articulated_body_entered(body: Node) -> void:
 	if body is VehicleRigidChassis:
-		impact_received = true
+		record_physical_contact(body as VehicleRigidChassis)
 
 func center_of_mass_position() -> Vector3:
 	var weighted := (global_position + global_transform.basis * _root_com_local) * mass

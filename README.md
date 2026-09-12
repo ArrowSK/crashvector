@@ -43,7 +43,7 @@ The current M12–M23 source architecture separates whole-object world motion, p
 
 > **Packaged release:** **`0.9.0-beta.7`** is the current verified public desktop beta, with macOS Universal 2 and Windows x64 packages.
 
-> **Important boundaries:** M20 permits generic broadside/oblique heavy-truck, rigid-lorry and riderless-motorcycle deformation, while the old riderless-bicycle broadside path remains intentionally rejected. M21 fifth-wheel articulation is generic and not a manufacturer truck model. M22's cyclist and moving-pedestrian additions remain trajectory/contact models only; they do not add biomechanics, injury prediction, gait, steering, tyre-force or forensic-reconstruction validity.
+> **Important boundaries:** M20 permits generic broadside/oblique heavy-truck, rigid-lorry and motorcycle-with-rider deformation. The rider releases after a real rigid-body contact and is not an injury or biomechanics model. The old riderless-bicycle broadside path remains intentionally rejected. M21 fifth-wheel articulation is generic and not a manufacturer truck model. M22's cyclist and moving-pedestrian additions remain trajectory/contact models only; they do not add biomechanics, injury prediction, gait, steering, tyre-force or forensic-reconstruction validity.
 
 > **Scope:** CrashVector is an educational physics visualisation tool. It is **not** certified accident reconstruction, homologation, manufacturer crash-performance prediction, biomechanics, medical/injury prediction or a safety-rating system.
 
@@ -106,7 +106,7 @@ Defaults exist for normal scenarios, so mass and solver parameters are not manda
 | Contact fidelity | M19 records real non-ground Godot contact-manifold diagnostics and adds two lateral front-crush observation rays while keeping Godot collision impulses authoritative |
 | Heavy articulated truck | M21 uses separate trailer and tractor `RigidBody3D` assemblies connected by a constrained generic fifth wheel; inherited M20 front/rear/side local deformation remains bounded and contact-driven |
 | Rigid lorry / box truck | Production Godot rigid-body world motion plus bounded generic M20 front/rear/side deformation; not manufacturer-specific crashworthiness |
-| Riderless motorcycle | Production Godot rigid-body world motion plus bounded generic M20 frame/fork deformation driven by real contact, including the 50 km/h frontal regression; no rider or tyre/steering model |
+| Motorcycle with rider | Production Godot rigid-body world motion plus bounded generic M20 frame/fork deformation driven by real contact. A separate rigid rider follows the seat and releases on the first real contact; no injury, tyre-force or steering model |
 | Vulnerable road users | M15 articulated pedestrians and riderless bicycles remain available; M22 adds pedestrian initial translation and a separate generic cyclist composed of an articulated rider plus bicycle with temporary pre-impact coupling |
 | Static / narrow targets | Wall and concrete barrier remain rigid; generic pole and tree targets can yield and move permanently at severe collision demand |
 | Generic tank target | A fixed generic tracked-vehicle obstacle with separate hull and turret collision volumes. It is an educational static fixture with no armour, weapons, ballistic or manufacturer-specific claims |
@@ -196,7 +196,7 @@ See [0.7.0-beta.2 release notes](docs/releases/0.7.0-beta.2.md).
 
 ## M17 — reciprocal impacts and production comparison
 
-M17 removes the remaining direction and comparison assumptions from the production integration layer. Supported dynamic actors may approach from either direction; passenger cars gain bounded rear deformation; the heavy truck gains bounded front/rear collapse; rigid lorry and riderless motorcycle move through the production Godot rigid-body path; and the collision road is extended to approximately 4 km.
+M17 removes the remaining direction and comparison assumptions from the production integration layer. Supported dynamic actors may approach from either direction; passenger cars gain bounded rear deformation; the heavy truck gains bounded front/rear collapse; rigid lorry and motorcycle move through the production Godot rigid-body path; and the collision road is extended to approximately 4 km.
 
 Visual Compare and Comparison Lab now execute each requested variant through the actual production scene in an isolated world and use the resulting production replay/analysis state. The historical reduced-order runner remains available only for legacy regression continuity.
 
@@ -220,7 +220,7 @@ See [M19 contact fidelity and validation foundation](docs/M19_CONTACT_FIDELITY_V
 
 ## M20 — heavy and other-vehicle deformation
 
-M20 extends broadside/oblique production scope to the generic heavy articulated truck, rigid lorry and riderless motorcycle. Godot rigid bodies remain authoritative for world motion; real non-ground contact demand drives bounded local front/rear/side deformation and corresponding collision-face retreat.
+M20 extends broadside/oblique production scope to the generic heavy articulated truck, rigid lorry and motorcycle with a physical rider. Godot rigid bodies remain authoritative for world motion; real non-ground contact demand drives bounded local front/rear/side deformation and corresponding collision-face retreat. The rider is attached only while seated and releases without an added impulse after a real contact.
 
 The riderless-bicycle broadside path remains intentionally blocked, and M20's deformation limits are generic project assumptions rather than manufacturer or regulatory data.
 
@@ -276,8 +276,8 @@ See [Calibration and validation scope](docs/CALIBRATION.md) and [Physics notes](
 
 CrashVector intentionally rejects or limits scenarios instead of making a visually plausible but unsupported claim.
 
-- Current source rigid-body coverage includes wall, barrier, yielding generic pole/tree, passenger-car, articulated heavy truck, rigid lorry, riderless motorcycle, articulated pedestrian, riderless bicycle and generic cyclist targets.
-- M18 passenger-car broadside is implemented. M20 adds generic broadside/oblique heavy-truck, rigid-lorry and riderless-motorcycle deformation. The old riderless-bicycle broadside path remains rejected; generic rider+bicycle broadside/oblique scenarios use the separate M22 cyclist target.
+- Current source rigid-body coverage includes wall, barrier, yielding generic pole/tree, passenger-car, articulated heavy truck, rigid lorry, motorcycle with rider, articulated pedestrian, riderless bicycle and generic cyclist targets.
+- M18 passenger-car broadside is implemented. M20 adds generic broadside/oblique heavy-truck, rigid-lorry and motorcycle deformation. The old riderless-bicycle broadside path remains rejected; generic rider+bicycle broadside/oblique scenarios use the separate M22 cyclist target.
 - M20 lorry/motorcycle deformation and M21 truck articulation are bounded generic educational models, not manufacturer-specific crashworthiness or multibody vehicle validation.
 - Pedestrian, riderless-bicycle and cyclist output is contact/trajectory visualisation only. M22 pedestrian speed is initial translation, not gait; the cyclist has no validated rider-control, tyre-force, injury or ejection model.
 - Visual Compare and Comparison Lab use the production scene introduced in M17; historical reduced-order comparison code remains only for regression continuity.
