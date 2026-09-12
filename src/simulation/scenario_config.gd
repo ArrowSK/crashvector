@@ -64,7 +64,7 @@ static func target_display_name(id: StringName) -> String:
 		TARGET_LORRY:
 			return "Rigid Lorry / Box Truck"
 		TARGET_MOTORCYCLE:
-			return "Motorcycle (riderless)"
+			return "Motorcycle with rider"
 		TARGET_BICYCLE:
 			return "Bicycle (riderless)"
 		TARGET_CYCLIST:

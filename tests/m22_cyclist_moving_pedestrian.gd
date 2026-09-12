@@ -104,9 +104,9 @@ func _check_cyclist_proxy_topology_and_release() -> void:
 	root.add_child(source)
 	source.configure(1375.0, Vector3(-2.0, 0.0, 0.0), 0.0, 50.0, 0.55, 0.0)
 	source.begin_motion(50.0, 0.0)
-	proxy.apply_probe_contact(source)
+	proxy.record_physical_contact(source)
 	await physics_frame
-	_expect(proxy.impact_received, "M22 cyclist did not accept production-compatible probe contact")
+	_expect(proxy.impact_received, "M22 cyclist did not record a physical contact")
 	_expect(proxy.cyclist_released, "M22 cyclist rider coupling did not release on contact")
 	for joint in proxy.cyclist_coupling_joints:
 		if joint != null and is_instance_valid(joint):

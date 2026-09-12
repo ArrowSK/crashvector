@@ -5,9 +5,8 @@
 class_name MotorcycleBuilder
 extends RefCounted
 
-# Riderless generic road-motorcycle structural approximation. The rider is
-# intentionally outside the model: no rider kinematics or injury inference is
-# performed anywhere in CrashVector.
+# Generic road-motorcycle structural approximation. The production M20 vehicle
+# adds a separate rigid rider rig; this frame model does not infer injury.
 const STATION_X: Array[float] = [0.0, 0.65, 1.35, 1.95]
 const LOWER_Y: Array[float] = [0.34, 0.48, 0.52, 0.34]
 const UPPER_Y: Array[float] = [0.72, 1.00, 1.08, 0.80]

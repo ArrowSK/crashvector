@@ -58,14 +58,7 @@ func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
 	if not hybrid_production_active or not simulation_running or simulation_paused or car == null or car.rigid_chassis == null:
 		return
-	if road_user_proxy != null and is_instance_valid(road_user_proxy):
-		# The front probe is deliberately longer than the collision shape, so a
-		# probe hit cannot represent a real road-user impact. Wait for the target's
-		# own articulated body to report contact before handing over any response.
-		var collider := car.rigid_chassis.front_crush_collider()
-		if car.rigid_chassis.non_ground_contact_events > 0 and road_user_proxy.owns_collider(collider):
-			road_user_proxy.apply_probe_contact(car.rigid_chassis, collider)
-	elif obstacle != null and is_instance_valid(obstacle):
+	if obstacle != null and is_instance_valid(obstacle):
 		if scenario.target_type == ScenarioConfig.TARGET_POLE or scenario.target_type == ScenarioConfig.TARGET_TREE:
 			# The vehicle retains its full initial fixed-obstacle energy for its own
 			# staged deformation. A narrow pole/tree only receives the bounded portion

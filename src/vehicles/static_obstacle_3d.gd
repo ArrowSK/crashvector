@@ -181,10 +181,17 @@ func _build_static_physics_body() -> void:
 	if obstacle_type == ScenarioConfig.TARGET_BARRIER:
 		_add_box_collision(static_body, Vector3(0.42, 0.96, 4.10), Vector3(0.0, 0.48, 0.0))
 	elif obstacle_type == ScenarioConfig.TARGET_TANK:
-		# Match the generic tank hull used by VehicleStaticContact. The front of the
-		# fixed collision volume is at the visible hull front, not at target centre.
-		_add_box_collision(static_body, Vector3(6.8, 1.30, 3.4), Vector3(0.0, 0.65, 0.0))
-		_add_box_collision(static_body, Vector3(2.5, 0.72, 2.1), Vector3(0.25, 1.60, 0.0))
+		# The tank is a fixed educational obstacle, but its collision envelope is
+		# deliberately assembled from the same lower hull, superstructure and
+		# track volumes used by the visible model. A car therefore reaches the
+		# rendered glacis/side skirts rather than an unrelated invisible box.
+		_add_box_collision(static_body, Vector3(6.80, 0.58, 2.62), Vector3(0.0, 0.58, 0.0))
+		_add_box_collision(static_body, Vector3(5.65, 0.64, 2.34), Vector3(-0.18, 1.08, 0.0))
+		_add_box_collision(static_body, Vector3(1.18, 0.48, 2.30), Vector3(2.58, 1.22, 0.0))
+		_add_box_collision(static_body, Vector3(2.10, 0.76, 2.10), Vector3(0.32, 1.78, 0.0))
+		for side_value in [-1.0, 1.0]:
+			var side: float = float(side_value)
+			_add_box_collision(static_body, Vector3(6.46, 0.82, 0.64), Vector3(0.0, 0.42, side * 1.43))
 	else:
 		_add_box_collision(static_body, Vector3(0.45, 3.25, 9.0), Vector3(0.0, 1.625, 0.0))
 
@@ -223,16 +230,20 @@ func _build_tank(parent: Node3D) -> void:
 	var glacis := _add_box(parent, "TankGlacis", Vector3(1.25, 0.42, 2.26), hull_highlight, Vector3(2.58, 1.22, 0.0))
 	glacis.rotation_degrees.z = 17.0
 	_add_box(parent, "TankRearDeck", Vector3(1.35, 0.16, 2.18), dark_detail, Vector3(-2.48, 1.42, 0.0))
-	_add_box(parent, "TankTrackPort", Vector3(6.45, 0.66, 0.48), track, Vector3(0.0, 0.37, -1.47))
-	_add_box(parent, "TankTrackStarboard", Vector3(6.45, 0.66, 0.48), track, Vector3(0.0, 0.37, 1.47))
+	# Each side uses a continuous, visibly enclosing track band. The former
+	# separate slabs sat behind the road wheels, which made the model read as a
+	# row of loose wheels rather than a tracked vehicle.
 	for side_value in [-1.0, 1.0]:
 		var side: float = float(side_value)
+		var track_z := side * 1.43
+		_add_box(parent, "TankTrackBand_%d" % int(side), Vector3(6.46, 0.82, 0.64), track, Vector3(0.0, 0.42, track_z))
+		_add_box(parent, "TankTrackInner_%d" % int(side), Vector3(5.86, 0.52, 0.025), dark_detail, Vector3(0.0, 0.42, side * 1.765))
 		for wheel_index in range(5):
-			var road_wheel := _add_cylinder(parent, "TankRoadWheel_%d_%d" % [int(side), wheel_index], 0.39, 0.39, 0.18, wheel_material, Vector3(-2.20 + float(wheel_index) * 1.10, 0.39, side * 1.72))
+			var road_wheel := _add_cylinder(parent, "TankRoadWheel_%d_%d" % [int(side), wheel_index], 0.33, 0.33, 0.10, wheel_material, Vector3(-2.20 + float(wheel_index) * 1.10, 0.40, side * 1.775))
 			road_wheel.rotation_degrees.x = 90.0
-		var idler := _add_cylinder(parent, "TankIdler_%d" % int(side), 0.30, 0.30, 0.20, detail, Vector3(2.82, 0.42, side * 1.72))
+		var idler := _add_cylinder(parent, "TankIdler_%d" % int(side), 0.27, 0.27, 0.11, detail, Vector3(2.82, 0.42, side * 1.775))
 		idler.rotation_degrees.x = 90.0
-		var sprocket := _add_cylinder(parent, "TankSprocket_%d" % int(side), 0.34, 0.34, 0.20, detail, Vector3(-2.82, 0.42, side * 1.72))
+		var sprocket := _add_cylinder(parent, "TankSprocket_%d" % int(side), 0.29, 0.29, 0.11, detail, Vector3(-2.82, 0.42, side * 1.775))
 		sprocket.rotation_degrees.x = 90.0
 
 	var turret_ring := _add_cylinder(parent, "TankTurretRing", 1.10, 1.10, 0.16, dark_detail, Vector3(0.20, 1.47, 0.0))

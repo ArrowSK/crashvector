@@ -5,10 +5,10 @@
 class_name M20Motorcycle
 extends M17Motorcycle
 
-# M20 gives the riderless motorcycle proxy a bounded local frame/fork response
-# to real front/rear/side contact while keeping Godot RigidBody3D authoritative
-# for the dominant trajectory, pitch and roll. This is not a rider model,
-# steering/tyre simulation, injury model or manufacturer crashworthiness model.
+# M20 gives the motorcycle a bounded local frame/fork response and a separate
+# physics-backed rider. Godot RigidBody3D remains authoritative for trajectory,
+# pitch, roll and all rider momentum transfer; this is not an injury model or
+# manufacturer crashworthiness model.
 
 const FRAME_BASE_SIZE := Vector3(1.88, 0.74, 0.46)
 const FRAME_BASE_POS := Vector3(0.98, 0.72, 0.0)
@@ -27,6 +27,7 @@ var hybrid_side_positive_z_crush_m: float = 0.0
 var frame_collision: CollisionShape3D
 var rear_wheel_collision: CollisionShape3D
 var front_wheel_collision: CollisionShape3D
+var rider_rig: MotorcycleRiderRig3D
 
 func _ready() -> void:
 	super._ready()
@@ -38,6 +39,10 @@ func _ready() -> void:
 	# target is driven away. The passenger car therefore defers its probe-only
 	# resistance for this pair and Godot reports the impact manifold.
 	rigid_chassis.defer_front_probe_resistance_to_rigid_contact = true
+	rider_rig = MotorcycleRiderRig3D.new()
+	rider_rig.name = "MotorcycleRiderRig"
+	add_child(rider_rig)
+	rider_rig.configure(rigid_chassis)
 
 func begin_simulation() -> void:
 	hybrid_rear_energy_j = 0.0
@@ -51,6 +56,8 @@ func begin_simulation() -> void:
 	super.begin_simulation()
 	_restore_m20_reference_geometry()
 	_reset_m20_collision_shapes()
+	if rider_rig != null:
+		rider_rig.arm_for_simulation()
 	update_from_model()
 
 func step_external(delta: float) -> void:
@@ -63,7 +70,22 @@ func step_external(delta: float) -> void:
 	_sync_m17_model_to_chassis()
 	_m20_consume_contacts()
 	_m20_enforce_deformation(delta)
+	if rider_rig != null:
+		rider_rig.sync_from_motorcycle()
 	update_from_model()
+
+func end_simulation() -> void:
+	if rider_rig != null:
+		rider_rig.end_simulation()
+	super.end_simulation()
+
+func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
+	super.set_preview_pose(position_m, yaw_deg)
+	if rider_rig != null:
+		rider_rig.sync_from_motorcycle()
+
+func rider_released_after_contact() -> bool:
+	return rider_rig != null and rider_rig.rider_released
 
 func rear_impact_deformation_m() -> float:
 	return hybrid_rear_crush_m
@@ -101,6 +123,8 @@ func _m20_consume_contacts() -> void:
 		var collider_name: StringName = sample.get("collider_name", StringName(""))
 		if collider_name == &"Road" or collider_name == &"Ground" or collider_name == &"ProvingGround":
 			continue
+		if rider_rig != null:
+			rider_rig.release_from_real_contact()
 		var collider: Object = sample.get("collider", null)
 		var contact_local: Vector3 = sample.get("position_local", Vector3.ZERO)
 		var collider_local := contact_local
