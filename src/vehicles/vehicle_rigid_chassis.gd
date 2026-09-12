@@ -269,7 +269,16 @@ func front_crush_overlap_active() -> bool:
 func front_crush_collider() -> Object:
 	return front_body_contact_collider
 
-func classify_contact_region(local_position_m: Vector3) -> StringName:
+func classify_contact_region(local_position_m: Vector3, collider: Object = null) -> StringName:
+	# Contact points in Godot can be reported from any child collision shape, so
+	# their local X coordinate alone is not a stable way to identify which end of
+	# a compound chassis reached the other body. The manifold collider's centre
+	# is in front for a frontal encounter; the physical face remains a fallback
+	# for contacts without a Node3D collider.
+	if collider is Node3D:
+		var collider_local := to_local((collider as Node3D).global_position)
+		if collider_local.x > front_contact_face_tolerance_m:
+			return &"front"
 	if local_position_m.x >= front_contact_face_x_m - front_contact_face_tolerance_m:
 		return &"front"
 	return &"body"
@@ -372,7 +381,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 			"collider_name": collider_name,
 			"collider": collider,
 			"local_shape": state.get_contact_local_shape(contact_index),
-			"surface_region": classify_contact_region(local_position),
+			"surface_region": classify_contact_region(local_position, collider),
 		}
 		contact_samples.append(sample)
 		if not _is_ground_contact(collider_name):
