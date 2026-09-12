@@ -468,6 +468,12 @@ func owns_collider(collider: Object) -> bool:
 			return true
 	return false
 
+func is_ground_support_body(body: PhysicsBody3D) -> bool:
+	# Bicycle wheels are rolling/support geometry. Letting an approaching car hit
+	# their circular collision volumes first creates a ramp and launches the car.
+	# The frame is the vehicle-impact envelope; wheels collide with the road only.
+	return body in _bicycle_wheels
+
 func record_physical_contact(source: VehicleRigidChassis) -> void:
 	# All momentum transfer belongs to Godot's rigid-body solver.  This method
 	# records an already-observed physical contact for replay/analysis only; it
