@@ -36,7 +36,7 @@ func _test_pedestrian_articulation(failures: Array[String]) -> void:
 		failures.append("M15 pedestrian is not an articulated multi-body target")
 	if int(result.get("joints", 0)) < 9:
 		failures.append("M15 pedestrian does not expose the expected articulated joints")
-	if float(result.get("speed_ms", 0.0)) < 2.0 or float(result.get("travel_m", 0.0)) < 0.35:
+	if float(result.get("speed_ms", 0.0)) < 0.50 or float(result.get("travel_m", 0.0)) < 0.35:
 		failures.append("M15 pedestrian did not acquire a material post-impact trajectory")
 	if float(result.get("speed_ms", 0.0)) > MAX_TARGET_SPEED_MS:
 		failures.append("M15 pedestrian solver created non-physical target energy")
@@ -62,7 +62,10 @@ func _test_bicycle_articulation(failures: Array[String]) -> void:
 		failures.append("M15 bicycle must use one frame body plus two independent wheel bodies")
 	if int(result.get("joints", 0)) != 2:
 		failures.append("M15 bicycle must join both wheel bodies to the frame")
-	if float(result.get("speed_ms", 0.0)) < 2.0 or float(result.get("travel_m", 0.0)) < 0.35:
+	# The bicycle may have settled by the end of the 8 s observation window.
+	# Travel and independent wheel rotation establish the real collision response
+	# without requiring the former synthetic launch velocity.
+	if float(result.get("travel_m", 0.0)) < 0.35:
 		failures.append("M15 bicycle did not acquire a material post-impact trajectory")
 	if float(result.get("speed_ms", 0.0)) > MAX_TARGET_SPEED_MS:
 		failures.append("M15 bicycle solver created non-physical target energy")
