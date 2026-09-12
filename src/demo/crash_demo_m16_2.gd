@@ -14,16 +14,83 @@ extends "res://src/demo/crash_demo_m16_1.gd"
 var m162_scenario_snapshot: Dictionary = {}
 var m162_road_user_skin: RoadUserPresentationSkin3D
 var m162_truck_skin: M162HeavyTruckVisual
+var m162_manual_camera_dragging: bool = false
+var m162_manual_camera_active: bool = false
 
 func _ready() -> void:
 	super._ready()
 	_m162_polish_ui()
 	call_deferred("_m162_refresh_presentation_skins")
 
+func _unhandled_input(event: InputEvent) -> void:
+	# Keep existing object editing intact. The viewport now also has an explicit
+	# camera gesture: middle-drag or Shift+left-drag orbits the active scene;
+	# arrow keys make the same adjustment for trackpad/keyboard use.
+	if event is InputEventMouseButton:
+		var mouse := event as InputEventMouseButton
+		var is_camera_drag := mouse.button_index == MOUSE_BUTTON_MIDDLE or (mouse.button_index == MOUSE_BUTTON_LEFT and mouse.shift_pressed)
+		if is_camera_drag:
+			m162_manual_camera_dragging = mouse.pressed
+			if mouse.pressed:
+				m162_manual_camera_active = true
+			get_viewport().set_input_as_handled()
+			return
+	elif event is InputEventMouseMotion and m162_manual_camera_dragging:
+		_m162_orbit_camera((event as InputEventMouseMotion).relative)
+		get_viewport().set_input_as_handled()
+		return
+	elif event is InputEventKey:
+		var key := event as InputEventKey
+		if key.pressed and not key.echo and key.keycode in [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN]:
+			var step := Vector2.ZERO
+			match key.keycode:
+				KEY_LEFT: step.x = -18.0
+				KEY_RIGHT: step.x = 18.0
+				KEY_UP: step.y = -14.0
+				KEY_DOWN: step.y = 14.0
+			_m162_orbit_camera(step)
+			get_viewport().set_input_as_handled()
+			return
+	super._unhandled_input(event)
+
+func _m162_orbit_camera(delta_pixels: Vector2) -> void:
+	if camera == null or scenario == null:
+		return
+	var focus := _m162_camera_focus()
+	var offset := camera.global_position - focus
+	if offset.length() < 0.10:
+		offset = Vector3(-6.0, 3.5, 10.0)
+	offset = offset.rotated(Vector3.UP, -delta_pixels.x * 0.009)
+	offset.y = clampf(offset.y + delta_pixels.y * 0.025, 1.2, maxf(offset.length() * 0.78, 1.2))
+	camera.global_position = focus + offset
+	camera.look_at(focus, Vector3.UP)
+	m162_manual_camera_active = true
+
+func _m162_camera_focus() -> Vector3:
+	if simulation_running or _m161_has_replay():
+		return (_m161_primary_center() + _m161_target_center()) * 0.5 + Vector3.UP * 0.9
+	return (scenario.car_position_m + scenario.target_position_m) * 0.5 + Vector3.UP * 0.9
+
+func _frame_scenario() -> void:
+	m162_manual_camera_active = false
+	super._frame_scenario()
+
+func _on_camera_side() -> void:
+	m162_manual_camera_active = false
+	super._on_camera_side()
+
+func _on_camera_front() -> void:
+	m162_manual_camera_active = false
+	super._on_camera_front()
+
+func _on_camera_top() -> void:
+	m162_manual_camera_active = false
+	super._on_camera_top()
+
 func _physics_process(delta: float) -> void:
 	var was_running := simulation_running
 	super._physics_process(delta)
-	if simulation_running and not simulation_paused:
+	if simulation_running and not simulation_paused and not m162_manual_camera_active:
 		_m162_follow_active_scene()
 	if was_running and not simulation_running:
 		_m162_restore_scenario_definition()
@@ -84,15 +151,18 @@ func _on_simulate_pressed() -> void:
 		m162_scenario_snapshot.clear()
 
 func _on_reset_pressed() -> void:
+	m162_manual_camera_active = false
 	super._on_reset_pressed()
 	m162_scenario_snapshot.clear()
 	call_deferred("_m162_refresh_presentation_skins")
 
 func _on_new_pressed() -> void:
+	m162_manual_camera_active = false
 	m162_scenario_snapshot.clear()
 	super._on_new_pressed()
 
 func _on_open_path_selected(path: String) -> void:
+	m162_manual_camera_active = false
 	m162_scenario_snapshot.clear()
 	super._on_open_path_selected(path)
 
@@ -187,6 +257,8 @@ func _m162_result_time_s() -> float:
 	return clampf(result_time, 0.0, recording.duration_s)
 
 func _m162_apply_aftermath_camera() -> void:
+	if m162_manual_camera_active:
+		return
 	if camera == null or scenario == null:
 		return
 	var forward := scenario.car_forward()

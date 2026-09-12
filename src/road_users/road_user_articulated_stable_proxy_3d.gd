@@ -25,9 +25,10 @@ func apply_probe_contact(source: VehicleRigidChassis, collider: Object = null) -
 	var transfer_impulse_ns := effective_mass * closing_speed * 0.88
 
 	if target_type == ScenarioConfig.TARGET_BICYCLE:
-		# Preserve the finalized M15 bicycle transfer path. The reported regression
-		# concerns pedestrian vertical launch, not bicycle hub/frame behaviour.
-		apply_central_impulse(forward * transfer_impulse_ns * 0.72 + Vector3.UP * transfer_impulse_ns * 0.025)
+		# The rigid collision is authoritative. This secondary response must not
+		# add an upward launch that makes the bicycle clear the bonnet.
+		transfer_impulse_ns = minf(transfer_impulse_ns, target_mass_kg * 16.0)
+		apply_central_impulse(forward * transfer_impulse_ns * 0.72)
 		var contacted := _owned_body_from_collider(collider)
 		if contacted != null and contacted != self:
 			contacted.apply_central_impulse(forward * transfer_impulse_ns * 0.28)

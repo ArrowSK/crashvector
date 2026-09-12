@@ -78,6 +78,9 @@ func _configure_m15_articulated_collision_channels() -> void:
 			_set_m15_road_user_body_channels(body)
 	_rebind_m15_articulated_joints()
 	if car != null and car.rigid_chassis != null:
+		# The production desktop path needs actual car-to-road-user contact; a probe
+		# observation alone cannot supply a trustworthy impact response.
+		car.rigid_chassis.collision_mask |= M16_ROAD_USER_LAYER
 		# M19 expands the passenger-car front observation from the historical
 		# centre ray to three rays. All of them must see the dedicated road-user
 		# layer; otherwise the lateral M19 rays are blind to offset pedestrians and
@@ -88,7 +91,7 @@ func _configure_m15_articulated_collision_channels() -> void:
 
 func _set_m15_road_user_body_channels(body: PhysicsBody3D) -> void:
 	body.collision_layer = M16_ROAD_USER_LAYER
-	body.collision_mask = M16_ROAD_USER_GROUND_LAYER
+	body.collision_mask = M16_ROAD_USER_GROUND_LAYER | 1
 
 func _rebind_m15_articulated_joints() -> void:
 	if road_user_proxy == null:

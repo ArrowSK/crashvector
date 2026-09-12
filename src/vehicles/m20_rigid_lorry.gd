@@ -135,6 +135,7 @@ func _m20_consume_contacts() -> void:
 			0.5 * reduced_mass * lateral_speed * lateral_speed,
 			lateral_impulse * lateral_impulse / maxf(2.0 * reduced_mass, 1.0)
 		)
+		lateral_energy = _m20_confirmed_lateral_energy(collider, lateral_energy, lateral)
 		var contact_side_x := collider_local.x if has_collider_center else contact_local.x
 		if longitudinal_energy > 1.0:
 			if contact_side_x < FRAME_BASE_POS.x:
@@ -164,6 +165,21 @@ func _m20_consume_contacts() -> void:
 	hybrid_front_crush_m = maxf(hybrid_front_crush_m, minf(_energy_to_crush(hybrid_front_collision_energy_j, 425000.0, 920000.0), 0.66))
 	hybrid_side_negative_z_crush_m = maxf(hybrid_side_negative_z_crush_m, minf(_energy_to_crush(hybrid_side_negative_z_energy_j, 455000.0, 1120000.0), 0.46))
 	hybrid_side_positive_z_crush_m = maxf(hybrid_side_positive_z_crush_m, minf(_energy_to_crush(hybrid_side_positive_z_energy_j, 455000.0, 1120000.0), 0.46))
+
+func _m20_confirmed_lateral_energy(collider: Object, measured_energy_j: float, lateral_world: Vector3) -> float:
+	# See M20HeavyTruck: only a real Godot contact may transfer the striker's
+	# measured impact demand into this local broadside deformation model.
+	if not collider is VehicleRigidChassis:
+		return measured_energy_j
+	var source_chassis := collider as VehicleRigidChassis
+	var source := source_chassis.get_parent()
+	if source == null or not source.has_method("hybrid_collision_energy_j"):
+		return measured_energy_j
+	var source_energy := float(source.call("hybrid_collision_energy_j"))
+	if source_energy <= 0.0:
+		return measured_energy_j
+	var lateral_fraction := absf(source_chassis.initial_forward_world.dot(lateral_world.normalized()))
+	return maxf(measured_energy_j, source_energy * lateral_fraction * lateral_fraction)
 
 func _energy_to_crush(energy_j: float, force0_n: float, stiffness_n_m: float) -> float:
 	if energy_j <= 0.0:

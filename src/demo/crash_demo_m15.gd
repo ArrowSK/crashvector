@@ -71,6 +71,10 @@ func _configure_articulated_collision_channels() -> void:
 			_set_road_user_body_channels(body)
 	_rebind_articulated_joints()
 	if car != null and car.rigid_chassis != null:
+		# The beta.6 dedicated layer made the vulnerable road user visible to the
+		# probe but physically intangible to the car. Keep the road isolation while
+		# restoring an authoritative rigid-body contact between vehicle and target.
+		car.rigid_chassis.collision_mask |= ROAD_USER_LAYER
 		# M19 expanded the historical centre-line crush sensor to three observation
 		# rays. Articulated road users live on their dedicated collision layer, so
 		# every front observation ray must see that layer; configuring only the old
@@ -83,7 +87,7 @@ func _configure_articulated_collision_channels() -> void:
 
 func _set_road_user_body_channels(body: PhysicsBody3D) -> void:
 	body.collision_layer = ROAD_USER_LAYER
-	body.collision_mask = ROAD_USER_GROUND_LAYER
+	body.collision_mask = ROAD_USER_GROUND_LAYER | 1
 
 func _rebind_articulated_joints() -> void:
 	# Rebinding after preview placement makes Godot derive each local pivot from

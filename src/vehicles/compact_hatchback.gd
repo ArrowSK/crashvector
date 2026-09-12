@@ -30,6 +30,8 @@ var chassis_sync_ready: bool = false
 var hybrid_crush_impulse_ns: float = 0.0
 var hybrid_target_front_crush_m: float = 0.0
 var hybrid_geometric_front_crush_m: float = 0.0
+var hybrid_real_front_contact_ever: bool = false
+var hybrid_front_lateral_bias: float = 0.0
 var hybrid_reference_local_positions: Array[Vector3] = []
 
 # M13 staged whole-body failure state. Whole-vehicle translation/rotation remains
@@ -258,6 +260,16 @@ func _build_rigid_chassis() -> void:
 	)
 	safety_cell_base_size_m = (safety_cell_collision.shape as BoxShape3D).size
 	safety_cell_base_position_m = safety_cell_collision.position
+	# Give the rendered nose its own thin, full-width contact volume. Previously
+	# the only solid front face sat more than a metre behind the visible bumper,
+	# so the structural model could appear to collapse while a visible gap still
+	# remained. This contact volume is intentionally not deformed: the protected
+	# cell remains the volume that retreats during severe collapse.
+	rigid_chassis.add_box_shape(
+		"FrontContactCollision",
+		Vector3(0.22 * scale_x, 0.56 * scale_y, 1.34 * scale_z),
+		Vector3(1.91 * scale_x, 0.72 * scale_y, 0.0)
+	)
 	rigid_chassis.add_front_crush_sensor(
 		Vector3(1.05 * scale_x, 0.72 * scale_y, 1.40 * scale_z),
 		Vector3(1.53 * scale_x, 0.72 * scale_y, 0.0)
@@ -286,6 +298,8 @@ func _reset_hybrid_failure_state() -> void:
 	hybrid_crush_impulse_ns = 0.0
 	hybrid_target_front_crush_m = 0.0
 	hybrid_geometric_front_crush_m = 0.0
+	hybrid_real_front_contact_ever = false
+	hybrid_front_lateral_bias = 0.0
 	hybrid_peak_collision_energy_j = 0.0
 	hybrid_firewall_intrusion_m = 0.0
 	hybrid_cabin_collapse_m = 0.0
@@ -334,24 +348,56 @@ func _consume_real_contact_impulses() -> void:
 	if rigid_chassis == null:
 		return
 	for sample in rigid_chassis.drain_contact_samples():
-		var collider_name: StringName = sample.get("collider_name", StringName(""))
-		if collider_name == &"Road" or collider_name == &"Ground" or collider_name == &"ProvingGround":
-			continue
-		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
-		hybrid_crush_impulse_ns += impulse.length()
+		_consume_front_contact_sample(sample)
+
+func _consume_front_contact_sample(sample: Dictionary) -> void:
+	var collider_name: StringName = sample.get("collider_name", StringName(""))
+	if collider_name == &"Road" or collider_name == &"Ground" or collider_name == &"ProvingGround":
+		return
+	var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
+	hybrid_crush_impulse_ns += impulse.length()
+	# A distance probe intentionally sees an obstacle before the collision
+	# shapes meet. It may prepare the resistance force, but it must never be
+	# used as evidence that the visible body has already begun to crush.
+	# Godot's reported non-ground manifold is the first authoritative contact.
+	hybrid_real_front_contact_ever = true
+	var collider: Object = sample.get("collider", null)
+	if hybrid_primary_collider == null:
+		hybrid_primary_collider = collider
+	var local_position: Vector3 = sample.get("position_local", Vector3.ZERO)
+	if local_position.x > 0.0 and absf(local_position.z) > 0.03:
+		hybrid_front_lateral_bias = clampf(local_position.z / 0.72, -1.0, 1.0)
+	if collider != null:
+		hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _normal_collision_energy_j(collider))
+		if not collider is RigidBody3D and not _is_yielding_obstacle_collider(collider):
+			hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _initial_fixed_obstacle_energy_j())
 
 func _update_hybrid_crush_target() -> void:
 	if rigid_chassis == null:
 		return
 	if rigid_chassis.front_crush_overlap_active():
 		var collider := rigid_chassis.front_crush_collider()
-		if hybrid_primary_collider == null:
+		# The probe samples closing energy while the chassis is still approaching.
+		# It is an observation only; the real-contact gate below is what permits a
+		# visible structural change.
+		if collider != null:
+			hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _normal_collision_energy_j(collider))
+			if not collider is RigidBody3D and not _is_yielding_obstacle_collider(collider):
+				hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _initial_fixed_obstacle_energy_j())
+		# Keep the collider reference for resistance, but do not commit probe travel
+		# to structural deformation until a real rigid-body contact was observed.
+		if hybrid_real_front_contact_ever and hybrid_primary_collider == null:
 			hybrid_primary_collider = collider
-		hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _normal_collision_energy_j(collider))
-	hybrid_target_front_crush_m = maxf(hybrid_target_front_crush_m, rigid_chassis.front_crush_travel_m())
+	if hybrid_real_front_contact_ever:
+		var energy_command := 0.18 + hybrid_peak_collision_energy_j / 520000.0
+		hybrid_target_front_crush_m = maxf(hybrid_target_front_crush_m, maxf(rigid_chassis.front_crush_travel_m(), energy_command))
 	var preset := PassengerCarCatalog.data(vehicle_preset_id)
 	var scale_x := float(preset.get("scale_x", 1.0))
-	hybrid_target_front_crush_m = clampf(hybrid_target_front_crush_m, 0.0, 0.98 * scale_x)
+	# A normal 50 km/h impact must be a front-crash-box event, not an almost
+	# complete loss of the passenger compartment. The cap comes from the actual
+	# normal collision energy and still permits near-design crush at higher demand.
+	var energy_limited_crush := 0.18 * scale_x + hybrid_peak_collision_energy_j / maxf(520000.0 * scale_x, 1.0)
+	hybrid_target_front_crush_m = clampf(hybrid_target_front_crush_m, 0.0, minf(0.98 * scale_x, energy_limited_crush))
 
 func _normal_collision_energy_j(collider: Object) -> float:
 	if rigid_chassis == null:
@@ -366,6 +412,21 @@ func _normal_collision_energy_j(collider: Object) -> float:
 		effective_mass = rigid_chassis.mass * other_mass / maxf(rigid_chassis.mass + other_mass, 1.0)
 	var closing_speed := maxf((rigid_chassis.linear_velocity - collider_velocity).dot(forward), 0.0)
 	return 0.5 * effective_mass * closing_speed * closing_speed
+
+func _initial_fixed_obstacle_energy_j() -> float:
+	if rigid_chassis == null:
+		return 0.0
+	var initial_speed_ms := PhysicsMetrics.kmh_to_ms(initial_speed_kmh)
+	return 0.5 * rigid_chassis.mass * initial_speed_ms * initial_speed_ms
+
+func _is_yielding_obstacle_collider(collider: Object) -> bool:
+	var node := collider as Node
+	while node != null:
+		if node is StaticObstacle3D:
+			var obstacle := node as StaticObstacle3D
+			return obstacle.obstacle_type in [ScenarioConfig.TARGET_POLE, ScenarioConfig.TARGET_TREE]
+		node = node.get_parent()
+	return false
 
 func _failure_stage_targets() -> Dictionary:
 	var preset := PassengerCarCatalog.data(vehicle_preset_id)
@@ -464,6 +525,11 @@ func _enforce_hybrid_crush_shape(delta: float) -> void:
 			var reference_local := hybrid_reference_local_positions[index]
 			var target_local := reference_local
 			target_local.x -= hybrid_cell_front_retreat_m + hybrid_target_front_crush_m * weight
+			# An offset impact folds the struck corner toward the centreline more
+			# than the far corner. A full-frontal contact has zero bias and retains
+			# the existing symmetric response.
+			if not is_zero_approx(hybrid_front_lateral_bias) and signf(reference_local.z) == signf(hybrid_front_lateral_bias):
+				target_local.z -= signf(reference_local.z) * 0.18 * hybrid_target_front_crush_m * weight * absf(hybrid_front_lateral_bias)
 			var corner := index % 4
 			if corner >= 2:
 				target_local.y -= 0.10 * hybrid_target_front_crush_m * weight

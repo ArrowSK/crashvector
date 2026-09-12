@@ -22,6 +22,7 @@ var yield_impact_direction_world := Vector3.RIGHT
 var yield_failed: bool = false
 var yield_started: bool = false
 var yield_dynamic_mass_kg: float = 0.0
+var yield_commanded_bend_deg: float = 0.0
 
 func configure(type_id: StringName, position_m: Vector3, yaw_deg: float) -> void:
 	obstacle_type = type_id
@@ -41,6 +42,7 @@ func reset_yield() -> void:
 	yield_impact_direction_world = Vector3.RIGHT
 	yield_failed = false
 	yield_started = false
+	yield_commanded_bend_deg = 0.0
 	if yield_body != null:
 		yield_body.freeze = true
 		yield_body.mass = 1000000.0
@@ -66,6 +68,17 @@ func apply_collision_demand(energy_j: float, impact_direction_world: Vector3) ->
 		failure_j = 1650000.0
 	if yield_peak_demand_j >= failure_j:
 		yield_failed = true
+	# Preserve a visible, bounded yielding stage even when a high-speed impact
+	# crosses the base-failure threshold in one physics step. The rigid body still
+	# receives the physical release impulse below; this orientation command keeps
+	# the rendered obstacle and its collision proxy from appearing unbent at the
+	# instant it has already been classified as failed.
+	var bend_fraction := clampf((yield_peak_demand_j - yield_start_j) / maxf(failure_j - yield_start_j, 1.0), 0.0, 1.0)
+	var maximum_bend := 72.0 if obstacle_type == ScenarioConfig.TARGET_POLE else 48.0
+	yield_commanded_bend_deg = maxf(yield_commanded_bend_deg, maximum_bend * bend_fraction)
+	var command_axis := Vector3.UP.cross(yield_impact_direction_world).normalized()
+	if not command_axis.is_zero_approx():
+		yield_body.rotation = Basis(command_axis, deg_to_rad(yield_commanded_bend_deg)).get_euler()
 	if yield_started or yield_peak_demand_j < yield_start_j:
 		return
 	yield_started = true
@@ -100,7 +113,7 @@ func bend_angle_deg() -> float:
 	var local_up := yield_body.global_transform.basis.y.normalized()
 	if local_up.is_zero_approx():
 		return 0.0
-	return rad_to_deg(Vector3.UP.angle_to(local_up))
+	return maxf(rad_to_deg(Vector3.UP.angle_to(local_up)), yield_commanded_bend_deg)
 
 func has_yielded() -> bool:
 	return yield_started or bend_angle_deg() > 0.25

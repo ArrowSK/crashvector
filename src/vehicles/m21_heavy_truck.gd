@@ -297,6 +297,7 @@ func _m21_consume_body_contacts(body: VehicleRigidChassis, tractor_part: bool) -
 			0.5 * reduced_mass * lateral_speed * lateral_speed,
 			lateral_impulse * lateral_impulse / maxf(2.0 * reduced_mass, 1.0)
 		)
+		lateral_energy = _m20_confirmed_lateral_energy(collider, lateral_energy, lateral)
 
 		var contact_side_x := collider_local.x if has_collider_center else contact_local.x
 		if longitudinal_energy > 1.0:
