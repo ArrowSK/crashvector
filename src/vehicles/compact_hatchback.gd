@@ -399,14 +399,22 @@ func _normal_collision_energy_j(collider: Object) -> float:
 		return 0.0
 	var forward := rigid_chassis.global_transform.basis.x.normalized()
 	var collider_velocity := Vector3.ZERO
+	var collider_initial_velocity := Vector3.ZERO
 	var effective_mass := rigid_chassis.mass
 	if collider is RigidBody3D:
 		var other := collider as RigidBody3D
 		collider_velocity = other.linear_velocity
+		if other is VehicleRigidChassis:
+			collider_initial_velocity = (other as VehicleRigidChassis).initial_linear_velocity_ms
 		var other_mass := maxf(other.mass, 1.0)
 		effective_mass = rigid_chassis.mass * other_mass / maxf(rigid_chassis.mass + other_mass, 1.0)
 	var closing_speed := maxf((rigid_chassis.linear_velocity - collider_velocity).dot(forward), 0.0)
-	return 0.5 * effective_mass * closing_speed * closing_speed
+	var initial_closing_speed := maxf((rigid_chassis.initial_linear_velocity_ms - collider_initial_velocity).dot(forward), 0.0)
+	# The direct-body callback is issued after Godot applies the first impulse.
+	# Preserve the larger of that current reading and the bodies' pre-impact
+	# relative kinetic energy, which is the collision demand available to the
+	# crush zone and does not depend on a probe or visual overlap.
+	return 0.5 * effective_mass * maxf(closing_speed * closing_speed, initial_closing_speed * initial_closing_speed)
 
 func _initial_fixed_obstacle_energy_j() -> float:
 	if rigid_chassis == null:

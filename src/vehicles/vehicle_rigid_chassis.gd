@@ -31,6 +31,7 @@ var maximum_reverse_speed_ms: float = 0.0
 var maximum_suspension_compression_m: float = 0.0
 var active_suspension_contacts: int = 0
 var initial_forward_world := Vector3.RIGHT
+var initial_linear_velocity_ms := Vector3.ZERO
 var stored_linear_velocity := Vector3.ZERO
 var stored_angular_velocity := Vector3.ZERO
 # Some light targets need the normal rigid-body contact to occur before the
@@ -61,6 +62,7 @@ func configure(
 	rotation = Vector3(0.0, deg_to_rad(heading_deg), 0.0)
 	initial_forward_world = Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
 	linear_velocity = initial_forward_world * PhysicsMetrics.kmh_to_ms(initial_speed_kmh)
+	initial_linear_velocity_ms = linear_velocity
 	angular_velocity = Vector3.ZERO
 	continuous_cd = true
 	contact_monitor = true
@@ -199,6 +201,7 @@ func add_suspension_point(
 func begin_motion(speed_kmh: float, heading_deg: float) -> void:
 	initial_forward_world = Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
 	linear_velocity = initial_forward_world * PhysicsMetrics.kmh_to_ms(speed_kmh)
+	initial_linear_velocity_ms = linear_velocity
 	angular_velocity = Vector3.ZERO
 	stored_linear_velocity = linear_velocity
 	stored_angular_velocity = Vector3.ZERO
