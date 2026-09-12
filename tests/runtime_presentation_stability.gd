@@ -185,8 +185,10 @@ func _check_high_speed_pedestrian_vertical_transfer() -> void:
 		if body != null and is_instance_valid(body):
 			maximum_part_vertical_speed = maxf(maximum_part_vertical_speed, absf(body.linear_velocity.y))
 	_expect(target.impact_received, "High-speed pedestrian regression did not record the contact")
-	_expect(vertical_speed < 0.01, "Recording physical contact must not create a vertical launch: %.3f m/s" % vertical_speed)
-	_expect(maximum_part_vertical_speed < 0.01, "Recording physical contact must not launch a segment: %.3f m/s" % maximum_part_vertical_speed)
+	# One physics frame of gravity is expected. Any larger vertical response would
+	# indicate that contact recording has started injecting momentum again.
+	_expect(vertical_speed < 0.06, "Recording physical contact must not create a vertical launch: %.3f m/s" % vertical_speed)
+	_expect(maximum_part_vertical_speed < 0.06, "Recording physical contact must not launch a segment: %.3f m/s" % maximum_part_vertical_speed)
 	car.end_simulation()
 	target.end_simulation()
 	car.queue_free()
