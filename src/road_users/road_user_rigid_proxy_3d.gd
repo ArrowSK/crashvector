@@ -30,6 +30,7 @@ var simulation_active: bool = false
 var maximum_vertical_speed_ms: float = 0.0
 var maximum_speed_ms: float = 0.0
 var maximum_travel_m: float = 0.0
+var maximum_center_height_m: float = 0.0
 var maximum_articulation_angle_deg: float = 0.0
 var maximum_wheel_spin_rad_s: float = 0.0
 var initial_world_position := Vector3.ZERO
@@ -102,7 +103,9 @@ func _physics_process(_delta: float) -> void:
 	var velocity := center_of_mass_velocity_ms()
 	maximum_vertical_speed_ms = maxf(maximum_vertical_speed_ms, absf(velocity.y))
 	maximum_speed_ms = maxf(maximum_speed_ms, velocity.length())
-	maximum_travel_m = maxf(maximum_travel_m, center_of_mass_position().distance_to(initial_world_position))
+	var center := center_of_mass_position()
+	maximum_travel_m = maxf(maximum_travel_m, center.distance_to(initial_world_position))
+	maximum_center_height_m = maxf(maximum_center_height_m, center.y)
 	_update_articulation_metrics()
 
 func _build_compatibility_model() -> void:
@@ -402,6 +405,7 @@ func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
 	maximum_vertical_speed_ms = 0.0
 	maximum_speed_ms = 0.0
 	maximum_travel_m = 0.0
+	maximum_center_height_m = center_of_mass_position().y
 	maximum_articulation_angle_deg = 0.0
 	maximum_wheel_spin_rad_s = 0.0
 	_initial_relative_bases.clear()
@@ -409,6 +413,7 @@ func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
 		if body != null and is_instance_valid(body):
 			_initial_relative_bases[body.name] = global_transform.basis.inverse() * body.global_transform.basis
 	initial_world_position = center_of_mass_position()
+	maximum_center_height_m = initial_world_position.y
 
 func begin_simulation() -> void:
 	set_preview_pose(origin_offset_m, heading_deg)
