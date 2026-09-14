@@ -57,13 +57,16 @@ func _check_moving_pedestrian_initial_motion() -> void:
 	)
 	root.add_child(proxy)
 	await process_frame
+	var starting_center := proxy.center_of_mass_position()
 	proxy.begin_simulation()
-	await physics_frame
+	for _frame in range(30):
+		await physics_frame
 	var expected_speed := PhysicsMetrics.kmh_to_ms(5.0)
 	var measured := proxy.center_of_mass_velocity_ms()
 	var expected_direction := Vector3.LEFT
 	_expect(measured.dot(expected_direction) > expected_speed * 0.75, "M22 moving pedestrian did not inherit configured heading/speed: %s" % measured)
-	_expect(absf(measured.y) < 1.0, "M22 moving pedestrian received an artificial initial vertical velocity: %.3f m/s" % measured.y)
+	_expect(absf(measured.y) < 0.20, "M22 moving pedestrian lost its upright pre-impact pose: %.3f m/s" % measured.y)
+	_expect(absf(proxy.center_of_mass_position().y - starting_center.y) < 0.05, "M22 moving pedestrian drifted vertically before any vehicle contact")
 	proxy.end_simulation()
 	proxy.queue_free()
 	await process_frame
