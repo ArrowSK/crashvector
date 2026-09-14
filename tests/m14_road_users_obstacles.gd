@@ -52,9 +52,12 @@ func _test_bicycle_target_moves_after_contact(failures: Array[String]) -> void:
 	])
 	if not bool(result.get("impact", false)):
 		failures.append("M14 bicycle production proxy never registered car contact")
-	if float(result.get("target_speed_ms", 0.0)) < 2.0:
+	# The frame, rather than the wheel rim, receives the vehicle impact. That
+	# deliberately removes the previous ramp/launch behavior while retaining a
+	# real, measurable post-contact bicycle trajectory.
+	if float(result.get("target_speed_ms", 0.0)) < 1.0:
 		failures.append("M14 bicycle remains effectively fixed after a 60 km/h impact")
-	if float(result.get("travel_m", 0.0)) < 0.35:
+	if float(result.get("travel_m", 0.0)) < 0.20:
 		failures.append("M14 bicycle does not acquire a material post-impact trajectory")
 	if float(result.get("car_y_rise_m", 0.0)) > 0.20:
 		failures.append("M14 bicycle impact makes the passenger car jump: %.3f m" % float(result.get("car_y_rise_m", 0.0)))
@@ -86,10 +89,6 @@ func _run_road_user_case(target_type: StringName, preset_id: StringName, target_
 	for _frame in range(420):
 		await physics_frame
 		maximum_car_y_rise = maxf(maximum_car_y_rise, car.rigid_chassis.global_position.y - initial_car_y)
-		if car.rigid_chassis.front_crush_overlap_active():
-			var collider := car.rigid_chassis.front_crush_collider()
-			if target.owns_collider(collider):
-				target.apply_probe_contact(car.rigid_chassis, collider)
 	var result := {
 		"impact": target.impact_received,
 		"target_speed_ms": target.maximum_speed_ms,
@@ -109,11 +108,15 @@ func _run_road_user_case(target_type: StringName, preset_id: StringName, target_
 
 func _configure_road_user_channels(target: RoadUserRigidProxy3D, car: CompactHatchback) -> void:
 	target.collision_layer = ROAD_USER_LAYER
-	target.collision_mask = ROAD_USER_GROUND_LAYER
+	target.collision_mask = ROAD_USER_LAYER | ROAD_USER_GROUND_LAYER
 	for body in target.articulated_bodies:
 		if body != null and is_instance_valid(body):
-			body.collision_layer = ROAD_USER_LAYER
-			body.collision_mask = ROAD_USER_GROUND_LAYER
+			if target.is_ground_support_body(body):
+				body.collision_layer = ROAD_USER_GROUND_LAYER
+				body.collision_mask = ROAD_USER_GROUND_LAYER
+			else:
+				body.collision_layer = ROAD_USER_LAYER
+				body.collision_mask = ROAD_USER_LAYER | ROAD_USER_GROUND_LAYER
 	for joint in target.articulated_joints:
 		if joint == null or not is_instance_valid(joint):
 			continue
@@ -123,8 +126,8 @@ func _configure_road_user_channels(target: RoadUserRigidProxy3D, car: CompactHat
 		joint.node_b = NodePath()
 		joint.node_a = body_a_path
 		joint.node_b = body_b_path
-	if car.rigid_chassis != null and car.rigid_chassis.front_crush_probe != null:
-		car.rigid_chassis.front_crush_probe.collision_mask = ROAD_USER_LAYER
+	if car.rigid_chassis != null:
+		car.rigid_chassis.collision_mask |= ROAD_USER_LAYER
 
 func _test_200_kmh_pole_yields(failures: Array[String]) -> void:
 	var result := await _run_yielding_obstacle_case(ScenarioConfig.TARGET_POLE, 200.0)

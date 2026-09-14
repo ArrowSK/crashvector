@@ -403,9 +403,18 @@ func _update_wheels(delta: float) -> void:
 	for i in range(anchors.size()):
 		var node: StructuralNode = vehicle.model.nodes[anchors[i]]
 		var side: float = -1.0 if (node.position_m - center).dot(right) < 0.0 else 1.0
-		var position: Vector3 = node.position_m - up * (radius + 0.10) + right * side * side_offset
-		if position.y < radius:
-			position.y = radius
+		# The rendered tyre must use the same road-support sample as the rigid
+		# chassis. Anchoring it to a deformable structural node and clamping world
+		# Y made otherwise stationary cars look like they were on adjustable
+		# suspension. The support ray is already the physics authority for stance.
+		var support := vehicle.rigid_chassis.suspension_contact_point_world(i) if vehicle.rigid_chassis != null else Vector3.INF
+		var position: Vector3
+		if is_finite(support.x) and is_finite(support.y) and is_finite(support.z):
+			position = support + up * radius + right * side * side_offset
+		else:
+			position = node.position_m - up * (radius + 0.10) + right * side * side_offset
+			if position.y < radius:
+				position.y = radius
 		wheel_groups[i].position = position
 		wheel_groups[i].basis = reference.basis
 		if delta > 0.0:

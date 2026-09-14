@@ -123,32 +123,10 @@ func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
 	if target_type == ScenarioConfig.TARGET_CYCLIST:
 		_rebind_cyclist_couplings()
 
-func apply_probe_contact(source: VehicleRigidChassis, collider: Object = null) -> void:
-	if target_type != ScenarioConfig.TARGET_CYCLIST:
-		super.apply_probe_contact(source, collider)
-		return
-	if impact_received or source == null or not simulation_active:
-		return
-	var forward := source.global_transform.basis.x.normalized()
-	var target_velocity := center_of_mass_velocity_ms()
-	var closing_speed := maxf((source.linear_velocity - target_velocity).dot(forward), 0.0)
-	if closing_speed < 0.25:
-		return
-	var effective_mass := source.mass * target_mass_kg / maxf(source.mass + target_mass_kg, 1.0)
-	var transfer_impulse_ns := minf(
-		effective_mass * closing_speed * 0.82,
-		target_mass_kg * CYCLIST_MAX_TRANSFER_SPEED_MS
-	)
-	_release_cyclist_couplings()
-	apply_central_impulse(forward * transfer_impulse_ns * 0.44)
-	if _m22_pelvis != null:
-		_m22_pelvis.apply_central_impulse(forward * transfer_impulse_ns * 0.30)
-	if _pedestrian_torso != null:
-		_pedestrian_torso.apply_central_impulse(forward * transfer_impulse_ns * 0.22)
-	var contacted := _owned_body_from_collider(collider)
-	if contacted != null and contacted != self and contacted != _m22_pelvis and contacted != _pedestrian_torso:
-		contacted.apply_central_impulse(forward * transfer_impulse_ns * 0.04)
-	impact_received = true
+func record_physical_contact(source: VehicleRigidChassis) -> void:
+	super.record_physical_contact(source)
+	if target_type == ScenarioConfig.TARGET_CYCLIST and impact_received:
+		_release_cyclist_couplings()
 
 func _on_articulated_body_entered(body: Node) -> void:
 	super._on_articulated_body_entered(body)

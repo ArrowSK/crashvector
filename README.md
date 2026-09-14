@@ -18,12 +18,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.7/CrashVector-0.9.0-beta.7-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.7/CrashVector-0.9.0-beta.7-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.8/CrashVector-0.9.0-beta.8-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.8/CrashVector-0.9.0-beta.8-Windows-x64-Setup.exe"><img alt="Download CrashVector for Windows" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.7">Release notes & checksums</a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.8">Release notes & checksums</a>
   ·
   <a href="docs/DISTRIBUTION.md">Installation & updates</a>
 </p>
@@ -39,11 +39,11 @@ CrashVector is an open-source desktop crash-simulation sandbox for people who wa
 
 The current M12–M23 source architecture separates whole-object world motion, permanent structural deformation and presentation. Godot `RigidBody3D` owns supported vehicle/target world motion; CrashVector's structural graphs remain local deformation/presentation state. M13 extends severe passenger-car failure beyond the nose, M14 adds vulnerable-target trajectories and yielding pole/tree targets, M15 adds articulated pedestrian and bicycle dynamics, M16 reorganises the desktop workflow, M17 restores Comparison on the production rigid-body scene, M18 adds passenger-car broadside deformation, M19 adds real-contact diagnostics and offset/oblique front-probe coverage, M20 adds bounded heavy-truck/lorry/motorcycle deformation for broadside/oblique layouts, M21 splits the heavy truck into tractor and trailer rigid bodies connected by a constrained fifth wheel, M22 adds a generic cyclist plus configurable initial pedestrian translation, and M23 corrects runtime presentation, camera tracking and static-target coverage.
 
-> **Current source state:** **`0.9.0-beta.7`** corrects visual-contact timing, fixed-target deformation, high-speed pole/tree yielding, real road-user collision masks and transfers, and broadside heavy-target response.
+> **Current source state:** **`0.9.0-beta.8`** corrects visual-contact timing, supported vehicle stance, contact-driven road-user release, bounded motorcycle-with-rider deformation, generic tank geometry and confirmed passenger-car broadside collapse.
 
-> **Packaged release:** **`0.9.0-beta.7`** is the current verified public desktop beta, with macOS Universal 2 and Windows x64 packages.
+> **Packaged release:** **`0.9.0-beta.8`** is the current verified public desktop beta, with macOS Universal 2 and Windows x64 packages.
 
-> **Important boundaries:** M20 permits generic broadside/oblique heavy-truck, rigid-lorry and riderless-motorcycle deformation, while the old riderless-bicycle broadside path remains intentionally rejected. M21 fifth-wheel articulation is generic and not a manufacturer truck model. M22's cyclist and moving-pedestrian additions remain trajectory/contact models only; they do not add biomechanics, injury prediction, gait, steering, tyre-force or forensic-reconstruction validity.
+> **Important boundaries:** M20 permits generic broadside/oblique heavy-truck, rigid-lorry and motorcycle-with-rider deformation. The rider releases after a real rigid-body contact and is not an injury or biomechanics model. The old riderless-bicycle broadside path remains intentionally rejected. M21 fifth-wheel articulation is generic and not a manufacturer truck model. M22's cyclist and moving-pedestrian additions remain trajectory/contact models only; they do not add biomechanics, injury prediction, gait, steering, tyre-force or forensic-reconstruction validity.
 
 > **Scope:** CrashVector is an educational physics visualisation tool. It is **not** certified accident reconstruction, homologation, manufacturer crash-performance prediction, biomechanics, medical/injury prediction or a safety-rating system.
 
@@ -53,10 +53,10 @@ No Git, Godot, Python, Terminal or PowerShell is required for the packaged deskt
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.7/CrashVector-0.9.0-beta.7-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
-| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.7/CrashVector-0.9.0-beta.7-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
+| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.8/CrashVector-0.9.0-beta.8-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
+| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.8/CrashVector-0.9.0-beta.8-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
 
-The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.9.0-beta.7 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.7)**.
+The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.9.0-beta.8 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.8)**.
 
 This beta is ad-hoc signed on macOS and unsigned on Windows when paid signing credentials are not configured, so Gatekeeper or SmartScreen may warn about an unknown developer/publisher. Use only the files attached to the official `ArrowSK/crashvector` release.
 
@@ -106,7 +106,7 @@ Defaults exist for normal scenarios, so mass and solver parameters are not manda
 | Contact fidelity | M19 records real non-ground Godot contact-manifold diagnostics and adds two lateral front-crush observation rays while keeping Godot collision impulses authoritative |
 | Heavy articulated truck | M21 uses separate trailer and tractor `RigidBody3D` assemblies connected by a constrained generic fifth wheel; inherited M20 front/rear/side local deformation remains bounded and contact-driven |
 | Rigid lorry / box truck | Production Godot rigid-body world motion plus bounded generic M20 front/rear/side deformation; not manufacturer-specific crashworthiness |
-| Riderless motorcycle | Production Godot rigid-body world motion plus bounded generic M20 frame/fork deformation driven by real contact, including the 50 km/h frontal regression; no rider or tyre/steering model |
+| Motorcycle with rider | Production Godot rigid-body world motion plus bounded generic M20 frame/fork deformation driven by real contact. A separate rigid rider follows the seat and releases on the first real contact; no injury, tyre-force or steering model |
 | Vulnerable road users | M15 articulated pedestrians and riderless bicycles remain available; M22 adds pedestrian initial translation and a separate generic cyclist composed of an articulated rider plus bicycle with temporary pre-impact coupling |
 | Static / narrow targets | Wall and concrete barrier remain rigid; generic pole and tree targets can yield and move permanently at severe collision demand |
 | Generic tank target | A fixed generic tracked-vehicle obstacle with separate hull and turret collision volumes. It is an educational static fixture with no armour, weapons, ballistic or manufacturer-specific claims |
@@ -115,7 +115,7 @@ Defaults exist for normal scenarios, so mass and solver parameters are not manda
 | Comparison | Visual Compare and Comparison Lab execute each variant through the current production scene in an isolated `SubViewport` / `World3D` and replay the resulting production recordings |
 | Video export | 1080p / 1440p / 4K offline replay rendering at 30/60 fps with external FFmpeg H.264 encoding; the settings dialog is an input-blocking root modal above the desktop shell |
 | Calibration | Historical M8 evidence labels/reference check retained separately; it does not validate the M12–M22 production source architecture |
-| Desktop distribution | Current verified public package is `0.9.0-beta.7` (M23 source), with macOS Universal 2 DMG and Windows x64 Setup installer, portable checksums and update manifest |
+| Desktop distribution | Current verified public package is `0.9.0-beta.8` (M23 source), with macOS Universal 2 DMG and Windows x64 Setup installer, portable checksums and update manifest |
 
 ## Passenger-car classes
 
@@ -196,7 +196,7 @@ See [0.7.0-beta.2 release notes](docs/releases/0.7.0-beta.2.md).
 
 ## M17 — reciprocal impacts and production comparison
 
-M17 removes the remaining direction and comparison assumptions from the production integration layer. Supported dynamic actors may approach from either direction; passenger cars gain bounded rear deformation; the heavy truck gains bounded front/rear collapse; rigid lorry and riderless motorcycle move through the production Godot rigid-body path; and the collision road is extended to approximately 4 km.
+M17 removes the remaining direction and comparison assumptions from the production integration layer. Supported dynamic actors may approach from either direction; passenger cars gain bounded rear deformation; the heavy truck gains bounded front/rear collapse; rigid lorry and motorcycle move through the production Godot rigid-body path; and the collision road is extended to approximately 4 km.
 
 Visual Compare and Comparison Lab now execute each requested variant through the actual production scene in an isolated world and use the resulting production replay/analysis state. The historical reduced-order runner remains available only for legacy regression continuity.
 
@@ -220,7 +220,7 @@ See [M19 contact fidelity and validation foundation](docs/M19_CONTACT_FIDELITY_V
 
 ## M20 — heavy and other-vehicle deformation
 
-M20 extends broadside/oblique production scope to the generic heavy articulated truck, rigid lorry and riderless motorcycle. Godot rigid bodies remain authoritative for world motion; real non-ground contact demand drives bounded local front/rear/side deformation and corresponding collision-face retreat.
+M20 extends broadside/oblique production scope to the generic heavy articulated truck, rigid lorry and motorcycle with a physical rider. Godot rigid bodies remain authoritative for world motion; real non-ground contact demand drives bounded local front/rear/side deformation and corresponding collision-face retreat. The rider is attached only while seated and releases without an added impulse after a real contact.
 
 The riderless-bicycle broadside path remains intentionally blocked, and M20's deformation limits are generic project assumptions rather than manufacturer or regulatory data.
 
@@ -276,8 +276,8 @@ See [Calibration and validation scope](docs/CALIBRATION.md) and [Physics notes](
 
 CrashVector intentionally rejects or limits scenarios instead of making a visually plausible but unsupported claim.
 
-- Current source rigid-body coverage includes wall, barrier, yielding generic pole/tree, passenger-car, articulated heavy truck, rigid lorry, riderless motorcycle, articulated pedestrian, riderless bicycle and generic cyclist targets.
-- M18 passenger-car broadside is implemented. M20 adds generic broadside/oblique heavy-truck, rigid-lorry and riderless-motorcycle deformation. The old riderless-bicycle broadside path remains rejected; generic rider+bicycle broadside/oblique scenarios use the separate M22 cyclist target.
+- Current source rigid-body coverage includes wall, barrier, yielding generic pole/tree, passenger-car, articulated heavy truck, rigid lorry, motorcycle with rider, articulated pedestrian, riderless bicycle and generic cyclist targets.
+- M18 passenger-car broadside is implemented. M20 adds generic broadside/oblique heavy-truck, rigid-lorry and motorcycle deformation. The old riderless-bicycle broadside path remains rejected; generic rider+bicycle broadside/oblique scenarios use the separate M22 cyclist target.
 - M20 lorry/motorcycle deformation and M21 truck articulation are bounded generic educational models, not manufacturer-specific crashworthiness or multibody vehicle validation.
 - Pedestrian, riderless-bicycle and cyclist output is contact/trajectory visualisation only. M22 pedestrian speed is initial translation, not gait; the cyclist has no validated rider-control, tyre-force, injury or ejection model.
 - Visual Compare and Comparison Lab use the production scene introduced in M17; historical reduced-order comparison code remains only for regression continuity.
@@ -314,7 +314,7 @@ Or open `project.godot` directly in Godot and run the project.
 | [Roadmap](docs/ROADMAP.md) | Implementation history, current validation state and future physics work |
 | [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, distribution and presentation layers |
 | [CI and release flow](docs/CI_AND_RELEASE.md) | Consolidated regression, visual review, package validation and Actions-quota behaviour |
-| [0.9.0-beta.7 release notes](docs/releases/0.9.0-beta.7.md) | Corrective beta for contact timing, fixed/static targets and broadside deformation |
+| [0.9.0-beta.8 release notes](docs/releases/0.9.0-beta.8.md) | Corrective beta for contact-driven crash response, vehicle stance and supported targets |
 | [0.9.0-beta.6 release notes](docs/releases/0.9.0-beta.6.md) | Corrective candidate for road contact, video export, real motorcycle deformation and camera-safe framing |
 | [0.9.0-beta.5 release notes](docs/releases/0.9.0-beta.5.md) | Previous M23 corrective desktop beta, with fitted passenger-car wheels and a collidable generic tank |
 | [0.9.0-beta.4 release notes](docs/releases/0.9.0-beta.4.md) | Previous M23 desktop beta |
@@ -342,9 +342,9 @@ Or open `project.godot` directly in Godot and run the project.
 
 ## Development status
 
-**M23 remains the current source milestone; beta.7 is the corrective desktop package.** `project.godot` is now **`0.9.0-beta.7`**. Its release gate includes the full regression stack, runtime presentation/contact review, macOS Universal 2 packaging, Windows x64 packaging, installer checks and release-side checksum verification.
+**M23 remains the current source milestone; beta.8 is the corrective desktop package.** `project.godot` is now **`0.9.0-beta.8`**. Its release gate includes the full regression stack, runtime presentation/contact review, macOS Universal 2 packaging, Windows x64 packaging, installer checks and release-side checksum verification.
 
-The current public installers are **`v0.9.0-beta.7`**. Portable checksum sidecars and `update-manifest.json` are attached to the public release.
+The current public installers are **`v0.9.0-beta.8`**. Portable checksum sidecars and `update-manifest.json` are attached to the public release.
 
 For the next release, retain the same order: full regression validation, manual presentation/contact-fidelity review, native package checks, then immutable publication. The current v0.9 beta completed those gates before release.
 

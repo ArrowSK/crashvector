@@ -391,7 +391,7 @@ func _update_metrics() -> void:
 	if m17_lorry != null:
 		metrics_label.text += "\nRigid lorry target • %.1f km/h • Godot RigidBody3D production motion" % PhysicsMetrics.ms_to_kmh(m17_lorry.global_linear_velocity_ms().length())
 	elif m17_motorcycle != null:
-		metrics_label.text += "\nRiderless motorcycle target • %.1f km/h • Godot RigidBody3D production motion" % PhysicsMetrics.ms_to_kmh(m17_motorcycle.global_linear_velocity_ms().length())
+		metrics_label.text += "\nMotorcycle with rider • %.1f km/h • Godot RigidBody3D production motion" % PhysicsMetrics.ms_to_kmh(m17_motorcycle.global_linear_velocity_ms().length())
 	elif truck is M17HeavyTruck:
 		var m17_truck := truck as M17HeavyTruck
 		metrics_label.text += "\nTruck local collapse • rear %.0f mm • front %.0f mm" % [m17_truck.hybrid_rear_crush_m * 1000.0, m17_truck.hybrid_front_crush_m * 1000.0]

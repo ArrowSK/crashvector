@@ -86,6 +86,10 @@ func _configure_articulated_collision_channels() -> void:
 				probe.collision_mask = ROAD_USER_LAYER
 
 func _set_road_user_body_channels(body: PhysicsBody3D) -> void:
+	if road_user_proxy != null and road_user_proxy.is_ground_support_body(body):
+		body.collision_layer = ROAD_USER_GROUND_LAYER
+		body.collision_mask = ROAD_USER_GROUND_LAYER
+		return
 	body.collision_layer = ROAD_USER_LAYER
 	body.collision_mask = ROAD_USER_GROUND_LAYER | 1
 

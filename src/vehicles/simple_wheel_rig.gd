@@ -99,10 +99,15 @@ func update_from_model(delta_s: float) -> void:
 		var center := _vehicle_center()
 		var side_sign := -1.0 if node.position_m.z < center.z else 1.0
 		var desired := node.position_m + Vector3(0.0, -suspension_drop_m, side_sign * side_offset_m)
-		var minimum_y := wheel_radius_m
 		var visual_target := desired
-		if visual_target.y < minimum_y:
-			visual_target.y = minimum_y
+		if model != null and get_parent() is CompactHatchback:
+			var vehicle := get_parent() as CompactHatchback
+			if vehicle.rigid_chassis != null:
+				var support := vehicle.rigid_chassis.suspension_contact_point_world(i)
+				if is_finite(support.x) and is_finite(support.y) and is_finite(support.z):
+					visual_target = support + Vector3.UP * wheel_radius_m + Vector3.FORWARD * side_sign * side_offset_m
+		if visual_target.y < wheel_radius_m:
+			visual_target.y = wheel_radius_m
 		suspension_compression_m[i] = maxf(visual_target.y - desired.y, 0.0)
 		var alpha := 1.0 if delta_s <= 0.0 else 1.0 - exp(-RESPONSE * delta_s)
 		var new_position := wheel_instances[i].position.lerp(visual_target, alpha)

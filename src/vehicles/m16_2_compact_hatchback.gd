@@ -20,18 +20,12 @@ extends CompactHatchback
 func _update_hybrid_crush_target() -> void:
 	if rigid_chassis == null:
 		return
-	if rigid_chassis.front_crush_overlap_active():
-		var collider := rigid_chassis.front_crush_collider()
-		if hybrid_primary_collider == null:
-			hybrid_primary_collider = collider
-		hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _normal_collision_energy_j(collider))
 
 	var preset := PassengerCarCatalog.data(vehicle_preset_id)
 	var scale_x := maxf(float(preset.get("scale_x", 1.0)), 0.55)
 	var stiffness_scale := maxf(float(preset.get("stiffness_scale", 1.0)), 0.45)
 	var mass_scale := sqrt(maxf(total_mass_kg / 1150.0, 0.45))
 	var resistance_scale := stiffness_scale * mass_scale
-	var geometric_travel := rigid_chassis.front_crush_travel_m()
 	var energy_travel := _m162_energy_limited_crush_m(hybrid_peak_collision_energy_j, resistance_scale)
 	# The probe remains an energy/travel measurement only. M16.2 is shared by
 	# the production M17/M18 vehicle, so it must honour the same real-contact
@@ -39,12 +33,10 @@ func _update_hybrid_crush_target() -> void:
 	# subclass bypass can prevent a real static-target impact from deforming.
 	var allowed_travel := 0.0
 	if hybrid_real_front_contact_ever:
-		# Once the rigid volumes have actually met, let the measured collision
-		# energy command the available crush travel. The lower geometric reading
-		# alone is often only a few centimetres in a stiff static-target impact
-		# because the solver has already arrested the car by the next frame.
+		# Once the shared visual/physical front frame has actually met, the
+		# manifold-derived energy commands the available crush travel.
 		var energy_command := 0.18 * scale_x + hybrid_peak_collision_energy_j / 520000.0
-		allowed_travel = minf(maxf(geometric_travel, energy_command), energy_travel)
+		allowed_travel = minf(energy_command, energy_travel)
 	hybrid_target_front_crush_m = maxf(hybrid_target_front_crush_m, allowed_travel)
 	hybrid_target_front_crush_m = clampf(hybrid_target_front_crush_m, 0.0, 0.98 * scale_x)
 
