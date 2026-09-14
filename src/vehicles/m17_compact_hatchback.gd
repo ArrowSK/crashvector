@@ -51,11 +51,20 @@ func receive_broadside_probe_impact(source: M17CompactHatchback) -> void:
 		return
 	var lateral := rigid_chassis.global_transform.basis.z.normalized()
 	var lateral_speed := absf((source.rigid_chassis.linear_velocity - rigid_chassis.linear_velocity).dot(lateral))
+	# This function is reached only from the striker's real front-body contact
+	# gate.  Contact callbacks are post-solve, however, so the current relative
+	# lateral speed can already have been absorbed by Godot's impulse solver.
+	# Preserve the larger pre-impact lateral component for the struck car's
+	# independent, bounded side load path.  Do not couple it to the striker's
+	# front-crush accumulator: that accumulator is deliberately directional and
+	# may be zero for a valid front-to-side collision.
+	var initial_lateral_speed := absf((source.rigid_chassis.initial_linear_velocity_ms - rigid_chassis.initial_linear_velocity_ms).dot(lateral))
+	lateral_speed = maxf(lateral_speed, initial_lateral_speed)
 	if lateral_speed <= 0.05:
 		return
 	var reduced_mass := source.rigid_chassis.mass * rigid_chassis.mass / maxf(source.rigid_chassis.mass + rigid_chassis.mass, 1.0)
 	var impact_energy := 0.5 * reduced_mass * lateral_speed * lateral_speed
-	impact_energy = minf(minf(impact_energy, source.hybrid_peak_collision_energy_j), 300000.0)
+	impact_energy = minf(impact_energy, 300000.0)
 	if impact_energy <= 0.0:
 		return
 	if source_local.z < 0.0:
