@@ -74,8 +74,13 @@ func _check_front_probe_layout() -> void:
 	# M19 keeps the original centre-line crush ray as the compatibility handle and
 	# adds two symmetric lateral observation rays. They measure the same front
 	# crush zone and do not add collision shapes or impulses themselves.
+	for preset_id in PassengerCarCatalog.preset_ids():
+		await _check_production_front_contact_contract(preset_id)
+
+func _check_production_front_contact_contract(preset_id: StringName) -> void:
 	var vehicle := M17CompactHatchback.new()
-	vehicle.name = "M19ProbeLayoutCar"
+	vehicle.name = "M19ProbeLayoutCar_%s" % preset_id
+	vehicle.vehicle_preset_id = preset_id
 	vehicle.auto_step = false
 	root.add_child(vehicle)
 	for _frame in range(3):
@@ -97,26 +102,27 @@ func _check_front_probe_layout() -> void:
 		var outer_face := -INF
 		if bumper_collision != null and bumper_collision.shape is BoxShape3D:
 			outer_face = bumper_collision.position.x + (bumper_collision.shape as BoxShape3D).size.x * 0.5
-		print("M19 production nose: rendered=%.4f m configured=%.4f m collision=%.4f m" % [
+		print("M19 production nose %s: rendered=%.4f m configured=%.4f m collision=%.4f m" % [
+			preset_id,
 			expected_bumper_face,
 			chassis.front_contact_face_x_m,
 			outer_face,
 		])
-		_expect(absf(chassis.front_contact_face_x_m - expected_bumper_face) < 0.001, "M19 rigid contact face must match the rendered M16.2 nose face")
-		_expect(bumper_collision != null, "M19 passenger car is missing the outer bumper collision volume")
+		_expect(absf(chassis.front_contact_face_x_m - expected_bumper_face) < 0.001, "M19 %s rigid contact face must match the rendered M16.2 nose face" % preset_id)
+		_expect(bumper_collision != null, "M19 %s passenger car is missing the outer bumper collision volume" % preset_id)
 		if bumper_collision != null and bumper_collision.shape is BoxShape3D:
-			_expect(absf(outer_face - expected_bumper_face) < 0.001, "M19 outer bumper collision volume must end at the rendered M16.2 nose face")
-		_expect(chassis.front_crush_probe_count() == 3, "M19 passenger car must expose centre plus two lateral front-crush probes")
+			_expect(absf(outer_face - expected_bumper_face) < 0.001, "M19 %s outer bumper collision volume must end at the rendered M16.2 nose face" % preset_id)
+		_expect(chassis.front_crush_probe_count() == 3, "M19 %s passenger car must expose centre plus two lateral front-crush probes" % preset_id)
 		if chassis.front_crush_probes.size() == 3:
 			var centre := chassis.front_crush_probes[0]
 			var negative := chassis.front_crush_probes[1]
 			var positive := chassis.front_crush_probes[2]
-			_expect(centre != null and negative != null and positive != null, "M19 front-crush probe set contains a null ray")
+			_expect(centre != null and negative != null and positive != null, "M19 %s front-crush probe set contains a null ray" % preset_id)
 			if centre != null and negative != null and positive != null:
-				_expect(absf(centre.position.z) < 0.001, "M19 compatibility front-crush probe must remain on the centre line")
-				_expect(negative.position.z < -0.05 and positive.position.z > 0.05, "M19 lateral front-crush probes must straddle the centre line")
-				_expect(absf(negative.position.z + positive.position.z) < 0.001, "M19 lateral front-crush probes must be symmetric")
-				_expect(absf(centre.position.x - negative.position.x) < 0.001 and absf(centre.position.x - positive.position.x) < 0.001, "M19 front-crush probes must share one authoritative longitudinal mount")
+				_expect(absf(centre.position.z) < 0.001, "M19 %s compatibility front-crush probe must remain on the centre line" % preset_id)
+				_expect(negative.position.z < -0.05 and positive.position.z > 0.05, "M19 %s lateral front-crush probes must straddle the centre line" % preset_id)
+				_expect(absf(negative.position.z + positive.position.z) < 0.001, "M19 %s lateral front-crush probes must be symmetric" % preset_id)
+				_expect(absf(centre.position.x - negative.position.x) < 0.001 and absf(centre.position.x - positive.position.x) < 0.001, "M19 %s front-crush probes must share one authoritative longitudinal mount" % preset_id)
 	vehicle.queue_free()
 	await process_frame
 
