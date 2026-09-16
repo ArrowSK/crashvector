@@ -84,7 +84,7 @@ func step_external(delta: float) -> void:
 		_sync_model_to_chassis()
 		_consume_real_contact_impulses()
 		_update_hybrid_crush_target()
-		_apply_hybrid_crush_resistance()
+		_apply_hybrid_crush_resistance(delta)
 		model.step(delta, mini(maxi(solver_substeps, 4), ScenarioConfig.MAX_SOLVER_SUBSTEPS))
 		_enforce_hybrid_crush_shape(delta)
 	_update_visuals(delta)
@@ -489,7 +489,7 @@ func _failure_stage_targets() -> Dictionary:
 		"rear_m": 0.28 * scale_x * rear_fraction,
 	}
 
-func _apply_hybrid_crush_resistance() -> void:
+func _apply_hybrid_crush_resistance(delta: float) -> void:
 	if rigid_chassis == null or not hybrid_real_front_contact_ever:
 		return
 	var collider := hybrid_primary_collider
@@ -528,6 +528,13 @@ func _apply_hybrid_crush_resistance() -> void:
 		# when two passenger-car crush sensors overlap each other.
 		if rigid_chassis.get_instance_id() > other.get_instance_id():
 			return
+		# Godot has already resolved the physical contact before this supplemental
+		# crush-load step. Limit the pair force to the closing momentum still
+		# available this frame, so the phenomenological rail resistance can slow a
+		# closing pair but cannot pull a car back through a heavier target.
+		var reduced_mass := rigid_chassis.mass * other.mass / maxf(rigid_chassis.mass + other.mass, 1.0)
+		var stopping_force := reduced_mass * closing_speed / maxf(delta, 0.001)
+		force_n = minf(force_n, stopping_force * 0.80)
 		rigid_chassis.apply_central_force(-forward * force_n)
 		other.apply_central_force(forward * force_n)
 	elif _requires_additional_crush_resistance(collider):
