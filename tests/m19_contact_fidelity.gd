@@ -114,6 +114,7 @@ func _check_production_front_contact_contract(preset_id: StringName) -> void:
 			_expect(absf(outer_face - expected_bumper_face) < 0.001, "M19 %s outer bumper collision volume must end at the rendered M16.2 nose face" % preset_id)
 		_expect(chassis.front_crush_probe_count() == 3, "M19 %s passenger car must expose centre plus two lateral front-crush probes" % preset_id)
 		_expect(chassis.configured_mass_distribution_size_m.x > 3.0, "M19 %s passenger car must use a neutral chassis mass envelope instead of collision-shape-derived inertia" % preset_id)
+		_expect(chassis.configured_center_of_mass_local_m.y > 0.45, "M19 %s passenger car must use its neutral centre of mass instead of a collision-shape-derived centre" % preset_id)
 		if chassis.front_crush_probes.size() == 3:
 			var centre := chassis.front_crush_probes[0]
 			var negative := chassis.front_crush_probes[1]

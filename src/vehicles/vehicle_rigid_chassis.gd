@@ -49,6 +49,7 @@ var maximum_non_ground_contact_points: int = 0
 var maximum_non_ground_contact_span_m := Vector3.ZERO
 var maximum_non_ground_projected_span_xz_m2: float = 0.0
 var configured_mass_distribution_size_m := Vector3.ZERO
+var configured_center_of_mass_local_m := Vector3.ZERO
 
 func configure(
 	body_mass_kg: float,
@@ -87,7 +88,7 @@ func add_box_shape(node_name: String, size_m: Vector3, local_position_m: Vector3
 	add_child(collision)
 	return collision
 
-func configure_box_mass_distribution(size_m: Vector3) -> void:
+func configure_box_mass_distribution(size_m: Vector3, center_of_mass_local_m: Vector3 = Vector3.ZERO) -> void:
 	# Collision geometry changes during a crash: the sacrificial front box retreats
 	# while the safety cell shortens only in severe failure.  Godot's automatic
 	# inertia calculation includes every collision shape, so using it would make
@@ -101,6 +102,9 @@ func configure_box_mass_distribution(size_m: Vector3) -> void:
 		maxf(size_m.z, 0.10)
 	)
 	configured_mass_distribution_size_m = size
+	configured_center_of_mass_local_m = center_of_mass_local_m
+	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+	center_of_mass = center_of_mass_local_m
 	var coefficient := mass / 12.0
 	inertia = Vector3(
 		coefficient * (size.y * size.y + size.z * size.z),

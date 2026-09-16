@@ -300,7 +300,7 @@ func _build_rigid_chassis() -> void:
 		4.10 * scale_x,
 		1.30 * scale_y,
 		1.72 * scale_z
-	))
+	), Vector3(-0.12 * scale_x, 0.78 * scale_y, 0.0))
 	var mass_scale := maxf(total_mass_kg / 1150.0, 0.45)
 	var suspension_k := 65000.0 * mass_scale
 	var suspension_c := 6000.0 * sqrt(mass_scale)
