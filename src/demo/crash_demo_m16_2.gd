@@ -278,6 +278,11 @@ func _m162_apply_aftermath_camera() -> void:
 	var target_limit := 5.0 if scenario.target_type in [ScenarioConfig.TARGET_PEDESTRIAN, ScenarioConfig.TARGET_BICYCLE] else 4.0
 	if scenario.target_type == ScenarioConfig.TARGET_TRUCK:
 		target_limit = 3.0
+	elif scenario.target_type == ScenarioConfig.TARGET_LORRY:
+		# A rigid lorry's origin is at the rear guard, so its actual centre lies
+		# several metres ahead of the scenario position. Keep that assembly in the
+		# aftermath shot instead of treating it like a small static fixture.
+		target_limit = 4.6
 	elif scenario.target_type in [ScenarioConfig.TARGET_WALL, ScenarioConfig.TARGET_BARRIER, ScenarioConfig.TARGET_POLE, ScenarioConfig.TARGET_TREE]:
 		target_limit = 1.0
 	var target_subject := anchor + _m162_limit_vector(target_center - anchor, target_limit)
@@ -285,6 +290,8 @@ func _m162_apply_aftermath_camera() -> void:
 	var target_weight := 0.32 if scenario.target_type in [ScenarioConfig.TARGET_PEDESTRIAN, ScenarioConfig.TARGET_BICYCLE] else 0.22
 	if scenario.target_type == ScenarioConfig.TARGET_TRUCK:
 		target_weight = 0.36
+	elif scenario.target_type == ScenarioConfig.TARGET_LORRY:
+		target_weight = 0.30
 	var car_weight := 0.40
 	var anchor_weight := 1.0 - target_weight - car_weight
 	var focus_point := anchor * anchor_weight + car_subject * car_weight + target_subject * target_weight
@@ -296,6 +303,8 @@ func _m162_apply_aftermath_camera() -> void:
 		focus_point.y = clampf(car_subject.y * 0.30 + target_subject.y * 0.35 + 0.35, 0.95, 1.60)
 	elif scenario.target_type == ScenarioConfig.TARGET_TRUCK:
 		focus_point.y = 1.02
+	elif scenario.target_type == ScenarioConfig.TARGET_LORRY:
+		focus_point.y = 1.10
 	else:
 		focus_point.y = 0.88
 
@@ -310,6 +319,8 @@ func _m162_apply_aftermath_camera() -> void:
 	var span := clampf(max_projection - min_projection, 8.0, 11.5)
 	if scenario.target_type == ScenarioConfig.TARGET_TRUCK:
 		span = minf(span, 8.8)
+	elif scenario.target_type == ScenarioConfig.TARGET_LORRY:
+		span = minf(span, 10.2)
 
 	camera.fov = 50.0
 	var aspect := 1.55
@@ -347,6 +358,12 @@ func _m162_aftermath_target_extent() -> float:
 			# The contact is at the trailer rear. Include enough nearby trailer body
 			# to read the target without widening all the way to the distant cab.
 			return 2.8
+		ScenarioConfig.TARGET_LORRY:
+			# The box body is the visible and colliding target.  Its rear-origin
+			# layout needs a real cargo extent rather than the static-fixture default.
+			return 3.1
+		ScenarioConfig.TARGET_MOTORCYCLE:
+			return 1.15
 		ScenarioConfig.TARGET_PASSENGER_CAR:
 			return float(PassengerCarCatalog.data(scenario.target_car_preset_id).get("representative_length_m", 4.1)) * 0.42
 		ScenarioConfig.TARGET_PEDESTRIAN:

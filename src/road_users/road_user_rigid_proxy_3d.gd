@@ -30,6 +30,7 @@ var simulation_active: bool = false
 var maximum_vertical_speed_ms: float = 0.0
 var maximum_speed_ms: float = 0.0
 var maximum_travel_m: float = 0.0
+var maximum_center_height_m: float = 0.0
 var maximum_articulation_angle_deg: float = 0.0
 var maximum_wheel_spin_rad_s: float = 0.0
 var initial_world_position := Vector3.ZERO
@@ -44,6 +45,12 @@ var _root_com_local := Vector3.ZERO
 var _pedestrian_torso: RigidBody3D
 var _bicycle_wheels: Array[RigidBody3D] = []
 var _cleaning_up: bool = false
+# Road users begin each run in a controlled upright pose.  They remain real
+# dynamic rigid bodies so Godot is still solely responsible for the impact
+# impulse, but gravity stays disabled until the first vehicle contact.  This
+# prevents the ungrounded articulated chain from falling or solving itself
+# apart before the approaching vehicle reaches it.
+var _preimpact_pose_active: bool = false
 
 func configure(
 	type_id: StringName,
@@ -96,7 +103,9 @@ func _physics_process(_delta: float) -> void:
 	var velocity := center_of_mass_velocity_ms()
 	maximum_vertical_speed_ms = maxf(maximum_vertical_speed_ms, absf(velocity.y))
 	maximum_speed_ms = maxf(maximum_speed_ms, velocity.length())
-	maximum_travel_m = maxf(maximum_travel_m, center_of_mass_position().distance_to(initial_world_position))
+	var center := center_of_mass_position()
+	maximum_travel_m = maxf(maximum_travel_m, center.distance_to(initial_world_position))
+	maximum_center_height_m = maxf(maximum_center_height_m, center.y)
 	_update_articulation_metrics()
 
 func _build_compatibility_model() -> void:
@@ -396,6 +405,7 @@ func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
 	maximum_vertical_speed_ms = 0.0
 	maximum_speed_ms = 0.0
 	maximum_travel_m = 0.0
+	maximum_center_height_m = center_of_mass_position().y
 	maximum_articulation_angle_deg = 0.0
 	maximum_wheel_spin_rad_s = 0.0
 	_initial_relative_bases.clear()
@@ -403,14 +413,17 @@ func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
 		if body != null and is_instance_valid(body):
 			_initial_relative_bases[body.name] = global_transform.basis.inverse() * body.global_transform.basis
 	initial_world_position = center_of_mass_position()
+	maximum_center_height_m = initial_world_position.y
 
 func begin_simulation() -> void:
 	set_preview_pose(origin_offset_m, heading_deg)
 	var forward := Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
 	var initial_velocity := forward * PhysicsMetrics.kmh_to_ms(initial_speed_kmh)
+	_preimpact_pose_active = _uses_preimpact_pose_control()
 	freeze = false
 	sleeping = false
 	linear_velocity = initial_velocity
+	gravity_scale = _preimpact_gravity_scale_for_body(self)
 	for body in articulated_bodies:
 		if body == null or not is_instance_valid(body):
 			continue
@@ -418,17 +431,21 @@ func begin_simulation() -> void:
 		body.sleeping = false
 		body.linear_velocity = initial_velocity
 		body.angular_velocity = Vector3.ZERO
+		body.gravity_scale = _preimpact_gravity_scale_for_body(body)
 	simulation_active = true
 	initial_world_position = center_of_mass_position()
 
 func end_simulation() -> void:
 	simulation_active = false
+	_preimpact_pose_active = false
 	freeze = true
+	gravity_scale = 1.0
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
 	for body in articulated_bodies:
 		if body != null and is_instance_valid(body):
 			body.freeze = true
+			body.gravity_scale = 1.0
 			body.linear_velocity = Vector3.ZERO
 			body.angular_velocity = Vector3.ZERO
 
@@ -480,7 +497,28 @@ func record_physical_contact(source: VehicleRigidChassis) -> void:
 	# deliberately does not add a second, synthetic impulse to the body chain.
 	if source == null or not simulation_active:
 		return
+	if _preimpact_pose_active:
+		_release_preimpact_pose()
 	impact_received = true
+
+func _release_preimpact_pose() -> void:
+	# This runs only after Godot has reported a vehicle-body contact.  It does
+	# not add any velocity or impulse: the active manifold remains the source of
+	# motion, while gravity returns for the on-road aftermath.
+	_preimpact_pose_active = false
+	gravity_scale = 1.0
+	for body in articulated_bodies:
+		if body != null and is_instance_valid(body):
+			body.gravity_scale = 1.0
+
+func _uses_preimpact_pose_control() -> bool:
+	# A freestanding pedestrian has no support geometry that can settle an
+	# articulated chain before impact. Bicycle wheels do, so retain their normal
+	# gravity/contact behaviour and the resulting physical momentum transfer.
+	return target_type == ScenarioConfig.TARGET_PEDESTRIAN
+
+func _preimpact_gravity_scale_for_body(_body: RigidBody3D) -> float:
+	return 0.0 if _uses_preimpact_pose_control() else 1.0
 
 func _on_articulated_body_entered(body: Node) -> void:
 	if body is VehicleRigidChassis:

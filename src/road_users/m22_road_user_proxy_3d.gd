@@ -128,6 +128,19 @@ func record_physical_contact(source: VehicleRigidChassis) -> void:
 	if target_type == ScenarioConfig.TARGET_CYCLIST and impact_received:
 		_release_cyclist_couplings()
 
+func _uses_preimpact_pose_control() -> bool:
+	return target_type == ScenarioConfig.TARGET_CYCLIST or super._uses_preimpact_pose_control()
+
+func _preimpact_gravity_scale_for_body(body: RigidBody3D) -> float:
+	if target_type != ScenarioConfig.TARGET_CYCLIST:
+		return super._preimpact_gravity_scale_for_body(body)
+	# The bicycle frame and wheel support bodies keep their established road
+	# contact. Only the unsupported rider is held upright until a real impact,
+	# avoiding the airborne pre-impact pose without making the bicycle static.
+	if body == self or body in _bicycle_wheels:
+		return 1.0
+	return 0.0
+
 func _on_articulated_body_entered(body: Node) -> void:
 	super._on_articulated_body_entered(body)
 	if target_type == ScenarioConfig.TARGET_CYCLIST and body is VehicleRigidChassis:

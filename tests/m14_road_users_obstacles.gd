@@ -27,9 +27,9 @@ func _run() -> void:
 
 func _test_pedestrian_target_moves_after_contact(failures: Array[String]) -> void:
 	var result := await _run_road_user_case(ScenarioConfig.TARGET_PEDESTRIAN, RoadUserCatalog.PEDESTRIAN_ADULT, 75.0, 60.0)
-	print("M14 pedestrian: impact=%s target_speed=%.2f m/s travel=%.2f m target_y_speed=%.2f m/s car_y_rise=%.3f m car_rebound=%.3f m/s car_crush=%.3f m" % [
+	print("M14 pedestrian: impact=%s target_speed=%.2f m/s travel=%.2f m target_y_speed=%.2f m/s target_max_height=%.2f m car_y_rise=%.3f m car_rebound=%.3f m/s car_crush=%.3f m" % [
 		str(result.get("impact", false)), float(result.get("target_speed_ms", 0.0)), float(result.get("travel_m", 0.0)),
-		float(result.get("target_vertical_ms", 0.0)), float(result.get("car_y_rise_m", 0.0)),
+		float(result.get("target_vertical_ms", 0.0)), float(result.get("target_max_height_m", 0.0)), float(result.get("car_y_rise_m", 0.0)),
 		float(result.get("car_rebound_ms", 0.0)), float(result.get("car_crush_m", 0.0)),
 	])
 	if not bool(result.get("impact", false)):
@@ -45,9 +45,9 @@ func _test_pedestrian_target_moves_after_contact(failures: Array[String]) -> voi
 
 func _test_bicycle_target_moves_after_contact(failures: Array[String]) -> void:
 	var result := await _run_road_user_case(ScenarioConfig.TARGET_BICYCLE, RoadUserCatalog.BICYCLE_CITY, 16.0, 60.0)
-	print("M14 bicycle: impact=%s target_speed=%.2f m/s travel=%.2f m target_y_speed=%.2f m/s car_y_rise=%.3f m car_rebound=%.3f m/s car_crush=%.3f m" % [
+	print("M14 bicycle: impact=%s target_speed=%.2f m/s travel=%.2f m target_y_speed=%.2f m/s target_max_height=%.2f m car_y_rise=%.3f m car_rebound=%.3f m/s car_crush=%.3f m" % [
 		str(result.get("impact", false)), float(result.get("target_speed_ms", 0.0)), float(result.get("travel_m", 0.0)),
-		float(result.get("target_vertical_ms", 0.0)), float(result.get("car_y_rise_m", 0.0)),
+		float(result.get("target_vertical_ms", 0.0)), float(result.get("target_max_height_m", 0.0)), float(result.get("car_y_rise_m", 0.0)),
 		float(result.get("car_rebound_ms", 0.0)), float(result.get("car_crush_m", 0.0)),
 	])
 	if not bool(result.get("impact", false)):
@@ -93,6 +93,7 @@ func _run_road_user_case(target_type: StringName, preset_id: StringName, target_
 		"impact": target.impact_received,
 		"target_speed_ms": target.maximum_speed_ms,
 		"target_vertical_ms": target.maximum_vertical_speed_ms,
+		"target_max_height_m": target.maximum_center_height_m,
 		"travel_m": target.maximum_travel_m,
 		"car_y_rise_m": maximum_car_y_rise,
 		"car_rebound_ms": car.hybrid_maximum_reverse_speed_ms(),
