@@ -35,6 +35,7 @@ func _initialize() -> void:
 func _test_scenario_round_trip(failures: Array[String]) -> void:
 	var source := ScenarioConfig.new()
 	source.title = "M4 car versus car round trip"
+	source.primary_type = ScenarioConfig.TARGET_PASSENGER_CAR
 	source.target_type = ScenarioConfig.TARGET_PASSENGER_CAR
 	source.car_preset_id = PassengerCarCatalog.D_SEGMENT_MIDSIZE
 	source.target_car_preset_id = PassengerCarCatalog.C_SEGMENT_COMPACT
@@ -55,6 +56,8 @@ func _test_scenario_round_trip(failures: Array[String]) -> void:
 		return
 	if loaded.title != source.title or loaded.target_type != source.target_type:
 		failures.append("M4 scenario JSON lost identity fields")
+	if loaded.primary_type != source.primary_type:
+		failures.append("M4 scenario JSON lost the explicit primary actor type")
 	if loaded.car_preset_id != source.car_preset_id or loaded.target_car_preset_id != source.target_car_preset_id:
 		failures.append("M4 scenario JSON lost passenger-car class fields")
 	if absf(loaded.car_mass_kg - source.car_mass_kg) > 0.001 or absf(loaded.target_mass_kg - source.target_mass_kg) > 0.001:
@@ -65,6 +68,14 @@ func _test_scenario_round_trip(failures: Array[String]) -> void:
 		failures.append("M4 scenario JSON lost contact parameters")
 	if not loaded.validation_errors().is_empty():
 		failures.append("M4 valid car-vs-car round-trip scenario failed preflight")
+	var legacy_data := source.to_dictionary().duplicate(true)
+	legacy_data["format_version"] = 1
+	var legacy_car: Dictionary = legacy_data.get("car", {})
+	legacy_car.erase("actor_type")
+	legacy_data["car"] = legacy_car
+	var legacy_loaded := ScenarioConfig.from_dictionary(legacy_data)
+	if legacy_loaded == null or legacy_loaded.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR:
+		failures.append("M4 version-1 scenario migration did not default the primary actor to passenger car")
 
 func _test_scenario_store(failures: Array[String]) -> void:
 	var scenario := ScenarioConfig.new()

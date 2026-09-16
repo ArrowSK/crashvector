@@ -5,7 +5,7 @@
 class_name ScenarioConfig
 extends RefCounted
 
-const FORMAT_VERSION: int = 1
+const FORMAT_VERSION: int = 2
 const MAX_SOLVER_SUBSTEPS: int = 64
 const TARGET_PASSENGER_CAR: StringName = &"passenger_car"
 const TARGET_TRUCK: StringName = &"heavy_truck"
@@ -21,6 +21,10 @@ const TARGET_TREE: StringName = &"tree"
 const TARGET_TANK: StringName = &"tank"
 
 var title: String = "Car vs Truck"
+# Version 2 makes the primary actor explicit. The existing `car_*` fields stay
+# as the persisted passenger-car payload during the migration so version-1
+# scenarios remain readable and current production paths remain compatible.
+var primary_type: StringName = TARGET_PASSENGER_CAR
 var target_type: StringName = TARGET_TRUCK
 var car_preset_id: StringName = PassengerCarCatalog.B_SEGMENT_HATCHBACK
 var car_mass_kg: float = 1150.0
@@ -54,6 +58,21 @@ static func target_ids() -> Array[StringName]:
 		TARGET_TREE,
 		TARGET_TANK,
 	]
+
+static func vehicle_actor_ids() -> Array[StringName]:
+	return [
+		TARGET_PASSENGER_CAR,
+		TARGET_TRUCK,
+		TARGET_LORRY,
+		TARGET_MOTORCYCLE,
+		TARGET_TANK,
+	]
+
+static func actor_display_name(id: StringName) -> String:
+	return target_display_name(id)
+
+static func is_vehicle_actor_id(id: StringName) -> bool:
+	return id in vehicle_actor_ids()
 
 static func target_display_name(id: StringName) -> String:
 	match id:
@@ -100,6 +119,7 @@ func target_is_dynamic() -> bool:
 
 func reset_defaults() -> void:
 	title = "Car vs Truck"
+	primary_type = TARGET_PASSENGER_CAR
 	car_preset_id = PassengerCarCatalog.B_SEGMENT_HATCHBACK
 	car_mass_kg = PassengerCarCatalog.default_mass_kg(car_preset_id)
 	car_speed_kmh = 50.0
@@ -166,6 +186,8 @@ func target_car_uses_front_contact() -> bool:
 
 func validation_errors() -> Array[String]:
 	var errors: Array[String] = []
+	if not is_vehicle_actor_id(primary_type):
+		errors.append("Primary actor must be a supported vehicle")
 	if not PassengerCarCatalog.preset_ids().has(car_preset_id):
 		errors.append("Unknown primary passenger-car class")
 	if not target_ids().has(target_type):
@@ -250,9 +272,10 @@ func to_dictionary() -> Dictionary:
 	return {
 		"format_version": FORMAT_VERSION,
 		"title": title,
-		"scenario_type": "single_car_impact",
+		"scenario_type": "two_actor_impact",
 		"target_type": String(target_type),
 		"car": {
+			"actor_type": String(primary_type),
 			"class_id": String(car_preset_id),
 			"mass_kg": car_mass_kg,
 			"speed_kmh": car_speed_kmh,
@@ -286,6 +309,7 @@ static func from_dictionary(data: Dictionary) -> ScenarioConfig:
 	config.title = String(data.get("title", config.title))
 	config.target_type = StringName(String(data.get("target_type", String(config.target_type))))
 	var car_data: Dictionary = data.get("car", {})
+	config.primary_type = StringName(String(car_data.get("actor_type", String(TARGET_PASSENGER_CAR))))
 	config.car_preset_id = StringName(String(car_data.get("class_id", String(config.car_preset_id))))
 	config.car_mass_kg = float(car_data.get("mass_kg", config.car_mass_kg))
 	config.car_speed_kmh = float(car_data.get("speed_kmh", config.car_speed_kmh))
