@@ -98,8 +98,12 @@ func _check_perpendicular_car_to_car_impact() -> void:
 	_expect(car != null and target != null, "M18 passenger-car pair must use the current rigid-body passenger-car compatibility class")
 	if car != null and target != null:
 		var side_crush := car.side_impact_deformation_m()
-		print("M18 T-bone: side_crush=%.3f m side_energy=%.0f kJ striker_front=%.3f m car_contacts=%d target_contacts=%d" % [
+		var negative_side_crush := car.hybrid_side_negative_z_crush_m
+		var positive_side_crush := car.hybrid_side_positive_z_crush_m
+		print("M18 T-bone: side_crush=%.3f m negative=%.3f m positive=%.3f m side_energy=%.0f kJ striker_front=%.3f m car_contacts=%d target_contacts=%d" % [
 			side_crush,
+			negative_side_crush,
+			positive_side_crush,
 			car.side_impact_energy_j() / 1000.0,
 			target.front_crush_deformation_m(),
 			car.rigid_chassis.non_ground_contact_events,
@@ -109,6 +113,7 @@ func _check_perpendicular_car_to_car_impact() -> void:
 		_expect(target.rigid_chassis.non_ground_contact_events > 0, "M18 striking passenger car received no real Godot contact")
 		_expect(side_crush > 0.02, "M18 broadside contact produced no material lateral deformation: %.3f m" % side_crush)
 		_expect(side_crush < 0.70, "M18 lateral deformation exceeded its bounded generic envelope: %.3f m" % side_crush)
+		_expect(minf(negative_side_crush, positive_side_crush) < side_crush * 0.35, "M18 broadside deformation became implausibly symmetric: negative=%.3f m positive=%.3f m" % [negative_side_crush, positive_side_crush])
 		_expect(target.front_crush_deformation_m() > 0.015, "M18 striking passenger car front did not deform against the other car's side: %.3f m" % target.front_crush_deformation_m())
 		_expect(_finite_vector(car.rigid_chassis.global_position) and _finite_vector(target.rigid_chassis.global_position), "M18 side impact produced non-finite rigid-body positions")
 		_expect(car.rigid_chassis.maximum_vertical_speed_ms < 20.0 and target.rigid_chassis.maximum_vertical_speed_ms < 20.0, "M18 side impact produced an implausible vertical launch")

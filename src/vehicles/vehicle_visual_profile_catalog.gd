@@ -109,12 +109,18 @@ static func visual_signature(preset_id: StringName) -> Dictionary:
 	}
 
 static func production_front_face_x_m(preset_id: StringName, structural_front_x_m: float) -> float:
-	# M16.2 ships the fitted Kenney body and hides the procedural lamp/grille
-	# details. The body is bounded by the presentation cage, whose only possible
-	# forward extension at its last section is the profile's upper-node offset.
-	# Keep this value here so collision geometry and the packaged visual share one
-	# neutral-nose contract for every passenger-car class.
-	var profile := data(preset_id)
-	var final_section := float(CompactHatchbackBuilder.STATION_X.size() - 1)
-	var upper_offset := sample_station(profile, "upper_x_offset_m", final_section)
-	return structural_front_x_m + maxf(upper_offset, 0.0)
+	# The M16.2 renderer preserves each Kenney body with a uniform source fit.
+	# Its real nose therefore is not, in general, the last structural-cage
+	# station. These neutral local X extents are measured from the exact shipped
+	# asset plus profile fit. M19 rebuilds every production skin and asserts this
+	# contract against the generated mesh, so a changed asset or fit cannot leave
+	# a collision volume ahead of the visible car.
+	const neutral_faces := {
+		PassengerCarCatalog.A_SEGMENT_CITY: 1.7649,
+		PassengerCarCatalog.B_SEGMENT_HATCHBACK: 1.5571,
+		PassengerCarCatalog.C_SEGMENT_COMPACT: 1.1397,
+		PassengerCarCatalog.D_SEGMENT_MIDSIZE: 0.9604,
+		PassengerCarCatalog.J_SEGMENT_SUV: 1.6757,
+		PassengerCarCatalog.M_SEGMENT_MPV: 1.8276,
+	}
+	return float(neutral_faces.get(preset_id, structural_front_x_m))
