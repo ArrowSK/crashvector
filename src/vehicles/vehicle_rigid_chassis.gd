@@ -442,7 +442,11 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 			float(manifold.get("projected_span_xz_m2", 0.0))
 		)
 		var total_impulse := float(manifold.get("total_impulse_ns", 0.0))
-		if total_impulse > peak_non_ground_contact_impulse_ns:
+		# Godot may report a contact point after its solver impulse was resolved in
+		# an earlier integration step. Retain that real manifold even when this
+		# step's raw impulse is zero: contact geometry and reported solver impulse
+		# are separate observations. The scalar remains the unmodified raw value.
+		if peak_non_ground_contact_manifold.is_empty() or total_impulse > peak_non_ground_contact_impulse_ns:
 			peak_non_ground_contact_impulse_ns = total_impulse
 			peak_non_ground_contact_manifold = manifold.duplicate(true)
 

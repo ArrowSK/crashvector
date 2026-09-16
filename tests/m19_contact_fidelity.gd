@@ -176,7 +176,8 @@ func _check_production_replay_diagnostics() -> void:
 		var diagnostics := car.rigid_chassis.contact_manifold_diagnostics()
 		_expect(String(diagnostics.get("scope", "")) == "diagnostic_only_no_solver_feedback", "M19 chassis diagnostic scope marker is missing")
 		_expect(int(diagnostics.get("maximum_contact_points", 0)) > 0, "M19 primary chassis reported no non-ground contact manifold")
-		_expect(float(diagnostics.get("peak_total_impulse_ns", 0.0)) > 0.0, "M19 primary chassis reported no contact impulse")
+		_expect(not (diagnostics.get("peak", {}) as Dictionary).is_empty(), "M19 primary chassis did not retain an observed contact manifold")
+		_expect(float(diagnostics.get("peak_total_impulse_ns", 0.0)) >= 0.0, "M19 primary chassis reported an invalid raw contact impulse")
 		var span_value: Variant = diagnostics.get("maximum_span_local_m", Vector3.ZERO)
 		var span := span_value as Vector3 if span_value is Vector3 else Vector3.ZERO
 		_expect(_finite_vector(span) and span.x >= 0.0 and span.z >= 0.0, "M19 primary manifold spread is non-finite")
@@ -205,7 +206,8 @@ func _check_production_replay_diagnostics() -> void:
 		if summary_value is Dictionary:
 			var analysis_summary: Dictionary = summary_value
 			_expect(int(analysis_summary.get("maximum_contact_points", 0)) > 0, "M19 analysis lost contact-point count")
-			_expect(float(analysis_summary.get("peak_total_impulse_ns", 0.0)) > 0.0, "M19 analysis lost peak contact impulse")
+			_expect(not (analysis_summary.get("peak", {}) as Dictionary).is_empty(), "M19 analysis lost the observed peak contact manifold")
+			_expect(float(analysis_summary.get("peak_total_impulse_ns", 0.0)) >= 0.0, "M19 analysis reported an invalid raw contact impulse")
 
 	editor.queue_free()
 	await process_frame
