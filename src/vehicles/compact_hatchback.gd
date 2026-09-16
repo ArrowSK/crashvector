@@ -47,6 +47,10 @@ var hybrid_primary_collider: Object = null
 var safety_cell_collision: CollisionShape3D
 var safety_cell_base_size_m := Vector3.ZERO
 var safety_cell_base_position_m := Vector3.ZERO
+var front_contact_collision: CollisionShape3D
+var front_contact_base_size_m := Vector3.ZERO
+var front_contact_base_position_m := Vector3.ZERO
+var front_contact_neutral_face_x_m := 0.0
 
 # M16.2 is the production presentation. It hides the legacy bumper and the
 # procedural lamp/grille details in favour of a Kenney body fitted to the
@@ -273,11 +277,14 @@ func _build_rigid_chassis() -> void:
 		vehicle_preset_id,
 		CompactHatchbackBuilder.STATION_X[CompactHatchbackBuilder.FRONT_STATION] * scale_x
 	)
-	rigid_chassis.add_box_shape(
+	front_contact_collision = rigid_chassis.add_box_shape(
 		"FrontContactCollision",
 		Vector3(0.22 * scale_x, 0.56 * scale_y, 1.34 * scale_z),
 		Vector3((bumper_face_x - 0.11 * scale_x), 0.72 * scale_y, 0.0)
 	)
+	front_contact_base_size_m = (front_contact_collision.shape as BoxShape3D).size
+	front_contact_base_position_m = front_contact_collision.position
+	front_contact_neutral_face_x_m = bumper_face_x
 	# Keep the production nose, first physical impact face and deformation origin
 	# in one coordinate system. This replaces probe-based visual contact guesses.
 	rigid_chassis.configure_front_contact_frame(bumper_face_x)
@@ -320,6 +327,7 @@ func _reset_hybrid_failure_state() -> void:
 	front_bumper_detached = false
 	front_bumper_velocity_ms = Vector3.ZERO
 	_reset_safety_cell_collision()
+	_reset_front_contact_collision()
 
 func _restore_reference_structure() -> void:
 	if rigid_chassis == null or hybrid_reference_local_positions.size() != model.nodes.size():
@@ -337,6 +345,16 @@ func _reset_safety_cell_collision() -> void:
 	box.size = safety_cell_base_size_m
 	safety_cell_collision.position = safety_cell_base_position_m
 	rigid_chassis.set_front_crush_probe_mount_x(safety_cell_base_position_m.x + safety_cell_base_size_m.x * 0.5)
+
+func _reset_front_contact_collision() -> void:
+	if front_contact_collision == null:
+		return
+	var box := front_contact_collision.shape as BoxShape3D
+	if box == null:
+		return
+	box.size = front_contact_base_size_m
+	front_contact_collision.position = front_contact_base_position_m
+	rigid_chassis.configure_front_contact_frame(front_contact_neutral_face_x_m)
 
 func _sync_model_to_chassis() -> void:
 	if rigid_chassis == null:
@@ -532,6 +550,7 @@ func _enforce_hybrid_crush_shape(delta: float) -> void:
 	hybrid_rear_buckle_m = maxf(hybrid_rear_buckle_m, lerpf(hybrid_rear_buckle_m, float(stage_targets["rear_m"]), alpha))
 	var retreat_target := hybrid_firewall_intrusion_m + hybrid_cabin_collapse_m * 0.75 + hybrid_rear_buckle_m * 0.18
 	hybrid_cell_front_retreat_m = maxf(hybrid_cell_front_retreat_m, lerpf(hybrid_cell_front_retreat_m, retreat_target, alpha))
+	_update_front_contact_collision_shape()
 	_update_safety_cell_collision_shape()
 
 	var sections: Array[Dictionary] = [
@@ -656,6 +675,35 @@ func _update_safety_cell_collision_shape() -> void:
 	# original centre ray remains the public compatibility handle; M19's two
 	# lateral rays only close offset-contact blind spots and must retreat with it.
 	rigid_chassis.set_front_crush_probe_mount_x(front_face_x)
+
+func _update_front_contact_collision_shape() -> void:
+	# The outer collision volume represents the deformable bumper beam and crash
+	# rails, rather than an undeformable visual proxy.  First contact is at the
+	# neutral Kenney body face; after a real impact, the same volume retreats by
+	# the committed local crush.  This gives Godot physical crush travel instead
+	# of trapping the chassis behind a fixed invisible bumper and is kept separate
+	# from the protected-cell retreat used only after severe failure.
+	if front_contact_collision == null or rigid_chassis == null:
+		return
+	var box := front_contact_collision.shape as BoxShape3D
+	if box == null:
+		return
+	var minimum_length := maxf(front_contact_base_size_m.x * 0.45, 0.06)
+	var neutral_rear_face := front_contact_base_position_m.x - front_contact_base_size_m.x * 0.5
+	var requested_face := front_contact_neutral_face_x_m - hybrid_target_front_crush_m - hybrid_cell_front_retreat_m
+	# The sacrificial crash box must not retreat through the protected-cell face.
+	# Once its available length is exhausted, the cell collision owns subsequent
+	# contacts and the staged M13 path moves that face instead.
+	var cell_front_face := safety_cell_base_position_m.x + safety_cell_base_size_m.x * 0.5 - hybrid_cell_front_retreat_m
+	var outer_face := maxf(requested_face, cell_front_face + minimum_length)
+	var inner_face := minf(neutral_rear_face, outer_face - minimum_length)
+	var new_size := front_contact_base_size_m
+	new_size.x = maxf(outer_face - inner_face, minimum_length)
+	box.size = new_size
+	var new_position := front_contact_base_position_m
+	new_position.x = (outer_face + inner_face) * 0.5
+	front_contact_collision.position = new_position
+	rigid_chassis.configure_front_contact_frame(outer_face)
 
 func _update_geometric_crush_measurement() -> void:
 	var front := PassengerCarBuilder.front_contact_nodes()
