@@ -83,6 +83,13 @@ func _check_front_probe_layout() -> void:
 	var chassis := vehicle.rigid_chassis
 	_expect(chassis != null, "M19 probe-layout check could not build the production rigid chassis")
 	if chassis != null:
+		var expected_bumper_face := CompactHatchbackBuilder.STATION_X[CompactHatchbackBuilder.FRONT_STATION] + CompactHatchback.FRONT_BUMPER_CENTER_OFFSET_M + CompactHatchback.FRONT_BUMPER_HALF_LENGTH_M
+		var bumper_collision := chassis.get_node_or_null("FrontContactCollision") as CollisionShape3D
+		_expect(absf(chassis.front_contact_face_x_m - expected_bumper_face) < 0.001, "M19 rigid contact face must match the rendered neutral bumper face")
+		_expect(bumper_collision != null, "M19 passenger car is missing the outer bumper collision volume")
+		if bumper_collision != null and bumper_collision.shape is BoxShape3D:
+			var outer_face := bumper_collision.position.x + (bumper_collision.shape as BoxShape3D).size.x * 0.5
+			_expect(absf(outer_face - expected_bumper_face) < 0.001, "M19 outer bumper collision volume must end at the rendered bumper face")
 		_expect(chassis.front_crush_probe_count() == 3, "M19 passenger car must expose centre plus two lateral front-crush probes")
 		if chassis.front_crush_probes.size() == 3:
 			var centre := chassis.front_crush_probes[0]

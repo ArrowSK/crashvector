@@ -48,6 +48,12 @@ var safety_cell_collision: CollisionShape3D
 var safety_cell_base_size_m := Vector3.ZERO
 var safety_cell_base_position_m := Vector3.ZERO
 
+# The bumper is the foremost rendered and collidable part of a neutral car.
+# Keep its outer face, the rigid contact face and the deformation origin in the
+# same reference frame so a visible gap cannot exist at first contact.
+const FRONT_BUMPER_CENTER_OFFSET_M := 0.10
+const FRONT_BUMPER_HALF_LENGTH_M := 0.08
+
 func _ready() -> void:
 	model = PassengerCarBuilder.build(vehicle_preset_id, total_mass_kg, 0.0, barrier_x_m, origin_offset_m)
 	model.rotate_y_about(origin_offset_m, deg_to_rad(heading_deg), true)
@@ -260,19 +266,18 @@ func _build_rigid_chassis() -> void:
 	)
 	safety_cell_base_size_m = (safety_cell_collision.shape as BoxShape3D).size
 	safety_cell_base_position_m = safety_cell_collision.position
-	# Give the rendered nose its own thin, full-width contact volume. Previously
-	# the only solid front face sat more than a metre behind the visible bumper,
-	# so the structural model could appear to collapse while a visible gap still
-	# remained. This contact volume is intentionally not deformed: the protected
-	# cell remains the volume that retreats during severe collapse.
+	# Give the rendered bumper its own thin, full-width contact volume. Its outer
+	# face is exactly the foremost neutral visual bumper face; the protected cell
+	# remains the collision volume that retreats during severe collapse.
+	var bumper_face_x := (CompactHatchbackBuilder.STATION_X[CompactHatchbackBuilder.FRONT_STATION] + FRONT_BUMPER_CENTER_OFFSET_M + FRONT_BUMPER_HALF_LENGTH_M) * scale_x
 	rigid_chassis.add_box_shape(
 		"FrontContactCollision",
 		Vector3(0.22 * scale_x, 0.56 * scale_y, 1.34 * scale_z),
-		Vector3(1.91 * scale_x, 0.72 * scale_y, 0.0)
+		Vector3((bumper_face_x - 0.11 * scale_x), 0.72 * scale_y, 0.0)
 	)
-	# Keep the visual nose, first physical impact face and deformation origin in
-	# one coordinate system.  This replaces probe-based visual contact guesses.
-	rigid_chassis.configure_front_contact_frame(2.02 * scale_x)
+	# Keep the visual bumper, first physical impact face and deformation origin
+	# in one coordinate system. This replaces probe-based visual contact guesses.
+	rigid_chassis.configure_front_contact_frame(bumper_face_x)
 	rigid_chassis.add_front_crush_sensor(
 		Vector3(1.05 * scale_x, 0.72 * scale_y, 1.40 * scale_z),
 		Vector3(1.53 * scale_x, 0.72 * scale_y, 0.0)
@@ -702,7 +707,7 @@ func _update_front_bumper(delta: float) -> void:
 		var reference := global_reference_transform()
 		var forward := reference.basis.x.normalized()
 		var up := reference.basis.y.normalized()
-		front_bumper.position = model.average_position_for_nodes(front_nodes) + forward * 0.10 - up * 0.12
+		front_bumper.position = model.average_position_for_nodes(front_nodes) + forward * FRONT_BUMPER_CENTER_OFFSET_M - up * 0.12
 		front_bumper.basis = reference.basis
 		var should_detach := (
 			model.broken_beam_count_for_role(&"front_crush") > 0
