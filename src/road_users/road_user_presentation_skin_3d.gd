@@ -13,7 +13,6 @@ extends Node3D
 
 var proxy: RoadUserRigidProxy3D
 var _body_by_name: Dictionary = {}
-var _joint_by_name: Dictionary = {}
 var _visuals: Dictionary = {}
 var _bicycle_wheel_groups: Array[Node3D] = []
 var _scale: float = 1.0
@@ -69,14 +68,10 @@ func _build_materials() -> void:
 
 func _index_proxy_nodes() -> void:
 	_body_by_name.clear()
-	_joint_by_name.clear()
 	_body_by_name[String(proxy.name)] = proxy
 	for body in proxy.articulated_bodies:
 		if body != null and is_instance_valid(body):
 			_body_by_name[String(body.name)] = body
-	for joint in proxy.articulated_joints:
-		if joint != null and is_instance_valid(joint):
-			_joint_by_name[String(joint.name)] = joint
 
 func _hide_primitive_visuals() -> void:
 	_hide_mesh_descendants(proxy)
@@ -107,37 +102,33 @@ func _build_pedestrian_skin() -> void:
 	_visuals["right_foot"] = _cylinder("RightFootSkin", 0.072 * _scale, _shoe_material)
 
 func _update_pedestrian_skin() -> void:
-	var spine := _joint_position("SpineJoint", proxy.global_position + Vector3.UP * 1.00 * _scale)
-	var neck := _joint_position("NeckJoint", spine + Vector3.UP * 0.50 * _scale)
-	var left_shoulder := _joint_position("LeftShoulderJoint", neck + Vector3(0.0, -0.15, -0.24) * _scale)
-	var right_shoulder := _joint_position("RightShoulderJoint", neck + Vector3(0.0, -0.15, 0.24) * _scale)
-	var left_elbow := _joint_position("LeftElbowJoint", left_shoulder + Vector3.DOWN * 0.32 * _scale)
-	var right_elbow := _joint_position("RightElbowJoint", right_shoulder + Vector3.DOWN * 0.32 * _scale)
-	var left_hip := _joint_position("LeftHipJoint", spine + Vector3(0.0, -0.20, -0.09) * _scale)
-	var right_hip := _joint_position("RightHipJoint", spine + Vector3(0.0, -0.20, 0.09) * _scale)
-	var left_knee := _joint_position("LeftKneeJoint", left_hip + Vector3.DOWN * 0.36 * _scale)
-	var right_knee := _joint_position("RightKneeJoint", right_hip + Vector3.DOWN * 0.36 * _scale)
-
-	var pelvis_center := (left_hip + right_hip) * 0.5
-	_set_segment(_visuals["pelvis"], pelvis_center - Vector3.UP * 0.10 * _scale, spine + Vector3.DOWN * 0.05 * _scale)
-	_set_segment(_visuals["torso"], spine, neck)
-	_set_segment(_visuals["left_upper_arm"], left_shoulder, left_elbow)
-	_set_segment(_visuals["right_upper_arm"], right_shoulder, right_elbow)
-	_set_segment(_visuals["left_lower_arm"], left_elbow, _distal_endpoint("LeftLowerArm", left_elbow, 0.18 * _scale))
-	_set_segment(_visuals["right_lower_arm"], right_elbow, _distal_endpoint("RightLowerArm", right_elbow, 0.18 * _scale))
-	_set_segment(_visuals["left_upper_leg"], left_hip, left_knee)
-	_set_segment(_visuals["right_upper_leg"], right_hip, right_knee)
-	var left_ankle := _distal_endpoint("LeftLowerLeg", left_knee, 0.20 * _scale)
-	var right_ankle := _distal_endpoint("RightLowerLeg", right_knee, 0.20 * _scale)
-	_set_segment(_visuals["left_lower_leg"], left_knee, left_ankle)
-	_set_segment(_visuals["right_lower_leg"], right_knee, right_ankle)
+	# Joints retain their construction anchors in world space. They are not a
+	# presentation pose after simulation starts, so using them here split the
+	# visible person from the rigid bodies and made a genuine impact read as a
+	# flying figure. Each visible segment now follows its own live collision body.
+	var pelvis_center := proxy.to_global(Vector3(0.0, 0.86 * _scale, 0.0))
+	var pelvis_axis := proxy.global_transform.basis.y.normalized()
+	if pelvis_axis.is_zero_approx():
+		pelvis_axis = Vector3.UP
+	_set_segment(_visuals["pelvis"], pelvis_center - pelvis_axis * 0.11 * _scale, pelvis_center + pelvis_axis * 0.11 * _scale)
+	_set_body_segment(_visuals["torso"], "PedestrianTorso", 0.48 * _scale, pelvis_center, pelvis_center + pelvis_axis * 0.48 * _scale)
+	_set_body_segment(_visuals["left_upper_arm"], "LeftUpperArm", 0.34 * _scale, pelvis_center, pelvis_center + Vector3.DOWN * 0.34 * _scale)
+	_set_body_segment(_visuals["right_upper_arm"], "RightUpperArm", 0.34 * _scale, pelvis_center, pelvis_center + Vector3.DOWN * 0.34 * _scale)
+	_set_body_segment(_visuals["left_lower_arm"], "LeftLowerArm", 0.30 * _scale, pelvis_center, pelvis_center + Vector3.DOWN * 0.30 * _scale)
+	_set_body_segment(_visuals["right_lower_arm"], "RightLowerArm", 0.30 * _scale, pelvis_center, pelvis_center + Vector3.DOWN * 0.30 * _scale)
+	_set_body_segment(_visuals["left_upper_leg"], "LeftUpperLeg", 0.40 * _scale, pelvis_center, pelvis_center + Vector3.DOWN * 0.40 * _scale)
+	_set_body_segment(_visuals["right_upper_leg"], "RightUpperLeg", 0.40 * _scale, pelvis_center, pelvis_center + Vector3.DOWN * 0.40 * _scale)
+	_set_body_segment(_visuals["left_lower_leg"], "LeftLowerLeg", 0.36 * _scale, pelvis_center, pelvis_center + Vector3.DOWN * 0.36 * _scale)
+	_set_body_segment(_visuals["right_lower_leg"], "RightLowerLeg", 0.36 * _scale, pelvis_center, pelvis_center + Vector3.DOWN * 0.36 * _scale)
+	var left_ankle := _body_endpoint("LeftLowerLeg", 0.36 * _scale, -1.0, pelvis_center + Vector3.DOWN * 0.36 * _scale)
+	var right_ankle := _body_endpoint("RightLowerLeg", 0.36 * _scale, -1.0, pelvis_center + Vector3.DOWN * 0.36 * _scale)
 	_set_segment(_visuals["left_foot"], left_ankle, left_ankle + _body_forward("LeftLowerLeg") * 0.18 * _scale)
 	_set_segment(_visuals["right_foot"], right_ankle, right_ankle + _body_forward("RightLowerLeg") * 0.18 * _scale)
 
 	var head_body := _body("PedestrianHead")
 	var head := _visuals["head"] as MeshInstance3D
 	if head != null:
-		head.global_position = head_body.global_position if head_body != null else neck + Vector3.UP * 0.16 * _scale
+		head.global_position = head_body.global_position if head_body != null else pelvis_center + pelvis_axis * 0.76 * _scale
 
 func _build_bicycle_skin() -> void:
 	_visuals["rear_to_crank"] = _cylinder("RearStay", 0.028, _bike_material)
@@ -209,19 +200,25 @@ func _body(node_name: String) -> RigidBody3D:
 	var value: Variant = _body_by_name.get(node_name, null)
 	return value as RigidBody3D
 
-func _joint_position(node_name: String, fallback: Vector3) -> Vector3:
-	var value: Variant = _joint_by_name.get(node_name, null)
-	var joint := value as Joint3D
-	return joint.global_position if joint != null and is_instance_valid(joint) else fallback
-
-func _distal_endpoint(body_name: String, proximal: Vector3, extension: float) -> Vector3:
+func _set_body_segment(instance_value: Variant, body_name: String, length: float, fallback_start: Vector3, fallback_finish: Vector3) -> void:
 	var body := _body(body_name)
 	if body == null:
-		return proximal + Vector3.DOWN * extension
-	var delta := body.global_position - proximal
-	if delta.length() < 0.02:
-		delta = -body.global_transform.basis.y
-	return body.global_position + delta.normalized() * extension
+		_set_segment(instance_value, fallback_start, fallback_finish)
+		return
+	var axis := body.global_transform.basis.y.normalized()
+	if axis.is_zero_approx():
+		axis = Vector3.UP
+	var half_length := length * 0.5
+	_set_segment(instance_value, body.global_position - axis * half_length, body.global_position + axis * half_length)
+
+func _body_endpoint(body_name: String, length: float, direction: float, fallback: Vector3) -> Vector3:
+	var body := _body(body_name)
+	if body == null:
+		return fallback
+	var axis := body.global_transform.basis.y.normalized()
+	if axis.is_zero_approx():
+		axis = Vector3.UP
+	return body.global_position + axis * length * 0.5 * direction
 
 func _body_forward(body_name: String) -> Vector3:
 	var body := _body(body_name)

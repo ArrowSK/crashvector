@@ -48,11 +48,13 @@ var safety_cell_collision: CollisionShape3D
 var safety_cell_base_size_m := Vector3.ZERO
 var safety_cell_base_position_m := Vector3.ZERO
 
-# The bumper is the foremost rendered and collidable part of a neutral car.
-# Keep its outer face, the rigid contact face and the deformation origin in the
-# same reference frame so a visible gap cannot exist at first contact.
+# M16 is the production presentation. Its headlamp shells are the foremost
+# visible part of a neutral passenger-car nose: their centre sits 0.075 m
+# ahead of the front structural section and their 0.12 m mesh is long in X.
+# The legacy helper bumper is hidden by that production skin and must never be
+# used as the contact reference.
+const PRODUCTION_NOSE_FACE_OFFSET_M := 0.135
 const FRONT_BUMPER_CENTER_OFFSET_M := 0.10
-const FRONT_BUMPER_HALF_LENGTH_M := 0.08
 
 func _ready() -> void:
 	model = PassengerCarBuilder.build(vehicle_preset_id, total_mass_kg, 0.0, barrier_x_m, origin_offset_m)
@@ -266,16 +268,18 @@ func _build_rigid_chassis() -> void:
 	)
 	safety_cell_base_size_m = (safety_cell_collision.shape as BoxShape3D).size
 	safety_cell_base_position_m = safety_cell_collision.position
-	# Give the rendered bumper its own thin, full-width contact volume. Its outer
-	# face is exactly the foremost neutral visual bumper face; the protected cell
-	# remains the collision volume that retreats during severe collapse.
-	var bumper_face_x := (CompactHatchbackBuilder.STATION_X[CompactHatchbackBuilder.FRONT_STATION] + FRONT_BUMPER_CENTER_OFFSET_M + FRONT_BUMPER_HALF_LENGTH_M) * scale_x
+	# Give the production M16 nose its own thin, full-width contact volume. Its
+	# outer face is exactly the foremost visible headlamp shell, while the
+	# protected cell remains the volume that retreats during severe collapse.
+	# Detail offsets are authored in world metres, whereas the structural section
+	# is scaled per vehicle class.
+	var bumper_face_x := CompactHatchbackBuilder.STATION_X[CompactHatchbackBuilder.FRONT_STATION] * scale_x + PRODUCTION_NOSE_FACE_OFFSET_M
 	rigid_chassis.add_box_shape(
 		"FrontContactCollision",
 		Vector3(0.22 * scale_x, 0.56 * scale_y, 1.34 * scale_z),
 		Vector3((bumper_face_x - 0.11 * scale_x), 0.72 * scale_y, 0.0)
 	)
-	# Keep the visual bumper, first physical impact face and deformation origin
+	# Keep the production nose, first physical impact face and deformation origin
 	# in one coordinate system. This replaces probe-based visual contact guesses.
 	rigid_chassis.configure_front_contact_frame(bumper_face_x)
 	rigid_chassis.add_front_crush_sensor(
@@ -500,8 +504,22 @@ func _apply_hybrid_crush_resistance() -> void:
 			return
 		rigid_chassis.apply_central_force(-forward * force_n)
 		other.apply_central_force(forward * force_n)
-	else:
+	elif _requires_additional_crush_resistance(collider):
+		# Static obstacles need the modelled crush-resistance force because there
+		# is no second dynamic body to receive it. Do not apply that same
+		# wall-like force against a pedestrian, cyclist, motorcycle part or other
+		# light rigid body: their real Godot contact manifold already transfers
+		# momentum, and the unilateral extra force was reversing the primary car.
 		rigid_chassis.apply_central_force(-forward * force_n)
+
+func _requires_additional_crush_resistance(collider: Object) -> bool:
+	if not collider is RigidBody3D:
+		return true
+	var other := collider as RigidBody3D
+	# Passenger cars and heavier dynamic targets can absorb a meaningful share of
+	# the crush load. Bodies below this threshold are vulnerable road users or
+	# vehicle components, whose contact response must remain solver-only.
+	return other.mass >= maxf(rigid_chassis.mass * 0.35, 400.0)
 
 func _enforce_hybrid_crush_shape(delta: float) -> void:
 	if hybrid_reference_local_positions.size() != model.nodes.size():
