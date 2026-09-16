@@ -168,7 +168,12 @@ static func _merge_contact_manifold_summary(summary: Dictionary, value: Variant)
 		maxf(maximum_span.x, 0.0) * maxf(maximum_span.z, 0.0)
 	)
 	var peak_impulse := float(diagnostics.get("peak_total_impulse_ns", 0.0))
-	if peak_impulse > float(summary.get("peak_total_impulse_ns", 0.0)):
+	var existing_peak_value: Variant = summary.get("peak", {})
+	var has_existing_peak := existing_peak_value is Dictionary and not (existing_peak_value as Dictionary).is_empty()
+	# A retained manifold is evidence of real contact even if Godot reports zero
+	# raw solver impulse for that later integration step. Prefer the strongest
+	# raw impulse when available, otherwise preserve the first observed manifold.
+	if not has_existing_peak or peak_impulse > float(summary.get("peak_total_impulse_ns", 0.0)):
 		summary["peak_total_impulse_ns"] = peak_impulse
 		var peak_value: Variant = diagnostics.get("peak", {})
 		if peak_value is Dictionary:
