@@ -48,12 +48,10 @@ var safety_cell_collision: CollisionShape3D
 var safety_cell_base_size_m := Vector3.ZERO
 var safety_cell_base_position_m := Vector3.ZERO
 
-# M16 is the production presentation. Its headlamp shells are the foremost
-# visible part of a neutral passenger-car nose: their centre sits 0.075 m
-# ahead of the front structural section and their 0.12 m mesh is long in X.
-# The legacy helper bumper is hidden by that production skin and must never be
-# used as the contact reference.
-const PRODUCTION_NOSE_FACE_OFFSET_M := 0.135
+# M16.2 is the production presentation. It hides the legacy bumper and the
+# procedural lamp/grille details in favour of a Kenney body fitted to the
+# structural presentation cage. The shared profile helper is therefore the
+# only valid neutral-nose reference for collision geometry.
 const FRONT_BUMPER_CENTER_OFFSET_M := 0.10
 
 func _ready() -> void:
@@ -268,12 +266,13 @@ func _build_rigid_chassis() -> void:
 	)
 	safety_cell_base_size_m = (safety_cell_collision.shape as BoxShape3D).size
 	safety_cell_base_position_m = safety_cell_collision.position
-	# Give the production M16 nose its own thin, full-width contact volume. Its
-	# outer face is exactly the foremost visible headlamp shell, while the
-	# protected cell remains the volume that retreats during severe collapse.
-	# Detail offsets are authored in world metres, whereas the structural section
-	# is scaled per vehicle class.
-	var bumper_face_x := CompactHatchbackBuilder.STATION_X[CompactHatchbackBuilder.FRONT_STATION] * scale_x + PRODUCTION_NOSE_FACE_OFFSET_M
+	# Give the production M16.2 nose its own thin, full-width contact volume. Its
+	# outer face is the fitted Kenney body's real neutral face, while the protected
+	# cell remains the volume that retreats during severe collapse.
+	var bumper_face_x := VehicleVisualProfileCatalog.production_front_face_x_m(
+		vehicle_preset_id,
+		CompactHatchbackBuilder.STATION_X[CompactHatchbackBuilder.FRONT_STATION] * scale_x
+	)
 	rigid_chassis.add_box_shape(
 		"FrontContactCollision",
 		Vector3(0.22 * scale_x, 0.56 * scale_y, 1.34 * scale_z),

@@ -107,3 +107,14 @@ static func visual_signature(preset_id: StringName) -> Dictionary:
 		"windscreen_offset_m": sample_station(profile, "upper_x_offset_m", 4.0),
 		"hood_raise_m": profile.get("hood_raise_m", 0.0),
 	}
+
+static func production_front_face_x_m(preset_id: StringName, structural_front_x_m: float) -> float:
+	# M16.2 ships the fitted Kenney body and hides the procedural lamp/grille
+	# details. The body is bounded by the presentation cage, whose only possible
+	# forward extension at its last section is the profile's upper-node offset.
+	# Keep this value here so collision geometry and the packaged visual share one
+	# neutral-nose contract for every passenger-car class.
+	var profile := data(preset_id)
+	var final_section := float(CompactHatchbackBuilder.STATION_X.size() - 1)
+	var upper_offset := sample_station(profile, "upper_x_offset_m", final_section)
+	return structural_front_x_m + maxf(upper_offset, 0.0)
