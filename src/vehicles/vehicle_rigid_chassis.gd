@@ -48,6 +48,7 @@ var peak_non_ground_contact_impulse_ns: float = 0.0
 var maximum_non_ground_contact_points: int = 0
 var maximum_non_ground_contact_span_m := Vector3.ZERO
 var maximum_non_ground_projected_span_xz_m2: float = 0.0
+var configured_mass_distribution_size_m := Vector3.ZERO
 
 func configure(
 	body_mass_kg: float,
@@ -85,6 +86,27 @@ func add_box_shape(node_name: String, size_m: Vector3, local_position_m: Vector3
 	collision.position = local_position_m
 	add_child(collision)
 	return collision
+
+func configure_box_mass_distribution(size_m: Vector3) -> void:
+	# Collision geometry changes during a crash: the sacrificial front box retreats
+	# while the safety cell shortens only in severe failure.  Godot's automatic
+	# inertia calculation includes every collision shape, so using it would make
+	# the rotational dynamics depend on a presentation-aligned contact shell.
+	# Define the chassis mass distribution from the neutral vehicle envelope
+	# instead.  This is a standard rectangular-body approximation and remains
+	# invariant while collision shells change for crush travel.
+	var size := Vector3(
+		maxf(size_m.x, 0.10),
+		maxf(size_m.y, 0.10),
+		maxf(size_m.z, 0.10)
+	)
+	configured_mass_distribution_size_m = size
+	var coefficient := mass / 12.0
+	inertia = Vector3(
+		coefficient * (size.y * size.y + size.z * size.z),
+		coefficient * (size.x * size.x + size.z * size.z),
+		coefficient * (size.x * size.x + size.y * size.y)
+	)
 
 func configure_front_contact_frame(front_face_x_m: float, tolerance_m: float = 0.08) -> void:
 	front_contact_face_x_m = front_face_x_m

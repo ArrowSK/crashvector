@@ -292,6 +292,15 @@ func _build_rigid_chassis() -> void:
 		Vector3(1.05 * scale_x, 0.72 * scale_y, 1.40 * scale_z),
 		Vector3(1.53 * scale_x, 0.72 * scale_y, 0.0)
 	)
+	# Keep neutral vehicle inertia independent of the front collision shell. The
+	# shell is intentionally presentation-aligned and can shrink after impact;
+	# it must never redefine the mass distribution or turn a normal collision
+	# into a pitch/launch merely because the visible nose has a different length.
+	rigid_chassis.configure_box_mass_distribution(Vector3(
+		4.10 * scale_x,
+		1.30 * scale_y,
+		1.72 * scale_z
+	))
 	var mass_scale := maxf(total_mass_kg / 1150.0, 0.45)
 	var suspension_k := 65000.0 * mass_scale
 	var suspension_c := 6000.0 * sqrt(mass_scale)
