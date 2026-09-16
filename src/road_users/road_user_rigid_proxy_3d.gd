@@ -37,6 +37,13 @@ var maximum_articulation_angle_deg: float = 0.0
 var maximum_wheel_spin_rad_s: float = 0.0
 var initial_world_position := Vector3.ZERO
 
+# The generic articulated pedestrian has no gait or balance controller. Before
+# vehicle contact, retain its configured standing pose without gravity. A real
+# vehicle-body contact is the sole transition to free articulated dynamics.
+# This isolates the model boundary from the collision solver: the road never
+# becomes an artificial brace that can transfer a spurious impulse into a car.
+var _preimpact_stance_active: bool = false
+
 var articulated_bodies: Array[RigidBody3D] = []
 var articulated_joints: Array[Joint3D] = []
 var _body_local_offsets: Dictionary = {}
@@ -187,10 +194,6 @@ func _build_pedestrian_rig() -> void:
 	for leg in [left_lower_leg, right_lower_leg]:
 		_add_capsule_collision(leg, "LowerLegCollision", 0.072 * scale, 0.36 * scale, Vector3.ZERO)
 		_add_capsule_visual(leg, "LowerLeg", 0.072 * scale, 0.36 * scale, Color(0.08, 0.10, 0.14))
-		# The articulated rig needs actual road-contact geometry at the feet.
-		# Without it the entire standing chain begins suspended above the road,
-		# making any pre-impact gravity workaround or impact response unstable.
-		_add_box_collision(leg, "FootCollision", Vector3(0.26, 0.10, 0.14) * scale, Vector3(0.10, -0.22, 0.0) * scale)
 
 	_add_pin_joint("SpineJoint", self, _pedestrian_torso, Vector3(0.0, 1.00 * scale, 0.0))
 	_add_pin_joint("NeckJoint", _pedestrian_torso, head, Vector3(0.0, 1.50 * scale, 0.0))
@@ -424,10 +427,11 @@ func begin_simulation() -> void:
 	set_preview_pose(origin_offset_m, heading_deg)
 	var forward := Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
 	var initial_velocity := forward * PhysicsMetrics.kmh_to_ms(initial_speed_kmh)
+	_preimpact_stance_active = _uses_preimpact_stance()
 	freeze = false
 	sleeping = false
 	linear_velocity = initial_velocity
-	gravity_scale = 1.0
+	gravity_scale = _preimpact_gravity_scale_for_body(self)
 	for body in articulated_bodies:
 		if body == null or not is_instance_valid(body):
 			continue
@@ -435,12 +439,13 @@ func begin_simulation() -> void:
 		body.sleeping = false
 		body.linear_velocity = initial_velocity
 		body.angular_velocity = Vector3.ZERO
-		body.gravity_scale = 1.0
+		body.gravity_scale = _preimpact_gravity_scale_for_body(body)
 	simulation_active = true
 	initial_world_position = center_of_mass_position()
 
 func end_simulation() -> void:
 	simulation_active = false
+	_preimpact_stance_active = false
 	freeze = true
 	gravity_scale = 1.0
 	linear_velocity = Vector3.ZERO
@@ -500,7 +505,22 @@ func record_physical_contact(source: VehicleRigidChassis) -> void:
 	# deliberately does not add a second, synthetic impulse to the body chain.
 	if source == null or not simulation_active:
 		return
+	if _preimpact_stance_active:
+		_release_preimpact_stance()
 	impact_received = true
+
+func _release_preimpact_stance() -> void:
+	_preimpact_stance_active = false
+	gravity_scale = 1.0
+	for body in articulated_bodies:
+		if body != null and is_instance_valid(body):
+			body.gravity_scale = 1.0
+
+func _uses_preimpact_stance() -> bool:
+	return target_type == ScenarioConfig.TARGET_PEDESTRIAN
+
+func _preimpact_gravity_scale_for_body(_body: RigidBody3D) -> float:
+	return 0.0 if _uses_preimpact_stance() else 1.0
 
 func _on_articulated_body_entered(body: Node) -> void:
 	if body is VehicleRigidChassis:

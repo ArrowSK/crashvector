@@ -55,6 +55,8 @@ func _test_pedestrian_articulation(failures: Array[String]) -> void:
 		failures.append("M15 pedestrian articulation destabilizes passenger-car vertical motion")
 	if float(result.get("car_rebound_ms", 0.0)) > 1.5:
 		failures.append("M15 pedestrian articulation launches the passenger car backwards")
+	if not bool(result.get("post_contact_gravity_released", false)):
+		failures.append("M15 pedestrian remains in its pre-impact standing state after vehicle contact")
 
 func _test_bicycle_articulation(failures: Array[String]) -> void:
 	var result := await _run_case(ScenarioConfig.TARGET_BICYCLE, RoadUserCatalog.BICYCLE_CITY, 16.0, 60.0)
@@ -122,6 +124,7 @@ func _run_case(target_type: StringName, preset_id: StringName, target_mass: floa
 		"wheel_spin_rad_s": target.maximum_wheel_spin_rad_s,
 		"car_y_rise_m": maximum_car_y_rise,
 		"car_rebound_ms": car.hybrid_maximum_reverse_speed_ms(),
+		"post_contact_gravity_released": _all_articulated_bodies_use_gravity(target),
 	}
 	car.end_simulation()
 	target.end_simulation()
@@ -130,6 +133,14 @@ func _run_case(target_type: StringName, preset_id: StringName, target_mass: floa
 	road.queue_free()
 	await physics_frame
 	return result
+
+func _all_articulated_bodies_use_gravity(target: RoadUserRigidProxy3D) -> bool:
+	if not is_equal_approx(target.gravity_scale, 1.0):
+		return false
+	for body in target.articulated_bodies:
+		if body != null and is_instance_valid(body) and not is_equal_approx(body.gravity_scale, 1.0):
+			return false
+	return true
 
 func _configure_road_user_channels(target: RoadUserRigidProxy3D, car: CompactHatchback) -> void:
 	target.collision_layer = ROAD_USER_LAYER

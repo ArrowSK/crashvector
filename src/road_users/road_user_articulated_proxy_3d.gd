@@ -53,10 +53,6 @@ func _build_pedestrian_rig() -> void:
 	for leg in [left_lower_leg, right_lower_leg]:
 		_add_capsule_collision(leg, "LowerLegCollision", 0.072 * scale, 0.36 * scale, Vector3.ZERO)
 		_add_capsule_visual(leg, "LowerLeg", 0.072 * scale, 0.36 * scale, Color(0.08, 0.10, 0.14))
-		# Foot contact closes the previous gap between the lower-leg collider and
-		# the road. The articulated standing pose now has real support under
-		# normal gravity instead of relying on a gravity-disabled pre-impact mode.
-		_add_box_collision(leg, "FootCollision", Vector3(0.26, 0.10, 0.14) * scale, Vector3(0.10, -0.22, 0.0) * scale)
 
 	# Joint-local X is the primary twist/hinge axis. Y/Z form the bounded swing
 	# envelope. These conservative angles are generic numerical limits only.
