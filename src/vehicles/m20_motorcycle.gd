@@ -130,6 +130,7 @@ func _m20_consume_contacts() -> void:
 		var collider_local := contact_local
 		var has_collider_center := false
 		var other_velocity := Vector3.ZERO
+		var other_initial_velocity := Vector3.ZERO
 		var other_mass := rigid_chassis.mass
 		if collider is Node3D:
 			collider_local = rigid_chassis.to_local((collider as Node3D).global_position)
@@ -137,12 +138,19 @@ func _m20_consume_contacts() -> void:
 		if collider is RigidBody3D:
 			var other := collider as RigidBody3D
 			other_velocity = other.linear_velocity
+			if other is VehicleRigidChassis:
+				other_initial_velocity = (other as VehicleRigidChassis).initial_linear_velocity_ms
 			other_mass = maxf(other.mass, 1.0)
 		var relative_velocity := other_velocity - rigid_chassis.linear_velocity
+		var initial_relative_velocity := other_initial_velocity - rigid_chassis.initial_linear_velocity_ms
 		var reduced_mass := rigid_chassis.mass * other_mass / maxf(rigid_chassis.mass + other_mass, 1.0)
 		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
-		var longitudinal_speed := absf(relative_velocity.dot(forward))
-		var lateral_speed := absf(relative_velocity.dot(lateral))
+		# Contact samples arrive after Godot has resolved the first constraint, so
+		# current relative speed may already be zero. The initial relative velocity
+		# is the pre-impact energy available to this local frame; it is retained only
+		# for deformation demand and never alters the rigid-body solver.
+		var longitudinal_speed := maxf(absf(relative_velocity.dot(forward)), absf(initial_relative_velocity.dot(forward)))
+		var lateral_speed := maxf(absf(relative_velocity.dot(lateral)), absf(initial_relative_velocity.dot(lateral)))
 		var longitudinal_impulse := absf(impulse.dot(forward))
 		var lateral_impulse := absf(impulse.dot(lateral))
 		var longitudinal_energy := maxf(
