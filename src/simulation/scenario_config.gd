@@ -169,6 +169,24 @@ func apply_target_defaults(id: StringName) -> void:
 			target_preset_id = &""
 			target_mass_kg = 0.0
 
+func apply_primary_vehicle_defaults(id: StringName) -> void:
+	primary_type = id
+	car_speed_kmh = 50.0
+	match id:
+		TARGET_PASSENGER_CAR:
+			car_preset_id = PassengerCarCatalog.B_SEGMENT_HATCHBACK
+			car_mass_kg = PassengerCarCatalog.default_mass_kg(car_preset_id)
+		TARGET_TRUCK:
+			car_mass_kg = 18000.0
+		TARGET_LORRY:
+			car_mass_kg = 12000.0
+		TARGET_MOTORCYCLE:
+			car_mass_kg = 220.0
+		TARGET_TANK:
+			car_mass_kg = 55000.0
+		_:
+			car_mass_kg = 0.0
+
 func car_forward() -> Vector3:
 	return Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(car_heading_deg)).normalized()
 
@@ -188,14 +206,35 @@ func validation_errors() -> Array[String]:
 	var errors: Array[String] = []
 	if not is_vehicle_actor_id(primary_type):
 		errors.append("Primary actor must be a supported vehicle")
-	if not PassengerCarCatalog.preset_ids().has(car_preset_id):
-		errors.append("Unknown primary passenger-car class")
+	if primary_type == TARGET_PASSENGER_CAR:
+		if not PassengerCarCatalog.preset_ids().has(car_preset_id):
+			errors.append("Unknown primary passenger-car class")
+		if car_mass_kg < 500.0 or car_mass_kg > 5000.0:
+			errors.append("Primary passenger-car mass must be between 500 and 5,000 kg")
+		if car_speed_kmh < 0.0 or car_speed_kmh > 300.0:
+			errors.append("Primary passenger-car speed must be between 0 and 300 km/h")
+	elif primary_type == TARGET_TRUCK:
+		if car_mass_kg < 3500.0 or car_mass_kg > 60000.0:
+			errors.append("Primary heavy-truck mass must be between 3,500 and 60,000 kg")
+		if car_speed_kmh < 0.0 or car_speed_kmh > 140.0:
+			errors.append("Primary heavy-truck speed must be between 0 and 140 km/h")
+	elif primary_type == TARGET_LORRY:
+		if car_mass_kg < 3500.0 or car_mass_kg > 26000.0:
+			errors.append("Primary rigid-lorry mass must be between 3,500 and 26,000 kg")
+		if car_speed_kmh < 0.0 or car_speed_kmh > 140.0:
+			errors.append("Primary rigid-lorry speed must be between 0 and 140 km/h")
+	elif primary_type == TARGET_MOTORCYCLE:
+		if car_mass_kg < 80.0 or car_mass_kg > 600.0:
+			errors.append("Primary motorcycle mass must be between 80 and 600 kg")
+		if car_speed_kmh < 0.0 or car_speed_kmh > 250.0:
+			errors.append("Primary motorcycle speed must be between 0 and 250 km/h")
+	elif primary_type == TARGET_TANK:
+		if car_mass_kg < 20000.0 or car_mass_kg > 80000.0:
+			errors.append("Primary generic-tank mass must be between 20,000 and 80,000 kg")
+		if car_speed_kmh < 0.0 or car_speed_kmh > 80.0:
+			errors.append("Primary generic-tank speed must be between 0 and 80 km/h")
 	if not target_ids().has(target_type):
 		errors.append("Unknown target type")
-	if car_mass_kg < 500.0 or car_mass_kg > 5000.0:
-		errors.append("Primary passenger-car mass must be between 500 and 5,000 kg")
-	if car_speed_kmh < 0.0 or car_speed_kmh > 300.0:
-		errors.append("Primary passenger-car speed must be between 0 and 300 km/h")
 	if target_type == TARGET_PASSENGER_CAR:
 		if not PassengerCarCatalog.preset_ids().has(target_car_preset_id):
 			errors.append("Unknown target passenger-car class")

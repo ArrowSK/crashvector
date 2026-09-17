@@ -19,6 +19,7 @@ func _initialize() -> void:
 	_test_scenario_round_trip(failures)
 	_test_scenario_store(failures)
 	_test_preflight_rules(failures)
+	_test_primary_vehicle_defaults(failures)
 	_test_heading_transform(failures)
 	_test_static_obstacle_impact(failures)
 	_test_car_vs_car_rear_impact(failures)
@@ -104,6 +105,13 @@ func _test_preflight_rules(failures: Array[String]) -> void:
 	scenario.target_heading_deg = 180.0
 	if not scenario.validation_errors().is_empty():
 		failures.append("M4 preflight rejected supported head-on car-vs-car layout")
+
+func _test_primary_vehicle_defaults(failures: Array[String]) -> void:
+	for actor_type in ScenarioConfig.vehicle_actor_ids():
+		var scenario := ScenarioConfig.new()
+		scenario.apply_primary_vehicle_defaults(actor_type)
+		if not scenario.validation_errors().is_empty():
+			failures.append("M4 primary %s defaults failed preflight: %s" % [ScenarioConfig.actor_display_name(actor_type), "; ".join(scenario.validation_errors())])
 
 func _test_heading_transform(failures: Array[String]) -> void:
 	var model := PassengerCarBuilder.build(PassengerCarCatalog.B_SEGMENT_HATCHBACK, 1150.0, 50.0, 5.0, Vector3.ZERO)
