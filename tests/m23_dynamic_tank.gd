@@ -145,8 +145,13 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 		_expect(VehicleActorRuntime.linear_velocity_ms(world.primary_actor).length() > 4.0, "M23 reciprocal editor primary truck did not move from configured speed")
 	var recorder := editor.get("replay_recorder") as ReplayRecorder
 	_expect(recorder != null and recorder.recording != null and recorder.recording.has_frames(), "M23 reciprocal editor run did not capture replay frames")
+	# The production world is delta-driven.  Headless runners may use a physics
+	# cadence below 120 Hz, so use the same duration-derived bounded window as the
+	# production comparison harness instead of treating a fixed frame count as a
+	# completion contract.
+	var maximum_frames := int(ceil(config.duration_s * 260.0)) + 480
 	var completed := false
-	for _frame in range(120):
+	for _frame in range(maximum_frames):
 		if not bool(editor.get("simulation_running")):
 			completed = true
 			break
