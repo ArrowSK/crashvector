@@ -156,7 +156,11 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 			completed = true
 			break
 		await physics_frame
-	_expect(completed, "M23 reciprocal editor run did not complete")
+	var world_elapsed_s := world.elapsed_s if world != null else -1.0
+	var world_running := world.running if world != null else false
+	_expect(completed, "M23 reciprocal editor run did not complete (editor=%.3f s, world=%.3f s, duration=%.3f s, world_running=%s)" % [
+		float(editor.get("hybrid_elapsed_s")), world_elapsed_s, config.duration_s, str(world_running)
+	])
 	recorder = editor.get("replay_recorder") as ReplayRecorder
 	_expect(recorder != null and recorder.recording != null and recorder.recording.frames.size() >= 2, "M23 reciprocal editor run did not finalize a replay recording")
 	if recorder != null and recorder.recording != null and recorder.recording.has_frames():
