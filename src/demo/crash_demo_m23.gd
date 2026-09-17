@@ -25,17 +25,25 @@ func _m23_uses_vehicle_world() -> bool:
 	# target behavior merely because a common actor contract now exists.
 	return scenario != null and scenario.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR and ScenarioConfig.is_vehicle_actor_id(scenario.target_type)
 
+func _m23_has_non_passenger_primary() -> bool:
+	return scenario != null and scenario.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR
+
 func _target_supports_hybrid_world() -> bool:
 	if _m23_uses_vehicle_world():
 		return true
+	if _m23_has_non_passenger_primary():
+		return false
 	return super._target_supports_hybrid_world()
 
 func _rebuild_preview() -> void:
-	if not _m23_uses_vehicle_world():
+	if not _m23_has_non_passenger_primary():
 		super._rebuild_preview()
 		return
 	_m23_dispose_vehicle_world()
 	super._clear_runtime_objects()
+	if not _m23_uses_vehicle_world():
+		status_label.text = "%s primary is currently available against movable vehicle targets only" % ScenarioConfig.actor_display_name(scenario.primary_type)
+		return
 	m23_vehicle_world = TwoVehicleWorld3D.new()
 	m23_vehicle_world.name = "VehiclePairWorld"
 	# The editor already provides the single authoritative road collider and its
@@ -66,8 +74,13 @@ func _m23_dispose_vehicle_world() -> void:
 	m23_vehicle_world = null
 
 func _on_simulate_pressed() -> void:
-	if not _m23_uses_vehicle_world():
+	if not _m23_has_non_passenger_primary():
 		super._on_simulate_pressed()
+		return
+	if not _m23_uses_vehicle_world():
+		simulation_running = false
+		simulation_paused = false
+		status_label.text = "%s primary cannot run against this target yet; CrashVector will not substitute a passenger-car simulation" % ScenarioConfig.actor_display_name(scenario.primary_type)
 		return
 	var errors := scenario.validation_errors()
 	if not errors.is_empty():
@@ -88,8 +101,10 @@ func _on_simulate_pressed() -> void:
 	status_label.text = "Simulation running"
 
 func _physics_process(delta: float) -> void:
-	if not _m23_uses_vehicle_world():
+	if not _m23_has_non_passenger_primary():
 		super._physics_process(delta)
+		return
+	if not _m23_uses_vehicle_world():
 		return
 	if not simulation_running or simulation_paused:
 		return
