@@ -51,6 +51,7 @@ func _run() -> void:
 	tank.queue_free()
 	await process_frame
 	await _check_two_vehicle_world()
+	await _check_editor_reciprocal_vehicle_pair()
 	_finish()
 
 func _check_two_vehicle_world() -> void:
@@ -69,12 +70,53 @@ func _check_two_vehicle_world() -> void:
 	await process_frame
 	_expect(world.primary_actor is M21HeavyTruck, "M23 two-vehicle world did not create an articulated truck primary")
 	_expect(world.target_actor is DynamicTank3D, "M23 two-vehicle world did not create a dynamic tank target")
+	var primary_chassis := VehicleActorRuntime.chassis(world.primary_actor)
+	var target_chassis := VehicleActorRuntime.chassis(world.target_actor)
+	_expect(primary_chassis != null and primary_chassis.physics_material_override != null, "M23 primary vehicle did not receive the configured contact material")
+	_expect(target_chassis != null and target_chassis.physics_material_override != null, "M23 target vehicle did not receive the configured contact material")
 	world.begin()
 	for _frame in range(50):
 		await physics_frame
 	_expect(world.elapsed_s > 0.0, "M23 two-vehicle world did not advance")
 	world.stop()
 	world.queue_free()
+	await process_frame
+
+func _check_editor_reciprocal_vehicle_pair() -> void:
+	var packed := load("res://app/main.tscn") as PackedScene
+	_expect(packed != null, "M23 production editor scene did not load")
+	if packed == null:
+		return
+	var editor := packed.instantiate()
+	editor.set("m10_first_run_applied", true)
+	var config := ScenarioConfig.new()
+	config.title = "M23 truck primary versus passenger car"
+	config.apply_primary_vehicle_defaults(ScenarioConfig.TARGET_TRUCK)
+	config.car_position_m = Vector3(-8.0, 0.0, 0.0)
+	config.car_speed_kmh = 20.0
+	config.apply_target_defaults(ScenarioConfig.TARGET_PASSENGER_CAR)
+	config.target_position_m = Vector3(6.0, 0.0, 0.0)
+	config.target_speed_kmh = 0.0
+	config.duration_s = 0.8
+	_expect(config.validation_errors().is_empty(), "M23 reciprocal editor scenario failed preflight")
+	editor.set("scenario", config)
+	root.add_child(editor)
+	for _frame in range(6):
+		await process_frame
+	var world := editor.get("m23_vehicle_world") as TwoVehicleWorld3D
+	_expect(world != null, "M23 editor did not route a truck primary through TwoVehicleWorld3D")
+	if world != null:
+		_expect(world.primary_actor is M21HeavyTruck, "M23 editor did not create the truck as the primary actor")
+		_expect(world.target_actor is M162CompactHatchback, "M23 editor did not create the passenger car as the target actor")
+	editor.call("_on_simulate_pressed")
+	for _frame in range(12):
+		await physics_frame
+	world = editor.get("m23_vehicle_world") as TwoVehicleWorld3D
+	_expect(world != null and world.running, "M23 reciprocal editor run did not start the shared vehicle world")
+	if world != null:
+		_expect(VehicleActorRuntime.linear_velocity_ms(world.primary_actor).length() > 4.0, "M23 reciprocal editor primary truck did not move from configured speed")
+	editor.call("_on_reset_pressed")
+	editor.queue_free()
 	await process_frame
 
 func _expect(condition: bool, message: String) -> void:

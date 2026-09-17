@@ -14,12 +14,24 @@ var target_actor: Node3D
 var scenario: ScenarioConfig
 var running := false
 var elapsed_s := 0.0
+var build_road := true
+var _ready_for_simulation := false
+var _start_requested := false
+
+func _ready() -> void:
+	# Child actors become ready before this node, so their rigid chassis exists
+	# here even when configure() was called immediately after add_child().
+	_ready_for_simulation = true
+	_configure_actor_materials()
+	if _start_requested:
+		_begin_now()
 
 func configure(config: ScenarioConfig) -> bool:
 	if config == null or not ScenarioConfig.is_vehicle_actor_id(config.primary_type) or not ScenarioConfig.is_vehicle_actor_id(config.target_type):
 		return false
 	scenario = config
-	_build_road()
+	if build_road:
+		_build_road()
 	primary_actor = VehicleActorFactory.create(
 		config.primary_type, config.car_mass_kg, config.car_speed_kmh,
 		config.car_position_m, config.car_heading_deg, config.show_structure,
@@ -36,15 +48,29 @@ func configure(config: ScenarioConfig) -> bool:
 	target_actor.name = "TargetVehicleActor"
 	add_child(primary_actor)
 	add_child(target_actor)
+	# This world can be configured either before or after it enters the SceneTree.
+	# Defer once so actor _ready() has created each chassis in both cases.
+	call_deferred("_configure_actor_materials")
+	return true
+
+func _configure_actor_materials() -> void:
 	_configure_material(VehicleActorRuntime.chassis(primary_actor))
 	_configure_material(VehicleActorRuntime.chassis(target_actor))
-	return true
 
 func begin() -> void:
 	if primary_actor == null or target_actor == null:
 		return
+	_start_requested = true
+	if not _ready_for_simulation:
+		return
+	_begin_now()
+
+func _begin_now() -> void:
+	if not _start_requested or primary_actor == null or target_actor == null:
+		return
 	elapsed_s = 0.0
 	running = true
+	_start_requested = false
 	VehicleActorRuntime.begin(primary_actor)
 	VehicleActorRuntime.begin(target_actor)
 
@@ -53,6 +79,7 @@ func set_paused(value: bool) -> void:
 	VehicleActorRuntime.set_paused(target_actor, value)
 
 func stop() -> void:
+	_start_requested = false
 	running = false
 	VehicleActorRuntime.stop(primary_actor)
 	VehicleActorRuntime.stop(target_actor)

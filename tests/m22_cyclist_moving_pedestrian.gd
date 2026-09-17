@@ -154,7 +154,7 @@ func _check_production_cyclist_routing() -> void:
 		await process_frame
 	await physics_frame
 
-	_expect(String(editor.get_script().resource_path).ends_with("crash_demo_m22.gd"), "Production scene does not route through M22")
+	_expect(String(editor.get_script().resource_path).ends_with("crash_demo_m23.gd"), "Production scene does not route through M23")
 	var preview_proxy := editor.get("road_user_proxy") as M22RoadUserProxy3D
 	_expect(preview_proxy != null and preview_proxy.target_type == ScenarioConfig.TARGET_CYCLIST, "M22 production preview did not instantiate M22RoadUserProxy3D cyclist")
 	var skin := editor.get("m162_road_user_skin") as M22RoadUserPresentationSkin3D
