@@ -145,7 +145,18 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 		_expect(VehicleActorRuntime.linear_velocity_ms(world.primary_actor).length() > 4.0, "M23 reciprocal editor primary truck did not move from configured speed")
 	var recorder := editor.get("replay_recorder") as ReplayRecorder
 	_expect(recorder != null and recorder.recording != null and recorder.recording.has_frames(), "M23 reciprocal editor run did not capture replay frames")
-	editor.call("_on_reset_pressed")
+	var completed := false
+	for _frame in range(120):
+		if not bool(editor.get("simulation_running")):
+			completed = true
+			break
+		await physics_frame
+	_expect(completed, "M23 reciprocal editor run did not complete")
+	recorder = editor.get("replay_recorder") as ReplayRecorder
+	_expect(recorder != null and recorder.recording != null and recorder.recording.frames.size() >= 2, "M23 reciprocal editor run did not finalize a replay recording")
+	if recorder != null and recorder.recording != null and recorder.recording.has_frames():
+		editor.call("_apply_replay_time", recorder.recording.duration_s * 0.5, true)
+		_expect(is_finite(float(editor.get("replay_time_s"))), "M23 reciprocal replay scrubbing produced a non-finite time")
 	editor.queue_free()
 	await process_frame
 
