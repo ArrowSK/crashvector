@@ -55,7 +55,8 @@ jobs:
               m20_heavy_other_impacts.gd
               m20_motorcycle_50_contact.gd
               m21_articulated_truck.gd
-              m22_cyclist_moving_pedestrian.gd
+            m22_cyclist_moving_pedestrian.gd
+            m23_dynamic_tank.gd
             )
           else
             tests=(

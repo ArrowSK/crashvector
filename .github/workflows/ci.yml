@@ -82,6 +82,7 @@ jobs:
             m20_motorcycle_50_contact.gd
             m21_articulated_truck.gd
             m22_cyclist_moving_pedestrian.gd
+            m23_dynamic_tank.gd
           )
           for test_script in "${tests[@]}"; do
             echo "=== ${test_script} ==="
