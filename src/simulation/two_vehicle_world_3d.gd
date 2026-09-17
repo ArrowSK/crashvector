@@ -102,6 +102,8 @@ func stop() -> void:
 func _physics_process(delta: float) -> void:
 	if not running:
 		return
+	VehicleActorRuntime.step_external(primary_actor, delta)
+	VehicleActorRuntime.step_external(target_actor, delta)
 	elapsed_s += delta
 	if scenario != null and elapsed_s >= scenario.duration_s:
 		stop()

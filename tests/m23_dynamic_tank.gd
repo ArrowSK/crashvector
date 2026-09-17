@@ -79,6 +79,8 @@ func _check_two_vehicle_world() -> void:
 	for _frame in range(50):
 		await physics_frame
 	_expect(world.elapsed_s > 0.0, "M23 two-vehicle world did not advance")
+	var primary_model := (world.primary_actor as M21HeavyTruck).model if world.primary_actor is M21HeavyTruck else null
+	_expect(primary_model != null and primary_model.center_of_mass_m().x > -7.8, "M23 shared world did not synchronize the moving truck model")
 	world.stop()
 	world.queue_free()
 	await process_frame

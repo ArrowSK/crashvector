@@ -37,6 +37,15 @@ static func stop(actor: Node) -> void:
 	if actor != null and actor.has_method("end_simulation"):
 		actor.call("end_simulation")
 
+static func step_external(actor: Node, delta: float) -> void:
+	# Actors with a local structural model keep it synchronized from the
+	# authoritative RigidBody3D transform here. This is also where the motorcycle
+	# consumes real contacts, updates its frame deformation, and advances its
+	# rider release state. Actors without local presentation work simply have no
+	# hook, so the shared world remains role-neutral.
+	if actor != null and actor.has_method("step_external"):
+		actor.call("step_external", delta)
+
 static func linear_velocity_ms(actor: Node) -> Vector3:
 	if actor != null and actor.has_method("global_linear_velocity_ms"):
 		var result: Variant = actor.call("global_linear_velocity_ms")
