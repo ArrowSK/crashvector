@@ -104,6 +104,12 @@ func release_wheel(index: int, initial_velocity_ms: Vector3) -> void:
 	released_positions[index] = wheel_instances[index].position
 	released_velocities[index] = initial_velocity_ms
 
+func reset_releases() -> void:
+	for index in range(released.size()):
+		released[index] = 0
+		released_positions[index] = Vector3.ZERO
+		released_velocities[index] = Vector3.ZERO
+
 func update_from_model(delta_s: float) -> void:
 	if model == null:
 		return

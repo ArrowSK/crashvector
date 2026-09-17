@@ -327,6 +327,9 @@ func _reset_hybrid_failure_state() -> void:
 	hybrid_crush_impulse_ns = 0.0
 	hybrid_target_front_crush_m = 0.0
 	hybrid_geometric_front_crush_m = 0.0
+	front_wheels_released = false
+	if wheel_rig != null:
+		wheel_rig.reset_releases()
 	hybrid_real_front_contact_ever = false
 	hybrid_front_lateral_bias = 0.0
 	hybrid_peak_collision_energy_j = 0.0
