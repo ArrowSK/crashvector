@@ -13,6 +13,9 @@ var wheel_instances: Array[MeshInstance3D] = []
 var rim_instances: Array[MeshInstance3D] = []
 var hub_instances: Array[MeshInstance3D] = []
 var suspension_compression_m := PackedFloat64Array()
+var released := PackedByteArray()
+var released_positions: Array[Vector3] = []
+var released_velocities: Array[Vector3] = []
 var wheel_radius_m := 0.30
 var suspension_drop_m := 0.42
 var side_offset_m := 0.10
@@ -90,11 +93,35 @@ func _build_wheels() -> void:
 		add_child(hub)
 		hub_instances.append(hub)
 		suspension_compression_m.append(0.0)
+		released.append(0)
+		released_positions.append(Vector3.ZERO)
+		released_velocities.append(Vector3.ZERO)
+
+func release_wheel(index: int, initial_velocity_ms: Vector3) -> void:
+	if index < 0 or index >= wheel_instances.size() or released[index] != 0:
+		return
+	released[index] = 1
+	released_positions[index] = wheel_instances[index].position
+	released_velocities[index] = initial_velocity_ms
 
 func update_from_model(delta_s: float) -> void:
 	if model == null:
 		return
 	for i in range(mini(anchor_indices.size(), wheel_instances.size())):
+		if released[i] != 0:
+			if delta_s > 0.0:
+				released_velocities[i].y -= 9.80665 * delta_s
+				released_positions[i] += released_velocities[i] * delta_s
+				if released_positions[i].y < wheel_radius_m:
+					released_positions[i].y = wheel_radius_m
+					if released_velocities[i].y < 0.0:
+						released_velocities[i].y *= -0.22
+					released_velocities[i].x *= 0.95
+					released_velocities[i].z *= 0.95
+			wheel_instances[i].position = released_positions[i]
+			rim_instances[i].position = released_positions[i]
+			hub_instances[i].position = released_positions[i]
+			continue
 		var node := model.nodes[anchor_indices[i]]
 		var center := _vehicle_center()
 		var side_sign := -1.0 if node.position_m.z < center.z else 1.0

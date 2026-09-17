@@ -25,6 +25,7 @@ var debug_renderer: StructuralDebugRenderer
 var front_bumper := MeshInstance3D.new()
 var front_bumper_detached: bool = false
 var front_bumper_velocity_ms := Vector3.ZERO
+var front_wheels_released := false
 var last_chassis_transform := Transform3D.IDENTITY
 var chassis_sync_ready: bool = false
 var hybrid_crush_impulse_ns: float = 0.0
@@ -78,6 +79,7 @@ func _physics_process(delta: float) -> void:
 		return
 	model.step(delta, solver_substeps)
 	_update_visuals(delta)
+	_update_wheel_failure()
 
 func step_external(delta: float) -> void:
 	if hybrid_physics_enabled and rigid_chassis != null and delta > 0.0:
@@ -809,3 +811,15 @@ func _update_front_bumper(delta: float) -> void:
 			front_bumper_velocity_ms.y *= -0.18
 		front_bumper_velocity_ms.x *= 0.94
 		front_bumper_velocity_ms.z *= 0.94
+
+func _update_wheel_failure() -> void:
+	if front_wheels_released or wheel_rig == null:
+		return
+	# Front wheels remain attached through ordinary crash-box deformation. They
+	# release only after a measured severe front collapse with real contact energy.
+	if hybrid_geometric_front_crush_m < 0.62 or hybrid_peak_collision_energy_j < 260000.0:
+		return
+	var velocity := global_linear_velocity_ms()
+	wheel_rig.release_wheel(2, velocity + Vector3(0.7, 0.9, -0.8))
+	wheel_rig.release_wheel(3, velocity + Vector3(0.7, 0.9, 0.8))
+	front_wheels_released = true
