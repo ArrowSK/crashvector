@@ -86,6 +86,8 @@ func _on_simulate_pressed() -> void:
 	if not errors.is_empty():
 		status_label.text = "Preflight failed: %s" % "; ".join(errors)
 		return
+	_stop_replay()
+	analysis_report.clear()
 	m162_scenario_snapshot = scenario.to_dictionary().duplicate(true)
 	_rebuild_preview()
 	if m23_vehicle_world == null:
@@ -99,6 +101,11 @@ func _on_simulate_pressed() -> void:
 	pause_button.text = "Pause"
 	m23_vehicle_world.begin()
 	status_label.text = "Simulation running"
+	if _m23_replay_supported():
+		replay_recorder.begin(1.0 / 120.0)
+		replay_time_s = 0.0
+		_reset_analysis_ui()
+		_capture_replay_frame(true)
 
 func _physics_process(delta: float) -> void:
 	if not _m23_has_non_passenger_primary():
@@ -115,10 +122,16 @@ func _physics_process(delta: float) -> void:
 		simulation_running = false
 		pause_button.disabled = true
 		pause_button.text = "Pause"
-		status_label.text = "Complete — vehicle-pair replay capture is being migrated to the shared actor contract"
+		if _m23_replay_supported():
+			_capture_replay_frame(true)
+			_finalize_recording()
+		else:
+			status_label.text = "Complete — transform replay for the tank actor is not available yet"
 		_m162_restore_scenario_definition()
 		_update_metrics()
 		return
+	if _m23_replay_supported():
+		_capture_replay_frame(false)
 	_update_metrics()
 
 func _on_pause_pressed() -> void:
@@ -228,7 +241,16 @@ func _m23_refresh_primary_options() -> void:
 	if m10_primary_option == null:
 		return
 	m10_primary_option.clear()
+	# Keep the established passenger archetypes directly selectable. The primary
+	# picker is user-facing vehicle choice, not an internal actor-type enum; the
+	# non-passenger actor families follow after a separator.
+	for preset_id in PassengerCarCatalog.preset_ids():
+		m10_primary_option.add_item(PassengerCarCatalog.display_name(preset_id))
+		m10_primary_option.set_item_metadata(m10_primary_option.item_count - 1, preset_id)
+	m10_primary_option.add_separator("Other primary vehicles")
 	for actor_type in ScenarioConfig.vehicle_actor_ids():
+		if actor_type == ScenarioConfig.TARGET_PASSENGER_CAR:
+			continue
 		m10_primary_option.add_item(ScenarioConfig.actor_display_name(actor_type))
 		m10_primary_option.set_item_metadata(m10_primary_option.item_count - 1, actor_type)
 
@@ -239,8 +261,13 @@ func _on_m10_primary_class_selected(index: int) -> void:
 	if sender == m10_primary_option:
 		if index < 0 or index >= m10_primary_option.item_count:
 			return
-		var actor_type := StringName(String(m10_primary_option.get_item_metadata(index)))
-		scenario.apply_primary_vehicle_defaults(actor_type)
+		var selection_id := StringName(String(m10_primary_option.get_item_metadata(index)))
+		if PassengerCarCatalog.preset_ids().has(selection_id):
+			scenario.primary_type = ScenarioConfig.TARGET_PASSENGER_CAR
+			scenario.car_preset_id = selection_id
+			scenario.car_mass_kg = PassengerCarCatalog.default_mass_kg(selection_id)
+		else:
+			scenario.apply_primary_vehicle_defaults(selection_id)
 		selected_object = &"car"
 		_request_preview_rebuild()
 		_sync_m10_from_scenario()
@@ -255,7 +282,7 @@ func _sync_m10_from_scenario() -> void:
 		return
 	m10_syncing = true
 	_m23_refresh_primary_options()
-	_select_metadata(m10_primary_option, scenario.primary_type)
+	_select_metadata(m10_primary_option, scenario.car_preset_id if scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR else scenario.primary_type)
 	if m10_primary_class != null:
 		m10_primary_class.get_parent().visible = scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR
 		_select_metadata(m10_primary_class, scenario.car_preset_id)
@@ -315,3 +342,99 @@ func _update_metrics() -> void:
 		ScenarioConfig.actor_display_name(scenario.primary_type), scenario.car_mass_kg, PhysicsMetrics.ms_to_kmh(primary_velocity.length()),
 		ScenarioConfig.target_display_name(scenario.target_type), scenario.target_mass_kg, PhysicsMetrics.ms_to_kmh(target_velocity.length()),
 	]
+
+func _m23_replay_supported() -> bool:
+	return _m23_actor_model(_m23_primary_actor()) != null and _m23_actor_model(_m23_target_actor()) != null
+
+func _m23_primary_actor() -> Node3D:
+	return m23_vehicle_world.primary_actor if m23_vehicle_world != null else null
+
+func _m23_target_actor() -> Node3D:
+	return m23_vehicle_world.target_actor if m23_vehicle_world != null else null
+
+func _m23_actor_model(actor: Node) -> StructuralModel:
+	if actor == null:
+		return null
+	var value: Variant = actor.get("model")
+	return value as StructuralModel if value is StructuralModel else null
+
+func _m23_actor_metrics(actor: Node3D, mass_kg: float) -> Dictionary:
+	var model := _m23_actor_model(actor)
+	var velocity := VehicleActorRuntime.linear_velocity_ms(actor)
+	return {
+		"mass_kg": mass_kg,
+		"linear_velocity_ms": velocity,
+		"speed_kmh": PhysicsMetrics.ms_to_kmh(velocity.length()),
+		"momentum_kg_ms": VehicleActorRuntime.momentum_kg_ms(actor),
+		"kinetic_energy_j": VehicleActorRuntime.kinetic_energy_j(actor),
+		"broken_beams": 0 if model == null else model.broken_beam_count(),
+		"plastic_energy_j": 0.0 if model == null else model.total_plastic_energy_j(),
+		"elastic_energy_j": 0.0 if model == null else model.total_elastic_energy_j(),
+	}
+
+func _m23_actor_visual_state(actor: Node) -> Dictionary:
+	if actor != null and actor.has_method("replay_visual_state"):
+		var state: Variant = actor.call("replay_visual_state")
+		return state as Dictionary if state is Dictionary else {}
+	return {}
+
+func _capture_replay_frame(force: bool) -> void:
+	if not _m23_uses_vehicle_world():
+		super._capture_replay_frame(force)
+		return
+	if not _m23_replay_supported():
+		return
+	var primary := _m23_primary_actor()
+	var target := _m23_target_actor()
+	var primary_model := _m23_actor_model(primary)
+	var target_model := _m23_actor_model(target)
+	var context := {
+		"contact_count": 0,
+		"energy_balance_relative_error": 0.0,
+		"contact_dissipation_j": 0.0,
+		"world": "role_neutral_rigidbody_pair",
+	}
+	if force:
+		replay_recorder.force_final(hybrid_elapsed_s, primary_model, target_model, _m23_actor_metrics(primary, scenario.car_mass_kg), _m23_actor_metrics(target, scenario.target_mass_kg), context, _m23_actor_visual_state(primary), _m23_actor_visual_state(target))
+	else:
+		replay_recorder.capture(hybrid_elapsed_s, primary_model, target_model, _m23_actor_metrics(primary, scenario.car_mass_kg), _m23_actor_metrics(target, scenario.target_mass_kg), context, _m23_actor_visual_state(primary), _m23_actor_visual_state(target))
+
+func _apply_replay_time(time_s: float, from_playback: bool) -> void:
+	if not _m23_uses_vehicle_world():
+		super._apply_replay_time(time_s, from_playback)
+		return
+	if not _m23_replay_supported() or replay_recorder.recording == null:
+		return
+	replay_time_s = clampf(time_s, 0.0, replay_recorder.recording.duration_s)
+	var frame := replay_recorder.recording.frame_at_time(replay_time_s)
+	if frame.is_empty():
+		return
+	var primary_state: Variant = frame.get("primary_state", {})
+	var target_state: Variant = frame.get("target_state", {})
+	if primary_state is Dictionary:
+		StructuralSnapshot.apply(_m23_actor_model(_m23_primary_actor()), primary_state)
+		VehicleActorRuntime.step_external(_m23_primary_actor(), 0.0)
+	if target_state is Dictionary:
+		StructuralSnapshot.apply(_m23_actor_model(_m23_target_actor()), target_state)
+		VehicleActorRuntime.step_external(_m23_target_actor(), 0.0)
+	var primary_visual: Variant = frame.get("primary_visual_state", {})
+	var target_visual: Variant = frame.get("target_visual_state", {})
+	if primary_visual is Dictionary and _m23_primary_actor() != null and _m23_primary_actor().has_method("apply_replay_visual_state"):
+		_m23_primary_actor().call("apply_replay_visual_state", primary_visual)
+	if target_visual is Dictionary and _m23_target_actor() != null and _m23_target_actor().has_method("apply_replay_visual_state"):
+		_m23_target_actor().call("apply_replay_visual_state", target_visual)
+	syncing_replay_ui = true
+	timeline_slider.value = replay_time_s
+	syncing_replay_ui = false
+	_update_replay_time_label()
+	if not from_playback:
+		status_label.text = "Recorded replay scrubbed to %.2f s" % replay_time_s
+
+func _refresh_analysis_overlay() -> void:
+	if not _m23_uses_vehicle_world():
+		super._refresh_analysis_overlay()
+		return
+	if analysis_overlay == null:
+		return
+	analysis_overlay.configure(_m23_actor_model(_m23_primary_actor()), _m23_actor_model(_m23_target_actor()))
+	analysis_overlay.set_enabled(vectors_check == null or vectors_check.button_pressed)

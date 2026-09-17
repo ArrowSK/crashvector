@@ -143,6 +143,8 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	_expect(world != null and world.running, "M23 reciprocal editor run did not start the shared vehicle world")
 	if world != null:
 		_expect(VehicleActorRuntime.linear_velocity_ms(world.primary_actor).length() > 4.0, "M23 reciprocal editor primary truck did not move from configured speed")
+	var recorder := editor.get("replay_recorder") as ReplayRecorder
+	_expect(recorder != null and recorder.recording != null and recorder.recording.has_frames(), "M23 reciprocal editor run did not capture replay frames")
 	editor.call("_on_reset_pressed")
 	editor.queue_free()
 	await process_frame
