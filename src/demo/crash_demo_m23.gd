@@ -261,7 +261,9 @@ func _on_m10_primary_class_selected(index: int) -> void:
 	if sender == m10_primary_option:
 		if index < 0 or index >= m10_primary_option.item_count:
 			return
-		var selection_id := StringName(String(m10_primary_option.get_item_metadata(index)))
+		var selection_id := _item_metadata_id(m10_primary_option, index)
+		if selection_id.is_empty():
+			return
 		if PassengerCarCatalog.preset_ids().has(selection_id):
 			scenario.primary_type = ScenarioConfig.TARGET_PASSENGER_CAR
 			scenario.car_preset_id = selection_id
