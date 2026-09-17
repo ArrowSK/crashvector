@@ -50,7 +50,32 @@ func _run() -> void:
 		_expect(not tank.rigid_chassis.freeze, "M23 dynamic tank did not resume its rigid chassis")
 	tank.queue_free()
 	await process_frame
+	await _check_two_vehicle_world()
 	_finish()
+
+func _check_two_vehicle_world() -> void:
+	var config := ScenarioConfig.new()
+	config.apply_primary_vehicle_defaults(ScenarioConfig.TARGET_TRUCK)
+	config.car_position_m = Vector3(-8.0, 0.0, 0.0)
+	config.car_speed_kmh = 20.0
+	config.apply_target_defaults(ScenarioConfig.TARGET_TANK)
+	config.target_position_m = Vector3(6.0, 0.0, 0.0)
+	config.target_speed_kmh = 0.0
+	config.duration_s = 0.6
+	_expect(config.validation_errors().is_empty(), "M23 truck-versus-tank scenario failed preflight")
+	var world := TwoVehicleWorld3D.new()
+	root.add_child(world)
+	_expect(world.configure(config), "M23 two-vehicle world did not configure truck versus tank")
+	await process_frame
+	_expect(world.primary_actor is M21HeavyTruck, "M23 two-vehicle world did not create an articulated truck primary")
+	_expect(world.target_actor is DynamicTank3D, "M23 two-vehicle world did not create a dynamic tank target")
+	world.begin()
+	for _frame in range(50):
+		await physics_frame
+	_expect(world.elapsed_s > 0.0, "M23 two-vehicle world did not advance")
+	world.stop()
+	world.queue_free()
+	await process_frame
 
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
