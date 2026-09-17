@@ -442,16 +442,7 @@ func _refresh_analysis_overlay() -> void:
 	analysis_overlay.set_enabled(vectors_check == null or vectors_check.button_pressed)
 
 func _has_exportable_replay() -> bool:
-	# CinematicRenderStage still constructs a passenger-car primary. Replay is
-	# correct for reciprocal runs, but exporting it would silently render a
-	# different scenario. Keep the control unavailable until the renderer is
-	# migrated to VehicleActorFactory as well.
-	if _m23_uses_vehicle_world():
-		return false
 	return super._has_exportable_replay()
 
 func _on_export_button_pressed() -> void:
-	if _m23_uses_vehicle_world():
-		status_label.text = "Cinematic export for reciprocal vehicle actors is being migrated; CrashVector will not render a passenger-car substitute"
-		return
 	super._on_export_button_pressed()
