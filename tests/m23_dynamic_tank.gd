@@ -10,6 +10,21 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	for actor_type in ScenarioConfig.vehicle_actor_ids():
+		var config := ScenarioConfig.new()
+		config.apply_primary_vehicle_defaults(actor_type)
+		var factory_actor := VehicleActorFactory.create(
+			actor_type,
+			config.car_mass_kg,
+			config.car_speed_kmh,
+			config.car_position_m,
+			config.car_heading_deg,
+			false,
+			config.car_preset_id
+		)
+		_expect(factory_actor != null, "M23 vehicle actor factory did not create %s" % ScenarioConfig.actor_display_name(actor_type))
+		if factory_actor != null:
+			factory_actor.queue_free()
 	var tank := DynamicTank3D.new()
 	tank.total_mass_kg = 55000.0
 	tank.initial_speed_kmh = 18.0
