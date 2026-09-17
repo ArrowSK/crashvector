@@ -11,6 +11,7 @@ func _initialize() -> void:
 	_test_camera_planner(failures)
 	_test_ffmpeg_arguments(failures)
 	_test_render_stage_instantiation(failures)
+	_test_reciprocal_vehicle_render_stage(failures)
 	if failures.is_empty():
 		print("CrashVector M7 cinematic-export tests passed.")
 		quit(0)
@@ -94,6 +95,22 @@ func _test_render_stage_instantiation(failures: Array[String]) -> void:
 		failures.append("M7 cinematic exporter could not instantiate")
 	else:
 		exporter.free()
+
+func _test_reciprocal_vehicle_render_stage(failures: Array[String]) -> void:
+	var config := ScenarioConfig.new()
+	config.apply_primary_vehicle_defaults(ScenarioConfig.TARGET_TRUCK)
+	config.apply_target_defaults(ScenarioConfig.TARGET_PASSENGER_CAR)
+	var profile := CinematicExportProfile.new()
+	var recording := _synthetic_recording()
+	var timeline := CinematicTimeline.new()
+	timeline.configure(recording, profile)
+	var stage := CinematicRenderStage.new()
+	stage.configure(recording, config, {}, profile, timeline)
+	if not (stage.get_node_or_null("RenderPrimary") is M21HeavyTruck):
+		failures.append("M7 reciprocal export did not render the truck as primary")
+	if not (stage.get_node_or_null("RenderTarget") is M162CompactHatchback):
+		failures.append("M7 reciprocal export did not render the passenger car as target")
+	stage.free()
 
 func _synthetic_recording() -> ReplayRecording:
 	var recording := ReplayRecording.new()
