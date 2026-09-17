@@ -5,9 +5,10 @@
 class_name TwoVehicleWorld3D
 extends Node3D
 
-# Production rigid-body world for any supported pair of movable vehicles.
-# It has no UI, replay, or legacy structural-solver ownership; callers can use
-# it as the common physical core for both editor roles and export.
+# Production rigid-body world for a movable primary vehicle and either another
+# movable vehicle or a supported fixed fixture. It has no UI, replay, or legacy
+# structural-solver ownership; callers use it as the common physical core for
+# both editor roles and for vehicle-to-fixture runs.
 
 var primary_actor: Node3D
 var target_actor: Node3D
@@ -27,7 +28,7 @@ func _ready() -> void:
 		_begin_now()
 
 func configure(config: ScenarioConfig) -> bool:
-	if config == null or not ScenarioConfig.is_vehicle_actor_id(config.primary_type) or not ScenarioConfig.is_vehicle_actor_id(config.target_type):
+	if config == null or not ScenarioConfig.is_vehicle_actor_id(config.primary_type) or not supports_target(config.target_type):
 		return false
 	scenario = config
 	if build_road:
@@ -37,11 +38,16 @@ func configure(config: ScenarioConfig) -> bool:
 		config.car_position_m, config.car_heading_deg, config.show_structure,
 		config.car_preset_id
 	)
-	target_actor = VehicleActorFactory.create(
-		config.target_type, config.target_mass_kg, config.target_speed_kmh,
-		config.target_position_m, config.target_heading_deg, config.show_structure,
-		config.target_car_preset_id
-	)
+	if ScenarioConfig.is_vehicle_actor_id(config.target_type):
+		target_actor = VehicleActorFactory.create(
+			config.target_type, config.target_mass_kg, config.target_speed_kmh,
+			config.target_position_m, config.target_heading_deg, config.show_structure,
+			config.target_car_preset_id
+		)
+	else:
+		var fixture := StaticObstacle3D.new()
+		fixture.configure(config.target_type, config.target_position_m, config.target_heading_deg)
+		target_actor = fixture
 	if primary_actor == null or target_actor == null:
 		return false
 	primary_actor.name = "PrimaryVehicleActor"
@@ -56,6 +62,15 @@ func configure(config: ScenarioConfig) -> bool:
 func _configure_actor_materials() -> void:
 	_configure_material(VehicleActorRuntime.chassis(primary_actor))
 	_configure_material(VehicleActorRuntime.chassis(target_actor))
+	_configure_fixture_material(target_actor)
+
+static func supports_target(target_type: StringName) -> bool:
+	return ScenarioConfig.is_vehicle_actor_id(target_type) or target_type in [
+		ScenarioConfig.TARGET_WALL,
+		ScenarioConfig.TARGET_BARRIER,
+		ScenarioConfig.TARGET_POLE,
+		ScenarioConfig.TARGET_TREE,
+	]
 
 func begin() -> void:
 	if primary_actor == null or target_actor == null:
@@ -109,3 +124,14 @@ func _configure_material(chassis: VehicleRigidChassis) -> void:
 		chassis.physics_material_override = PhysicsMaterial.new()
 	chassis.physics_material_override.friction = clampf(scenario.contact_friction, 0.0, 1.0)
 	chassis.physics_material_override.bounce = clampf(scenario.restitution, 0.0, 0.04)
+
+func _configure_fixture_material(actor: Node3D) -> void:
+	if not (actor is StaticObstacle3D) or scenario == null:
+		return
+	var fixture := actor as StaticObstacle3D
+	if fixture.physics_body == null:
+		return
+	if fixture.physics_body.physics_material_override == null:
+		fixture.physics_body.physics_material_override = PhysicsMaterial.new()
+	fixture.physics_body.physics_material_override.friction = clampf(scenario.contact_friction, 0.0, 1.0)
+	fixture.physics_body.physics_material_override.bounce = clampf(scenario.restitution, 0.0, 0.04)

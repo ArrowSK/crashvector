@@ -23,7 +23,7 @@ func _m23_uses_vehicle_world() -> bool:
 	# shared world is the reciprocal path: truck/lorry/motorcycle/tank primary
 	# against any movable vehicle target. This avoids changing existing car-versus
 	# target behavior merely because a common actor contract now exists.
-	return scenario != null and scenario.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR and ScenarioConfig.is_vehicle_actor_id(scenario.target_type)
+	return scenario != null and scenario.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR and TwoVehicleWorld3D.supports_target(scenario.target_type)
 
 func _m23_has_non_passenger_primary() -> bool:
 	return scenario != null and scenario.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR
@@ -42,7 +42,7 @@ func _rebuild_preview() -> void:
 	_m23_dispose_vehicle_world()
 	super._clear_runtime_objects()
 	if not _m23_uses_vehicle_world():
-		status_label.text = "%s primary is currently available against movable vehicle targets only" % ScenarioConfig.actor_display_name(scenario.primary_type)
+		status_label.text = "%s primary is currently available against movable vehicles and fixed fixtures only" % ScenarioConfig.actor_display_name(scenario.primary_type)
 		return
 	m23_vehicle_world = TwoVehicleWorld3D.new()
 	m23_vehicle_world.name = "VehiclePairWorld"

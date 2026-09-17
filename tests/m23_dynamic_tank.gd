@@ -51,6 +51,7 @@ func _run() -> void:
 	tank.queue_free()
 	await process_frame
 	await _check_two_vehicle_world()
+	await _check_vehicle_fixture_world()
 	await _check_editor_reciprocal_vehicle_pair()
 	_finish()
 
@@ -78,6 +79,31 @@ func _check_two_vehicle_world() -> void:
 	for _frame in range(50):
 		await physics_frame
 	_expect(world.elapsed_s > 0.0, "M23 two-vehicle world did not advance")
+	world.stop()
+	world.queue_free()
+	await process_frame
+
+func _check_vehicle_fixture_world() -> void:
+	var config := ScenarioConfig.new()
+	config.apply_primary_vehicle_defaults(ScenarioConfig.TARGET_LORRY)
+	config.car_position_m = Vector3(-7.0, 0.0, 0.0)
+	config.car_speed_kmh = 18.0
+	config.apply_target_defaults(ScenarioConfig.TARGET_WALL)
+	config.target_position_m = Vector3(5.0, 0.0, 0.0)
+	config.duration_s = 0.6
+	_expect(config.validation_errors().is_empty(), "M23 lorry-versus-wall scenario failed preflight")
+	var world := TwoVehicleWorld3D.new()
+	root.add_child(world)
+	_expect(world.configure(config), "M23 vehicle world did not configure lorry versus wall")
+	await process_frame
+	_expect(world.primary_actor is M20RigidLorry, "M23 vehicle world did not create lorry primary")
+	_expect(world.target_actor is StaticObstacle3D, "M23 vehicle world did not create static wall target")
+	var fixture := world.target_actor as StaticObstacle3D
+	_expect(fixture != null and fixture.physics_body != null and fixture.physics_body.physics_material_override != null, "M23 fixture target did not receive configured contact material")
+	world.begin()
+	for _frame in range(12):
+		await physics_frame
+	_expect(world.running and VehicleActorRuntime.linear_velocity_ms(world.primary_actor).length() > 4.0, "M23 lorry-versus-wall world did not start the primary actor")
 	world.stop()
 	world.queue_free()
 	await process_frame
