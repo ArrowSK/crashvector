@@ -7,6 +7,7 @@ extends RefCounted
 
 const FORMAT_VERSION: int = 2
 const MAX_SOLVER_SUBSTEPS: int = 64
+const MINIMUM_VEHICLE_START_CLEARANCE_M: float = 0.05
 const TARGET_PASSENGER_CAR: StringName = &"passenger_car"
 const TARGET_TRUCK: StringName = &"heavy_truck"
 const TARGET_LORRY: StringName = &"rigid_lorry"
@@ -193,6 +194,81 @@ func car_forward() -> Vector3:
 func target_forward() -> Vector3:
 	return Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(target_heading_deg)).normalized()
 
+static func _vehicle_start_envelope(actor_type: StringName, passenger_preset_id: StringName) -> Dictionary:
+	# Local X/Z envelopes follow the production collision/presentation geometry
+	# used by the role-neutral vehicle actors. Passenger cars use the published
+	# representative body footprint so preflight is conservative at the visible
+	# body; the other actor values are the unions of their neutral collision
+	# shapes before any impact deformation is applied.
+	match actor_type:
+		TARGET_PASSENGER_CAR:
+			var preset := PassengerCarCatalog.data(passenger_preset_id)
+			return {
+				"center_offset_x_m": 0.0,
+				"half_length_m": float(preset.get("representative_length_m", 4.07)) * 0.5,
+				"half_width_m": float(preset.get("representative_width_m", 1.72)) * 0.5,
+			}
+		TARGET_TRUCK:
+			# M21 trailer/underride through articulated tractor: X -0.10..9.525 m.
+			return {"center_offset_x_m": 4.7125, "half_length_m": 4.8125, "half_width_m": 1.21}
+		TARGET_LORRY:
+			# M20 rigid lorry rear guard through cab: X -0.09..7.375 m.
+			return {"center_offset_x_m": 3.6425, "half_length_m": 3.7325, "half_width_m": 1.13}
+		TARGET_MOTORCYCLE:
+			# Frame plus front/rear wheel collision spheres: X -0.31..2.26 m.
+			return {"center_offset_x_m": 0.975, "half_length_m": 1.285, "half_width_m": 0.31}
+		TARGET_TANK:
+			# Dynamic tracked vehicle lower hull and tracks.
+			return {"center_offset_x_m": 0.0, "half_length_m": 3.40, "half_width_m": 1.75}
+	return {}
+
+static func _vehicle_start_envelopes_overlap(
+	primary_actor_type: StringName,
+	primary_passenger_preset_id: StringName,
+	primary_position_m: Vector3,
+	primary_heading_deg: float,
+	target_actor_type: StringName,
+	target_passenger_preset_id: StringName,
+	target_position_value_m: Vector3,
+	target_heading_value_deg: float
+) -> bool:
+	var primary := _vehicle_start_envelope(primary_actor_type, primary_passenger_preset_id)
+	var target := _vehicle_start_envelope(target_actor_type, target_passenger_preset_id)
+	if primary.is_empty() or target.is_empty():
+		return false
+
+	var primary_forward_3d := Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(primary_heading_deg)).normalized()
+	var target_forward_3d := Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(target_heading_value_deg)).normalized()
+	var primary_forward := Vector2(primary_forward_3d.x, primary_forward_3d.z).normalized()
+	var target_forward_axis := Vector2(target_forward_3d.x, target_forward_3d.z).normalized()
+	var primary_lateral := Vector2(-primary_forward.y, primary_forward.x)
+	var target_lateral := Vector2(-target_forward_axis.y, target_forward_axis.x)
+
+	var primary_center := Vector2(primary_position_m.x, primary_position_m.z)
+	primary_center += primary_forward * float(primary.get("center_offset_x_m", 0.0))
+	var target_center := Vector2(target_position_value_m.x, target_position_value_m.z)
+	target_center += target_forward_axis * float(target.get("center_offset_x_m", 0.0))
+	var center_delta := target_center - primary_center
+
+	var primary_half_length := float(primary.get("half_length_m", 0.0))
+	var primary_half_width := float(primary.get("half_width_m", 0.0))
+	var target_half_length := float(target.get("half_length_m", 0.0))
+	var target_half_width := float(target.get("half_width_m", 0.0))
+	var axes: Array[Vector2] = [primary_forward, primary_lateral, target_forward_axis, target_lateral]
+	for axis_value in axes:
+		var axis := axis_value.normalized()
+		var primary_radius := (
+			primary_half_length * absf(primary_forward.dot(axis))
+			+ primary_half_width * absf(primary_lateral.dot(axis))
+		)
+		var target_radius := (
+			target_half_length * absf(target_forward_axis.dot(axis))
+			+ target_half_width * absf(target_lateral.dot(axis))
+		)
+		if absf(center_delta.dot(axis)) >= primary_radius + target_radius + MINIMUM_VEHICLE_START_CLEARANCE_M:
+			return false
+	return true
+
 func heading_delta_deg() -> float:
 	return absf(wrapf(car_heading_deg - target_heading_deg, -180.0, 180.0))
 
@@ -298,12 +374,29 @@ func validation_errors() -> Array[String]:
 		errors.append("Solver substeps must be between 1 and %d" % MAX_SOLVER_SUBSTEPS)
 	if not _finite_vector(car_position_m) or not _finite_vector(target_position_m):
 		errors.append("Object positions must contain finite numbers")
+	var vehicle_envelopes_overlap := false
+	if is_vehicle_actor_id(primary_type) and is_vehicle_actor_id(target_type):
+		vehicle_envelopes_overlap = _vehicle_start_envelopes_overlap(
+			primary_type,
+			car_preset_id,
+			car_position_m,
+			car_heading_deg,
+			target_type,
+			target_car_preset_id,
+			target_position_m,
+			target_heading_deg
+		)
+		if vehicle_envelopes_overlap:
+			errors.append(
+				"Vehicle start envelopes overlap at the configured poses; move or rotate the actors to leave at least %.2f m clearance"
+				% MINIMUM_VEHICLE_START_CLEARANCE_M
+			)
 	if target_is_dynamic():
-		if car_position_m.distance_to(target_position_m) < 2.0:
+		if not vehicle_envelopes_overlap and car_position_m.distance_to(target_position_m) < 2.0:
 			errors.append("Dynamic actors must start at least 2 m apart")
 	else:
 		var forward_separation := (target_position_m - car_position_m).dot(car_forward())
-		if forward_separation < 2.0:
+		if not vehicle_envelopes_overlap and forward_separation < 2.0:
 			errors.append("Static target must begin at least 2 m ahead of the primary passenger car")
 	return errors
 
