@@ -17,6 +17,13 @@ const TRAILER_FRAME_BASE_SIZE := Vector3(6.70, 0.30, 1.80)
 const TRAILER_FRAME_BASE_POS := Vector3(3.35, 0.58, 0.0)
 const TRACTOR_FRAME_BASE_SIZE := Vector3(3.05, 0.30, 1.72)
 const TRACTOR_FRAME_BASE_POS := Vector3(8.00, 0.58, 0.0)
+# Split-body neutral mass envelopes. These are based on the undeformed trailer
+# and tractor collision extents after the M21 split, not on whichever crush
+# shell dimensions happen to be active later in the crash.
+const TRAILER_NEUTRAL_MASS_DISTRIBUTION_SIZE := Vector3(6.80, 3.165, 2.42)
+const TRAILER_NEUTRAL_CENTER_OF_MASS_LOCAL := Vector3(3.30, 1.9425, 0.0)
+const TRACTOR_NEUTRAL_MASS_DISTRIBUTION_SIZE := Vector3(3.05, 2.565, 2.28)
+const TRACTOR_NEUTRAL_CENTER_OF_MASS_LOCAL := Vector3(8.00, 1.7125, 0.0)
 const MAX_FIFTH_WHEEL_YAW_DEG := 52.0
 const MAX_FIFTH_WHEEL_PITCH_DEG := 8.0
 const MAX_FIFTH_WHEEL_ROLL_DEG := 6.0
@@ -150,6 +157,13 @@ func _m21_split_world_body() -> void:
 		old_tractor.disabled = true
 	if frame_collision != null:
 		_m17_set_box(frame_collision, TRAILER_FRAME_BASE_SIZE, TRAILER_FRAME_BASE_POS)
+	# The inherited one-piece truck inertia was calculated for the original total
+	# mass. Recalculate the trailer body now that its mass and neutral envelope are
+	# both different in the articulated world.
+	rigid_chassis.configure_box_mass_distribution(
+		TRAILER_NEUTRAL_MASS_DISTRIBUTION_SIZE,
+		TRAILER_NEUTRAL_CENTER_OF_MASS_LOCAL
+	)
 	for point in rigid_chassis.suspension_points:
 		var ray := point.get("ray") as RayCast3D
 		if ray != null and ray.position.x > 7.0:
@@ -161,6 +175,10 @@ func _m21_split_world_body() -> void:
 	tractor_chassis.configure(tractor_mass, origin_offset_m, heading_deg, initial_speed_kmh, 0.86, 0.0)
 	tractor_collision = tractor_chassis.add_box_shape("M21TractorCollision", TRACTOR_BASE_SIZE, TRACTOR_BASE_POS)
 	tractor_frame_collision = tractor_chassis.add_box_shape("M21TractorFrameCollision", TRACTOR_FRAME_BASE_SIZE, TRACTOR_FRAME_BASE_POS)
+	tractor_chassis.configure_box_mass_distribution(
+		TRACTOR_NEUTRAL_MASS_DISTRIBUTION_SIZE,
+		TRACTOR_NEUTRAL_CENTER_OF_MASS_LOCAL
+	)
 
 	var mass_scale := maxf(tractor_mass / 5800.0, 0.35)
 	var suspension_k := 245000.0 * mass_scale
