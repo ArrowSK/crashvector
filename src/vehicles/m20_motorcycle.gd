@@ -146,7 +146,7 @@ func _m20_consume_contacts() -> void:
 			collider_local = rigid_chassis.to_local((collider as Node3D).global_position)
 			has_collider_center = true
 		if collider is VehicleRigidChassis:
-			other_velocity = (collider as VehicleRigidChassis).pre_contact_linear_velocity_ms()
+			other_velocity = (collider as VehicleRigidChassis).contact_entry_linear_velocity_ms()
 		elif collider is RigidBody3D:
 			other_velocity = (collider as RigidBody3D).linear_velocity
 		var subject_velocity: Vector3 = sample.get("pre_contact_linear_velocity_ms", rigid_chassis.pre_contact_linear_velocity_ms())
