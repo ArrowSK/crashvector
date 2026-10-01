@@ -142,25 +142,23 @@ func _m20_consume_contacts() -> void:
 		var collider_local := contact_local
 		var has_collider_center := false
 		var other_velocity := Vector3.ZERO
-		var other_initial_velocity := Vector3.ZERO
 		if collider is Node3D:
 			collider_local = rigid_chassis.to_local((collider as Node3D).global_position)
 			has_collider_center = true
-		if collider is RigidBody3D:
-			var other := collider as RigidBody3D
-			other_velocity = other.linear_velocity
-			if other is VehicleRigidChassis:
-				other_initial_velocity = (other as VehicleRigidChassis).initial_linear_velocity_ms
-		var relative_velocity := other_velocity - rigid_chassis.linear_velocity
-		var initial_relative_velocity := other_initial_velocity - rigid_chassis.initial_linear_velocity_ms
+		if collider is VehicleRigidChassis:
+			other_velocity = (collider as VehicleRigidChassis).pre_contact_linear_velocity_ms()
+		elif collider is RigidBody3D:
+			other_velocity = (collider as RigidBody3D).linear_velocity
+		var subject_velocity: Vector3 = sample.get("pre_contact_linear_velocity_ms", rigid_chassis.pre_contact_linear_velocity_ms())
+		var relative_velocity := other_velocity - subject_velocity
 		var reduced_mass := PhysicsMetrics.collision_effective_mass_kg(rigid_chassis.mass, collider)
 		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
-		# Contact samples arrive after Godot has resolved the first constraint, so
-		# current relative speed may already be zero. The initial relative velocity
-		# is the pre-impact energy available to this local frame; it is retained only
-		# for deformation demand and never alters the rigid-body solver.
-		var longitudinal_speed := maxf(absf(relative_velocity.dot(forward)), absf(initial_relative_velocity.dot(forward)))
-		var lateral_speed := maxf(absf(relative_velocity.dot(lateral)), absf(initial_relative_velocity.dot(lateral)))
+		# Deformation demand is based on the immediately preceding physics-step
+		# velocity, not the scenario's t=0 speed. The impulse term remains an
+		# independent lower bound when the first reported manifold arrives after the
+		# solver has already removed most of the closing velocity.
+		var longitudinal_speed := absf(relative_velocity.dot(forward))
+		var lateral_speed := absf(relative_velocity.dot(lateral))
 		var longitudinal_impulse := absf(impulse.dot(forward))
 		var lateral_impulse := absf(impulse.dot(lateral))
 		var longitudinal_energy := maxf(
