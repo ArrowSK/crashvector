@@ -390,8 +390,14 @@ func _capture_replay_frame(force: bool) -> void:
 	var target := _m23_target_actor()
 	var primary_model := _m23_actor_model(primary)
 	var target_model := _m23_actor_model(target)
+	var primary_contact_count := VehicleActorRuntime.contact_event_count(primary)
+	var target_contact_count := VehicleActorRuntime.contact_event_count(target)
 	var context := {
-		"contact_count": 0,
+		# Both rigid bodies report the same physical pair contact independently.
+		# Preserve a monotonic event counter without double-counting the two sides.
+		"contact_count": maxi(primary_contact_count, target_contact_count),
+		"primary_contact_manifold": VehicleActorRuntime.contact_manifold_diagnostics(primary),
+		"target_contact_manifold": VehicleActorRuntime.contact_manifold_diagnostics(target),
 		"energy_balance_relative_error": 0.0,
 		"contact_dissipation_j": 0.0,
 		"world": "role_neutral_rigidbody_pair",
