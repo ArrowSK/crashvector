@@ -28,6 +28,18 @@ static func momentum_magnitude_from_speed_kmh(mass_kg: float, speed_kmh: float) 
 static func relative_speed_kmh(velocity_a_ms: Vector3, velocity_b_ms: Vector3) -> float:
 	return ms_to_kmh((velocity_a_ms - velocity_b_ms).length())
 
+static func collision_effective_mass_kg(subject_mass_kg: float, collider: Object) -> float:
+	var subject_mass := maxf(subject_mass_kg, 0.0)
+	if subject_mass <= 0.0:
+		return 0.0
+	# Against a StaticBody3D (wall/barrier/fixed tank) the opposing mass is
+	# effectively infinite, so the collision-energy equivalent mass is the moving
+	# body's full mass. Only a genuinely dynamic RigidBody3D uses reduced mass.
+	if collider is RigidBody3D:
+		var other_mass := maxf((collider as RigidBody3D).mass, 1.0)
+		return subject_mass * other_mass / maxf(subject_mass + other_mass, 1.0)
+	return subject_mass
+
 static func relative_error(reference: float, measured: float) -> float:
 	if is_zero_approx(reference):
 		return absf(measured)
