@@ -65,16 +65,17 @@ func _check_dynamic_tank_road_support() -> void:
 	# The suspension must carry the tank before its rigid track collision boxes
 	# reach the flat road. Otherwise the same road load is resolved once by the
 	# ray springs and again by Godot's rigid contact solver.
-	for supported_mass in [20000.0, 55000.0, 80000.0]:
-		var mass_scale := maxf(supported_mass / 55000.0, 0.35)
-		var stiffness_per_support := DynamicTank3D.TRACK_SUPPORT_STIFFNESS_N_M * mass_scale
-		var static_compression := supported_mass * 9.80665 / (6.0 * stiffness_per_support)
-		var equilibrium_body_y := (
+	for supported_mass_value in [20000.0, 55000.0, 80000.0]:
+		var supported_mass: float = float(supported_mass_value)
+		var mass_scale: float = maxf(supported_mass / 55000.0, 0.35)
+		var stiffness_per_support: float = DynamicTank3D.TRACK_SUPPORT_STIFFNESS_N_M * mass_scale
+		var static_compression: float = supported_mass * 9.80665 / (6.0 * stiffness_per_support)
+		var equilibrium_body_y: float = (
 			DynamicTank3D.TRACK_SUPPORT_REST_DISTANCE_M
 			- static_compression
 			- DynamicTank3D.TRACK_SUPPORT_MOUNT_Y_M
 		)
-		var equilibrium_track_clearance := (
+		var equilibrium_track_clearance: float = (
 			equilibrium_body_y
 			+ DynamicTank3D.TRACK_COLLISION_CENTER_Y_M
 			- DynamicTank3D.TRACK_COLLISION_SIZE.y * 0.5
