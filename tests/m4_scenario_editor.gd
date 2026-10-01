@@ -19,6 +19,7 @@ func _initialize() -> void:
 	_test_scenario_round_trip(failures)
 	_test_scenario_store(failures)
 	_test_preflight_rules(failures)
+	_test_vehicle_start_envelopes(failures)
 	_test_primary_vehicle_defaults(failures)
 	_test_heading_transform(failures)
 	_test_static_obstacle_impact(failures)
@@ -106,9 +107,41 @@ func _test_preflight_rules(failures: Array[String]) -> void:
 	if not scenario.validation_errors().is_empty():
 		failures.append("M4 preflight rejected supported head-on car-vs-car layout")
 
+func _test_vehicle_start_envelopes(failures: Array[String]) -> void:
+	# The M23 role-neutral path used to accept this normal UI geometry because the
+	# actor origins are 8.5 m apart. The articulated truck itself extends more than
+	# 9 m forward from its origin, so it already intersects the target car.
+	var scenario := ScenarioConfig.new()
+	scenario.apply_primary_vehicle_defaults(ScenarioConfig.TARGET_TRUCK)
+	scenario.apply_target_defaults(ScenarioConfig.TARGET_PASSENGER_CAR)
+	scenario.car_position_m = Vector3(-6.0, 0.0, 0.0)
+	scenario.target_position_m = Vector3(2.5, 0.0, 0.0)
+	var overlap_errors := scenario.validation_errors()
+	var rejected_overlap := false
+	for error in overlap_errors:
+		if error.contains("Vehicle start envelopes overlap"):
+			rejected_overlap = true
+			break
+	if not rejected_overlap:
+		failures.append("M4/M23 preflight accepted an articulated truck already overlapping its passenger-car target")
+
+	# Moving the same target clear of the truck must restore a valid scenario;
+	# this guards against replacing the old centre-distance rule with an
+	# over-conservative blanket rejection.
+	scenario.target_position_m = Vector3(6.0, 0.0, 0.0)
+	var clear_errors := scenario.validation_errors()
+	for error in clear_errors:
+		if error.contains("Vehicle start envelopes overlap"):
+			failures.append("M4/M23 vehicle-envelope preflight rejected a visibly separated truck/car pair")
+			break
+
 func _test_primary_vehicle_defaults(failures: Array[String]) -> void:
 	for actor_type in ScenarioConfig.vehicle_actor_ids():
 		var scenario := ScenarioConfig.new()
+		# This test is about actor mass/speed defaults, not spawn geometry. Keep the
+		# target far enough away that long actors such as M21 do not intentionally
+		# trip the independent start-envelope preflight regression above.
+		scenario.target_position_m = Vector3(16.0, 0.0, 0.0)
 		scenario.apply_primary_vehicle_defaults(actor_type)
 		if not scenario.validation_errors().is_empty():
 			failures.append("M4 primary %s defaults failed preflight: %s" % [ScenarioConfig.actor_display_name(actor_type), "; ".join(scenario.validation_errors())])
