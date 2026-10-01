@@ -87,6 +87,18 @@ func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
 func rider_released_after_contact() -> bool:
 	return rider_rig != null and rider_rig.rider_released
 
+func replay_visual_state() -> Dictionary:
+	return {
+		"rider_state": rider_rig.replay_visual_state() if rider_rig != null else {},
+	}
+
+func apply_replay_visual_state(state: Dictionary) -> void:
+	if rider_rig == null:
+		return
+	var rider_state: Variant = state.get("rider_state", {})
+	if rider_state is Dictionary:
+		rider_rig.apply_replay_visual_state(rider_state)
+
 func rear_impact_deformation_m() -> float:
 	return hybrid_rear_crush_m
 
