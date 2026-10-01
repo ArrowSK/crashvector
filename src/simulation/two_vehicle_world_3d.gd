@@ -60,8 +60,10 @@ func configure(config: ScenarioConfig) -> bool:
 	return true
 
 func _configure_actor_materials() -> void:
-	_configure_material(VehicleActorRuntime.chassis(primary_actor))
-	_configure_material(VehicleActorRuntime.chassis(target_actor))
+	for body in VehicleActorRuntime.physics_bodies(primary_actor):
+		_configure_material(body)
+	for body in VehicleActorRuntime.physics_bodies(target_actor):
+		_configure_material(body)
 	_configure_fixture_material(target_actor)
 
 static func supports_target(target_type: StringName) -> bool:
