@@ -13,6 +13,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_check_preflight_scope()
+	_check_collision_effective_mass()
 	await _check_truck_broadside()
 	await _check_lorry_broadside()
 	await _check_motorcycle_broadside()
@@ -34,6 +35,26 @@ func _check_preflight_scope() -> void:
 			bicycle_broadside_blocked = true
 			break
 	_expect(bicycle_broadside_blocked, "M20 must not silently enable the still-unmodelled bicycle broadside path")
+
+func _check_collision_effective_mass() -> void:
+	var fixture := StaticBody3D.new()
+	var subject_mass := 12000.0
+	var fixture_effective_mass := PhysicsMetrics.collision_effective_mass_kg(subject_mass, fixture)
+	_expect(absf(fixture_effective_mass - subject_mass) < 0.000001, "Static fixture collision effective mass must equal the moving vehicle mass, not half of it")
+
+	var peer := RigidBody3D.new()
+	peer.mass = subject_mass
+	var peer_effective_mass := PhysicsMetrics.collision_effective_mass_kg(subject_mass, peer)
+	_expect(absf(peer_effective_mass - subject_mass * 0.5) < 0.000001, "Equal-mass dynamic collision must retain the reduced-mass result")
+
+	var lighter_peer := RigidBody3D.new()
+	lighter_peer.mass = 1000.0
+	var expected_reduced_mass := subject_mass * lighter_peer.mass / (subject_mass + lighter_peer.mass)
+	_expect(absf(PhysicsMetrics.collision_effective_mass_kg(subject_mass, lighter_peer) - expected_reduced_mass) < 0.000001, "Unequal dynamic collision effective mass changed unexpectedly")
+
+	fixture.free()
+	peer.free()
+	lighter_peer.free()
 
 func _check_truck_broadside() -> void:
 	var result := await _run_case(_broadside_config(ScenarioConfig.TARGET_TRUCK))
