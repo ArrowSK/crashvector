@@ -194,48 +194,79 @@ func _on_structure_toggled(value: bool) -> void:
 
 func _m161_primary_center() -> Vector3:
 	if m23_vehicle_world != null and is_instance_valid(m23_vehicle_world):
-		var chassis := VehicleActorRuntime.chassis(m23_vehicle_world.primary_actor)
+		var actor := m23_vehicle_world.primary_actor
+		if _m161_has_replay():
+			var model := _m23_actor_model(actor)
+			if model != null:
+				return model.center_of_mass_m()
+		var bounds := VehicleActorRuntime.collision_footprint_bounds(actor)
+		if not bounds.is_empty():
+			return Vector3(
+				(float(bounds["min_x"]) + float(bounds["max_x"])) * 0.5,
+				0.0,
+				(float(bounds["min_z"]) + float(bounds["max_z"])) * 0.5
+			)
+		var chassis := VehicleActorRuntime.chassis(actor)
 		if chassis != null:
 			return chassis.global_position
 	return super._m161_primary_center()
 
 func _m161_target_center() -> Vector3:
 	if m23_vehicle_world != null and is_instance_valid(m23_vehicle_world):
-		var chassis := VehicleActorRuntime.chassis(m23_vehicle_world.target_actor)
+		var actor := m23_vehicle_world.target_actor
+		if _m161_has_replay():
+			var model := _m23_actor_model(actor)
+			if model != null:
+				return model.center_of_mass_m()
+		var bounds := VehicleActorRuntime.collision_footprint_bounds(actor)
+		if not bounds.is_empty():
+			return Vector3(
+				(float(bounds["min_x"]) + float(bounds["max_x"])) * 0.5,
+				0.0,
+				(float(bounds["min_z"]) + float(bounds["max_z"])) * 0.5
+			)
+		var chassis := VehicleActorRuntime.chassis(actor)
 		if chassis != null:
 			return chassis.global_position
 	return super._m161_target_center()
 
 func _m161_primary_half_length() -> float:
-	return _m23_vehicle_half_length(scenario.primary_type, scenario.car_preset_id)
+	var bounds := _m23_actor_horizontal_bounds(m23_vehicle_world.primary_actor if m23_vehicle_world != null else null)
+	if not bounds.is_empty():
+		return (float(bounds["max_x"]) - float(bounds["min_x"])) * 0.5
+	return super._m161_primary_half_length()
 
 func _m161_target_half_length() -> float:
 	if _m23_uses_vehicle_world():
-		return _m23_vehicle_half_length(scenario.target_type, scenario.target_car_preset_id)
+		var bounds := _m23_actor_horizontal_bounds(m23_vehicle_world.target_actor if m23_vehicle_world != null else null)
+		if not bounds.is_empty():
+			return (float(bounds["max_x"]) - float(bounds["min_x"])) * 0.5
 	return super._m161_target_half_length()
 
 func _m161_horizontal_bounds() -> Vector2:
 	if not _m23_uses_vehicle_world():
 		return super._m161_horizontal_bounds()
-	var primary_center := _m161_primary_center()
-	var target_center := _m161_target_center()
-	var minimum := minf(primary_center.x - _m161_primary_half_length(), target_center.x - _m161_target_half_length())
-	var maximum := maxf(primary_center.x + _m161_primary_half_length(), target_center.x + _m161_target_half_length())
-	return Vector2(minimum, maximum)
+	var primary_bounds := _m23_actor_horizontal_bounds(m23_vehicle_world.primary_actor if m23_vehicle_world != null else null)
+	var target_bounds := _m23_actor_horizontal_bounds(m23_vehicle_world.target_actor if m23_vehicle_world != null else null)
+	if primary_bounds.is_empty() or target_bounds.is_empty():
+		return super._m161_horizontal_bounds()
+	return Vector2(
+		minf(float(primary_bounds["min_x"]), float(target_bounds["min_x"])),
+		maxf(float(primary_bounds["max_x"]), float(target_bounds["max_x"]))
+	)
 
-func _m23_vehicle_half_length(actor_type: StringName, passenger_preset: StringName) -> float:
-	match actor_type:
-		ScenarioConfig.TARGET_PASSENGER_CAR:
-			return float(PassengerCarCatalog.data(passenger_preset).get("representative_length_m", 4.1)) * 0.5
-		ScenarioConfig.TARGET_TRUCK:
-			return 4.8
-		ScenarioConfig.TARGET_LORRY:
-			return 3.6
-		ScenarioConfig.TARGET_MOTORCYCLE:
-			return 1.2
-		ScenarioConfig.TARGET_TANK:
-			return 3.5
-	return 2.0
+func _m23_actor_horizontal_bounds(actor: Node) -> Dictionary:
+	if actor == null:
+		return {}
+	# Replay snapshots move the structural model while the authoritative rigid body
+	# remains at the final simulation pose. Use the replayed structure in that
+	# state; otherwise use the live collision shapes so heading and articulation
+	# are represented by the geometry actually participating in contact.
+	if _m161_has_replay():
+		var replay_bounds := VehicleActorRuntime.structural_footprint_bounds(actor)
+		if not replay_bounds.is_empty():
+			return replay_bounds
+	return VehicleActorRuntime.collision_footprint_bounds(actor)
 
 func _m161_auto_title() -> String:
 	if scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR:
