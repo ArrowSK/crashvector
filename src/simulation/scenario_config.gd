@@ -372,10 +372,11 @@ func validation_errors() -> Array[String]:
 		errors.append("Simulation duration must be between 0.5 and 20 seconds")
 	if solver_substeps < 1 or solver_substeps > MAX_SOLVER_SUBSTEPS:
 		errors.append("Solver substeps must be between 1 and %d" % MAX_SOLVER_SUBSTEPS)
-	if not _finite_vector(car_position_m) or not _finite_vector(target_position_m):
+	var positions_finite := _finite_vector(car_position_m) and _finite_vector(target_position_m)
+	if not positions_finite:
 		errors.append("Object positions must contain finite numbers")
 	var vehicle_envelopes_overlap := false
-	if is_vehicle_actor_id(primary_type) and is_vehicle_actor_id(target_type):
+	if positions_finite and is_vehicle_actor_id(primary_type) and is_vehicle_actor_id(target_type):
 		vehicle_envelopes_overlap = _vehicle_start_envelopes_overlap(
 			primary_type,
 			car_preset_id,
