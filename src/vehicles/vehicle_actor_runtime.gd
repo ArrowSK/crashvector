@@ -21,6 +21,20 @@ static func chassis(actor: Node) -> VehicleRigidChassis:
 		return (actor as DynamicTank3D).rigid_chassis
 	return null
 
+static func physics_bodies(actor: Node) -> Array[VehicleRigidChassis]:
+	var result: Array[VehicleRigidChassis] = []
+	if actor is M21HeavyTruck:
+		var truck := actor as M21HeavyTruck
+		if truck.rigid_chassis != null:
+			result.append(truck.rigid_chassis)
+		if truck.tractor_chassis != null:
+			result.append(truck.tractor_chassis)
+		return result
+	var body := chassis(actor)
+	if body != null:
+		result.append(body)
+	return result
+
 static func contact_event_count(actor: Node) -> int:
 	# Keep the replay/analysis contact counter role-neutral. VehicleRigidChassis
 	# stores a cumulative count of real non-ground contact samples for the current
