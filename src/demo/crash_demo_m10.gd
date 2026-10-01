@@ -54,6 +54,7 @@ var m10_duration: SpinBox
 var m10_friction: SpinBox
 var m10_restitution: SpinBox
 var m10_substeps: SpinBox
+var m10_physics_scope_warning: Label
 var m10_structure: CheckButton
 var m10_primary_paint: OptionButton
 var m10_target_paint: OptionButton
@@ -73,6 +74,7 @@ var m10_target_preset_row: HBoxContainer
 var m10_target_mass_row: HBoxContainer
 var m10_target_speed_row: HBoxContainer
 var m10_target_paint_row: HBoxContainer
+var m10_quick_target_buttons: Dictionary = {}
 var m10_camera_hint: Label
 var m10_metrics_summary: Label
 var m10_mode: StringName = MODE_SCENARIO
@@ -440,12 +442,12 @@ func _build_physics_tab() -> void:
 	m10_scope_chip.tooltip_text = "Open calibration/evidence information"
 	m10_scope_chip.pressed.connect(_on_m10_calibration_pressed)
 	column.add_child(m10_scope_chip)
-	var warning := Label.new()
-	warning.name = "PhysicsScopeWarning"
-	warning.text = "Advanced contact/solver values change the numerical scenario. Presentation controls do not."
-	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	warning.add_theme_color_override("font_color", CrashVectorM10Theme.MUTED)
-	column.add_child(warning)
+	m10_physics_scope_warning = Label.new()
+	m10_physics_scope_warning.name = "PhysicsScopeWarning"
+	m10_physics_scope_warning.text = "Advanced contact/solver values change the numerical scenario. Presentation controls do not."
+	m10_physics_scope_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	m10_physics_scope_warning.add_theme_color_override("font_color", CrashVectorM10Theme.MUTED)
+	column.add_child(m10_physics_scope_warning)
 
 func _build_appearance_tab() -> void:
 	var scroll := _tab_scroll("Appearance")
@@ -1272,6 +1274,7 @@ func _add_quick_target(parent: Container, label: String, target_id: StringName) 
 	var button := Button.new()
 	button.text = label
 	button.set_meta("target_id", target_id)
+	m10_quick_target_buttons[target_id] = button
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.pressed.connect(func() -> void:
 		_on_target_palette_pressed(target_id)
