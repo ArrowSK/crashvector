@@ -100,13 +100,12 @@ func add_box_shape(node_name: String, size_m: Vector3, local_position_m: Vector3
 	return collision
 
 func configure_box_mass_distribution(size_m: Vector3, center_of_mass_local_m: Vector3 = Vector3.ZERO) -> void:
-	# Collision geometry changes during a crash: the sacrificial front box retreats
-	# while the safety cell shortens only in severe failure.  Godot's automatic
-	# inertia calculation includes every collision shape, so using it would make
-	# the rotational dynamics depend on a presentation-aligned contact shell.
-	# Define the chassis mass distribution from the neutral vehicle envelope
-	# instead.  This is a standard rectangular-body approximation and remains
-	# invariant while collision shells change for crush travel.
+	# Production collision geometry may retreat or narrow as local crush develops.
+	# Godot's automatic inertia calculation includes the current collision shapes,
+	# so leaving inertia automatic would let those contact-shell edits redefine the
+	# vehicle's rotational response during the same crash. Define mass distribution
+	# from an undeformed neutral envelope instead. This rectangular-body
+	# approximation remains invariant while collision shells change for crush travel.
 	var size := Vector3(
 		maxf(size_m.x, 0.10),
 		maxf(size_m.y, 0.10),
