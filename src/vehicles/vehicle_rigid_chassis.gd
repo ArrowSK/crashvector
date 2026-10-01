@@ -518,6 +518,11 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 			collider_name = (collider as Node).name
 		var impulse := state.get_contact_impulse(contact_index)
 		var local_position := state.get_contact_local_position(contact_index)
+		var collider_pre_contact_velocity := Vector3.ZERO
+		if collider is VehicleRigidChassis:
+			collider_pre_contact_velocity = (collider as VehicleRigidChassis).contact_entry_linear_velocity_ms()
+		elif collider is RigidBody3D:
+			collider_pre_contact_velocity = (collider as RigidBody3D).linear_velocity
 		var sample := {
 			# Keep the historical key for compatibility, but expose the correctly
 			# named local point and collider object as well. Later production layers
@@ -528,6 +533,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 			"normal": state.get_contact_local_normal(contact_index),
 			"impulse": impulse,
 			"pre_contact_linear_velocity_ms": contact_entry_linear_velocity_ms(),
+			"collider_pre_contact_linear_velocity_ms": collider_pre_contact_velocity,
 			"collider_name": collider_name,
 			"collider": collider,
 			"local_shape": state.get_contact_local_shape(contact_index),
