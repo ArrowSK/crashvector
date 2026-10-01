@@ -498,6 +498,50 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 		_expect(int(substeps_control.value) == config.solver_substeps, "M23 editor changed the persisted structural-solver substep value while disabling it")
 	var physics_warning := editor.find_child("PhysicsScopeWarning", true, false) as Label
 	_expect(physics_warning != null and physics_warning.text.contains("do not affect this path"), "M23 Physics tab does not explain that solver substeps are unused by RigidBody3D")
+	var target_option := editor.get("m10_target_option") as OptionButton
+	_expect(target_option != null, "M23 capability regression could not find the target selector")
+	if target_option != null:
+		for target_id in ScenarioConfig.target_ids():
+			var target_index := -1
+			for option_index in range(target_option.item_count):
+				if StringName(String(target_option.get_item_metadata(option_index))) == target_id:
+					target_index = option_index
+					break
+			_expect(target_index >= 0, "M23 target selector omitted %s" % ScenarioConfig.target_display_name(target_id))
+			if target_index >= 0:
+				var expected_supported := TwoVehicleWorld3D.supports_target(target_id)
+				_expect(
+					target_option.is_item_disabled(target_index) == not expected_supported,
+					"M23 target selector capability disagrees with the production world for %s" % ScenarioConfig.target_display_name(target_id)
+				)
+	var quick_target_buttons := 0
+	var quick_pedestrian_disabled := false
+	var quick_bicycle_disabled := false
+	var quick_wall_enabled := false
+	var left_panel := editor.get("m10_left_panel") as Control
+	if left_panel != null:
+		for node in left_panel.find_children("*", "Button", true, false):
+			var button := node as Button
+			if button == null or not button.has_meta("target_id"):
+				continue
+			quick_target_buttons += 1
+			var target_id := StringName(String(button.get_meta("target_id")))
+			if target_id == ScenarioConfig.TARGET_PEDESTRIAN:
+				quick_pedestrian_disabled = button.disabled
+			elif target_id == ScenarioConfig.TARGET_BICYCLE:
+				quick_bicycle_disabled = button.disabled
+			elif target_id == ScenarioConfig.TARGET_WALL:
+				quick_wall_enabled = not button.disabled
+	_expect(quick_target_buttons >= 7, "M23 capability regression could not identify the quick-target controls")
+	_expect(quick_pedestrian_disabled and quick_bicycle_disabled, "M23 quick targets still offer unsupported vulnerable-road-user pairs for a truck primary")
+	_expect(quick_wall_enabled, "M23 quick targets incorrectly disable a supported fixed-fixture pair")
+	var simulate_control := editor.get("m10_simulate_button") as Button
+	_expect(simulate_control != null and not simulate_control.disabled, "M23 Simulate control is disabled for a supported truck-versus-car pair")
+	var original_target := config.target_type
+	editor.call("_on_target_palette_pressed", ScenarioConfig.TARGET_PEDESTRIAN)
+	_expect(config.target_type == original_target, "M23 programmatic target selection bypassed the capability matrix and replaced a supported target with an unsupported pedestrian")
+	var capability_status := editor.get("status_label") as Label
+	_expect(capability_status != null and capability_status.text.contains("not available for this role"), "M23 rejected target selection without explaining the capability boundary")
 	if world != null:
 		_expect(world.primary_actor is M21HeavyTruck, "M23 editor did not create the truck as the primary actor")
 		_expect(world.target_actor is M162CompactHatchback, "M23 editor did not create the passenger car as the target actor")
