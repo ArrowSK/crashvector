@@ -186,7 +186,11 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 		await process_frame
 	var world := editor.get("m23_vehicle_world") as TwoVehicleWorld3D
 	_expect(world != null, "M23 editor did not route a truck primary through TwoVehicleWorld3D")
+	var friction_control := editor.get("m10_friction") as SpinBox
+	var restitution_control := editor.get("m10_restitution") as SpinBox
 	var substeps_control := editor.get("m10_substeps") as SpinBox
+	_expect(friction_control != null and absf(friction_control.max_value - TwoVehicleWorld3D.MAX_CONTACT_FRICTION) < 0.000001, "M23 Physics tab still exposes friction above the rigid-body limit")
+	_expect(restitution_control != null and absf(restitution_control.max_value - TwoVehicleWorld3D.MAX_CONTACT_RESTITUTION) < 0.000001, "M23 Physics tab still exposes restitution above the rigid-body production bound")
 	_expect(substeps_control != null and not substeps_control.editable, "M23 editor still presents solver substeps as an active RigidBody3D control")
 	if substeps_control != null:
 		_expect(int(substeps_control.value) == config.solver_substeps, "M23 editor changed the persisted structural-solver substep value while disabling it")
