@@ -497,7 +497,7 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	_expect(substeps_control != null and not substeps_control.editable, "M23 editor still presents solver substeps as an active RigidBody3D control")
 	if substeps_control != null:
 		_expect(int(substeps_control.value) == config.solver_substeps, "M23 editor changed the persisted structural-solver substep value while disabling it")
-	var physics_warning := editor.get("m10_physics_scope_warning") as Label
+	var physics_warning := editor.call("_m23_physics_scope_label") as Label
 	_expect(physics_warning != null and physics_warning.text.contains("do not affect this path"), "M23 Physics tab does not explain that solver substeps are unused by RigidBody3D")
 	var primary_class_control := editor.get("m10_primary_class") as OptionButton
 	var primary_paint_control := editor.get("m10_primary_paint") as OptionButton
@@ -551,10 +551,9 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	var quick_pedestrian_disabled := false
 	var quick_bicycle_disabled := false
 	var quick_wall_enabled := false
-	var quick_target_value: Variant = editor.get("m10_quick_target_buttons")
-	if quick_target_value is Dictionary:
-		var quick_targets: Dictionary = quick_target_value
-		for target_value in quick_targets.values():
+	var quick_target_value: Variant = editor.call("_m23_quick_target_button_nodes")
+	if quick_target_value is Array:
+		for target_value in quick_target_value:
 			var button := target_value as Button
 			if button == null or not button.has_meta("target_id"):
 				continue
