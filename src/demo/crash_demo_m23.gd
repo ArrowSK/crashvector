@@ -378,10 +378,7 @@ func _m23_sync_capability_controls() -> void:
 			if target_id.is_empty():
 				continue
 			m10_target_option.set_item_disabled(index, not _m23_target_supported_for_primary(target_id))
-	for target_value in m10_quick_target_buttons.values():
-		var button := target_value as Button
-		if button == null or not button.has_meta("target_id"):
-			continue
+	for button in _m23_quick_target_button_nodes():
 		var target_id := StringName(String(button.get_meta("target_id")))
 		var supported := _m23_target_supported_for_primary(target_id)
 		button.disabled = not supported
@@ -391,6 +388,35 @@ func _m23_sync_capability_controls() -> void:
 		) if not supported else ""
 	if m10_simulate_button != null and not simulation_running:
 		m10_simulate_button.disabled = comparison_active or not _m23_target_supported_for_primary(scenario.target_type)
+
+func _m23_quick_target_button_nodes() -> Array[Button]:
+	var result: Array[Button] = []
+	if m10_left_panel == null:
+		return result
+	_m23_collect_quick_target_buttons(m10_left_panel, result)
+	return result
+
+func _m23_collect_quick_target_buttons(node: Node, result: Array[Button]) -> void:
+	for child in node.get_children():
+		if child is Button and child.has_meta("target_id"):
+			result.append(child as Button)
+		_m23_collect_quick_target_buttons(child, result)
+
+func _m23_physics_scope_label() -> Label:
+	if m10_physics_scope_warning != null and is_instance_valid(m10_physics_scope_warning):
+		return m10_physics_scope_warning
+	if m10_right_panel == null:
+		return null
+	return _m23_find_named_label(m10_right_panel, &"PhysicsScopeWarning")
+
+func _m23_find_named_label(node: Node, wanted_name: StringName) -> Label:
+	for child in node.get_children():
+		if child is Label and child.name == wanted_name:
+			return child as Label
+		var nested := _m23_find_named_label(child, wanted_name)
+		if nested != null:
+			return nested
+	return null
 
 func _on_target_palette_pressed(target_id: StringName) -> void:
 	if scenario != null and not _m23_target_supported_for_primary(target_id):
@@ -492,8 +518,9 @@ func _m23_sync_physics_controls() -> void:
 		var control_row := control.get_parent()
 		if control_row != null and control_row.get_child_count() > 0 and control_row.get_child(0) is Label:
 			(control_row.get_child(0) as Label).text = String(control_data[1] if role_neutral_rigidbody else control_data[2])
-	if m10_physics_scope_warning != null:
-		m10_physics_scope_warning.text = (
+	var physics_scope_warning := _m23_physics_scope_label()
+	if physics_scope_warning != null:
+		physics_scope_warning.text = (
 			"RigidBody3D contact uses friction 0–%.2f and restitution 0–%.2f. Solver substeps belong to the structural solver and do not affect this path."
 			% [TwoVehicleWorld3D.MAX_CONTACT_FRICTION, TwoVehicleWorld3D.MAX_CONTACT_RESTITUTION]
 		) if role_neutral_rigidbody else "Advanced contact/solver values change the numerical scenario. Presentation controls do not."
