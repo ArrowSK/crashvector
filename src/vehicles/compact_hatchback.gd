@@ -831,7 +831,24 @@ func _update_wheel_failure() -> void:
 	# release only after a measured severe front collapse with real contact energy.
 	if hybrid_geometric_front_crush_m < 0.62 or hybrid_peak_collision_energy_j < 260000.0:
 		return
-	var velocity := global_linear_velocity_ms()
-	wheel_rig.release_wheel(2, velocity + Vector3(0.7, 0.9, -0.8))
-	wheel_rig.release_wheel(3, velocity + Vector3(0.7, 0.9, 0.8))
+	var reference := global_reference_transform()
+	var rolling_forward := reference.basis.x.normalized()
+	wheel_rig.release_wheel(2, _front_wheel_release_velocity(-1.0), rolling_forward)
+	wheel_rig.release_wheel(3, _front_wheel_release_velocity(1.0), rolling_forward)
 	front_wheels_released = true
+
+func _front_wheel_release_velocity(lateral_sign: float) -> Vector3:
+	var reference := global_reference_transform()
+	var forward := reference.basis.x.normalized()
+	var up := reference.basis.y.normalized()
+	var lateral := reference.basis.z.normalized()
+	if forward.is_zero_approx():
+		forward = Vector3.RIGHT
+	if up.is_zero_approx():
+		up = Vector3.UP
+	if lateral.is_zero_approx():
+		lateral = Vector3.FORWARD
+	# Keep the established release magnitudes, but express them in the car's
+	# current frame. A rotated vehicle therefore throws a failed wheel forward and
+	# outward relative to itself rather than along hard-coded world X/Z axes.
+	return global_linear_velocity_ms() + forward * 0.7 + up * 0.9 + lateral * 0.8 * lateral_sign
