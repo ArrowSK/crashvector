@@ -136,6 +136,26 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	if world != null:
 		_expect(world.primary_actor is M21HeavyTruck, "M23 editor did not create the truck as the primary actor")
 		_expect(world.target_actor is M162CompactHatchback, "M23 editor did not create the passenger car as the target actor")
+		if world.primary_actor is M21HeavyTruck:
+			# Seed known actor-specific values before begin_simulation() resets them so
+			# this regression verifies the M23 adapter itself rather than relying on a
+			# particular collision severity to produce every metric.
+			var truck := world.primary_actor as M21HeavyTruck
+			truck.hybrid_front_crush_m = 0.123
+			truck.hybrid_rear_crush_m = 0.045
+			truck.hybrid_side_negative_z_crush_m = 0.067
+			truck.hybrid_side_negative_z_energy_j = 12345.0
+			truck.maximum_articulation_yaw_deg = 8.5
+			var truck_metrics: Dictionary = editor.call("_m23_actor_metrics", truck, config.car_mass_kg)
+			_expect(absf(float(truck_metrics.get("front_crush_m", -1.0)) - 0.123) < 0.000001, "M23 actor metrics dropped heavy-truck front crush")
+			_expect(absf(float(truck_metrics.get("rear_crush_m", -1.0)) - 0.045) < 0.000001, "M23 actor metrics dropped heavy-truck rear crush")
+			_expect(absf(float(truck_metrics.get("side_crush_m", -1.0)) - 0.067) < 0.000001, "M23 actor metrics dropped heavy-truck side crush")
+			_expect(absf(float(truck_metrics.get("side_impact_energy_j", -1.0)) - 12345.0) < 0.001, "M23 actor metrics dropped heavy-truck side-impact energy")
+			_expect(absf(float(truck_metrics.get("maximum_articulation_yaw_deg", -1.0)) - 8.5) < 0.000001, "M23 actor metrics dropped articulated-truck peak yaw")
+		if world.target_actor is CompactHatchback:
+			var car_metrics: Dictionary = editor.call("_m23_actor_metrics", world.target_actor, config.target_mass_kg)
+			_expect(car_metrics.has("front_crush_m"), "M23 actor metrics dropped passenger-car front crush")
+			_expect(car_metrics.has("safety_cell_m"), "M23 actor metrics dropped passenger-car safety-cell deformation")
 	editor.call("_on_simulate_pressed")
 	for _frame in range(12):
 		await physics_frame
@@ -160,6 +180,14 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	recorder = editor.get("replay_recorder") as ReplayRecorder
 	_expect(recorder != null and recorder.recording != null and recorder.recording.frames.size() >= 2, "M23 reciprocal editor run did not finalize a replay recording")
 	if recorder != null and recorder.recording != null and recorder.recording.has_frames():
+		var final_primary_metrics: Dictionary = recorder.recording.last_frame().get("primary_metrics", {})
+		var final_target_metrics: Dictionary = recorder.recording.last_frame().get("target_metrics", {})
+		_expect(final_primary_metrics.has("front_crush_m"), "M23 finalized replay omitted primary front-crush metrics")
+		_expect(final_primary_metrics.has("rear_crush_m"), "M23 finalized replay omitted primary rear-crush metrics")
+		_expect(final_primary_metrics.has("side_crush_m"), "M23 finalized replay omitted primary side-crush metrics")
+		_expect(final_primary_metrics.has("maximum_articulation_yaw_deg"), "M23 finalized replay omitted primary articulation metrics")
+		_expect(final_target_metrics.has("front_crush_m"), "M23 finalized replay omitted passenger-car front-crush metrics")
+		_expect(final_target_metrics.has("safety_cell_m"), "M23 finalized replay omitted passenger-car safety-cell metrics")
 		var first_context: Dictionary = recorder.recording.first_frame().get("context", {})
 		_expect(int(first_context.get("contact_count", 0)) == 0, "M23 reciprocal replay reported non-ground contact before the vehicles reached each other")
 		var saw_contact := false
