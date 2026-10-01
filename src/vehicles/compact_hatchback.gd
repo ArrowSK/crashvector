@@ -432,7 +432,7 @@ func _consume_front_contact_sample(sample: Dictionary) -> void:
 		var pre_contact_velocity: Vector3 = sample.get("pre_contact_linear_velocity_ms", rigid_chassis.pre_contact_linear_velocity_ms())
 		hybrid_peak_collision_energy_j = maxf(
 			hybrid_peak_collision_energy_j,
-			_normal_collision_energy_j(collider, pre_contact_velocity)
+			_normal_collision_energy_j(collider, pre_contact_velocity, impulse)
 		)
 
 func _update_hybrid_crush_target() -> void:
@@ -452,7 +452,11 @@ func _update_hybrid_crush_target() -> void:
 	var energy_limited_crush := 0.18 * scale_x + hybrid_peak_collision_energy_j / maxf(520000.0 * scale_x, 1.0)
 	hybrid_target_front_crush_m = clampf(hybrid_target_front_crush_m, 0.0, minf(0.98 * scale_x, energy_limited_crush))
 
-func _normal_collision_energy_j(collider: Object, pre_contact_velocity_ms: Vector3 = Vector3.INF) -> float:
+func _normal_collision_energy_j(
+	collider: Object,
+	pre_contact_velocity_ms: Vector3 = Vector3.INF,
+	contact_impulse_ns: Vector3 = Vector3.ZERO
+) -> float:
 	if rigid_chassis == null:
 		return 0.0
 	var forward := rigid_chassis.global_transform.basis.x.normalized()
@@ -469,7 +473,14 @@ func _normal_collision_energy_j(collider: Object, pre_contact_velocity_ms: Vecto
 		collider_velocity = (collider as RigidBody3D).linear_velocity
 	var effective_mass := PhysicsMetrics.collision_effective_mass_kg(rigid_chassis.mass, collider)
 	var closing_speed := maxf((subject_velocity - collider_velocity).dot(forward), 0.0)
-	return 0.5 * effective_mass * closing_speed * closing_speed
+	var velocity_energy := 0.5 * effective_mass * closing_speed * closing_speed
+	# Godot can report the first manifold after the solver has already removed a
+	# large part of the closing speed. The real contact impulse is an independent
+	# same-contact lower bound on the pre-impact normal demand and does not depend
+	# on the scenario's t=0 speed. This mirrors the motorcycle production path.
+	var longitudinal_impulse := absf(contact_impulse_ns.dot(forward))
+	var impulse_energy := longitudinal_impulse * longitudinal_impulse / maxf(2.0 * effective_mass, 1.0)
+	return maxf(velocity_energy, impulse_energy)
 
 func _is_yielding_obstacle_collider(collider: Object) -> bool:
 	var node := collider as Node
