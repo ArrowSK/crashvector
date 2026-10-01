@@ -177,6 +177,23 @@ func _check_articulated_target_materials() -> void:
 	await process_frame
 	var target_bodies := VehicleActorRuntime.physics_bodies(world.target_actor)
 	_expect(target_bodies.size() == 2, "M23 actor runtime did not expose both physics bodies when the articulated truck was the target")
+	var articulated_target := world.target_actor as M21HeavyTruck
+	_expect(articulated_target != null, "M23 articulated inertia regression did not create M21HeavyTruck")
+	if articulated_target != null and articulated_target.rigid_chassis != null and articulated_target.tractor_chassis != null:
+		_expect(articulated_target.rigid_chassis.configured_mass_distribution_size_m.distance_to(M21HeavyTruck.TRAILER_NEUTRAL_MASS_DISTRIBUTION_SIZE) < 0.000001, "M21 trailer retained one-piece/automatic inertia instead of its split neutral mass envelope")
+		_expect(articulated_target.tractor_chassis.configured_mass_distribution_size_m.distance_to(M21HeavyTruck.TRACTOR_NEUTRAL_MASS_DISTRIBUTION_SIZE) < 0.000001, "M21 tractor did not receive its split neutral mass envelope")
+		_expect(articulated_target.rigid_chassis.configured_center_of_mass_local_m.distance_to(M21HeavyTruck.TRAILER_NEUTRAL_CENTER_OF_MASS_LOCAL) < 0.000001, "M21 trailer neutral centre of mass is not configured")
+		_expect(articulated_target.tractor_chassis.configured_center_of_mass_local_m.distance_to(M21HeavyTruck.TRACTOR_NEUTRAL_CENTER_OF_MASS_LOCAL) < 0.000001, "M21 tractor neutral centre of mass is not configured")
+		var trailer_inertia := articulated_target.rigid_chassis.inertia
+		var tractor_inertia := articulated_target.tractor_chassis.inertia
+		articulated_target.hybrid_rear_crush_m = 0.48
+		articulated_target.hybrid_front_crush_m = 0.38
+		articulated_target.hybrid_side_negative_z_crush_m = 0.26
+		articulated_target.hybrid_side_positive_z_crush_m = 0.14
+		articulated_target.call("_m21_update_longitudinal_collision_shapes")
+		articulated_target.call("_m20_update_side_collision_shapes")
+		_expect(articulated_target.rigid_chassis.inertia.distance_to(trailer_inertia) < 0.000001, "M21 trailer inertia changed when its deformable shells were resized")
+		_expect(articulated_target.tractor_chassis.inertia.distance_to(tractor_inertia) < 0.000001, "M21 tractor inertia changed when its deformable shells were resized")
 	for body in target_bodies:
 		_expect(body.physics_material_override != null, "M23 articulated target body did not receive the configured contact material")
 		if body.physics_material_override != null:
