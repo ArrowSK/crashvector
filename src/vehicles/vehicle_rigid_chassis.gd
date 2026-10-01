@@ -46,6 +46,8 @@ var last_integrated_physics_frame: int = -1
 # as the immediate collision-entry velocity without falling back to scenario t=0.
 var last_non_ground_contact_free_linear_velocity_ms := Vector3.ZERO
 var last_non_ground_contact_free_physics_frame: int = -1
+const CONTACT_ENTRY_HISTORY_SAMPLES: int = 6
+var recent_non_ground_contact_free_velocity_samples: Array[Dictionary] = []
 var stored_linear_velocity := Vector3.ZERO
 var stored_angular_velocity := Vector3.ZERO
 # Some light targets need the normal rigid-body contact to occur before the
@@ -84,6 +86,8 @@ func configure(
 	last_integrated_physics_frame = -1
 	last_non_ground_contact_free_linear_velocity_ms = linear_velocity
 	last_non_ground_contact_free_physics_frame = -1
+	recent_non_ground_contact_free_velocity_samples.clear()
+	_record_contact_free_linear_velocity(linear_velocity)
 	angular_velocity = Vector3.ZERO
 	continuous_cd = true
 	contact_monitor = true
@@ -306,6 +310,73 @@ func contact_entry_linear_velocity_ms() -> Vector3:
 		return last_non_ground_contact_free_linear_velocity_ms
 	return pre_contact_linear_velocity_ms()
 
+func recent_relative_axis_speed_ms(
+	collider: Object,
+	axis_world: Vector3,
+	fallback_subject_velocity_ms: Vector3 = Vector3.INF,
+	absolute_value: bool = false
+) -> float:
+	var axis := axis_world.normalized()
+	if axis.is_zero_approx():
+		return 0.0
+	var subject_velocity := fallback_subject_velocity_ms
+	if not is_finite(subject_velocity.x) or not is_finite(subject_velocity.y) or not is_finite(subject_velocity.z):
+		subject_velocity = contact_entry_linear_velocity_ms()
+	var collider_velocity := Vector3.ZERO
+	if collider is VehicleRigidChassis:
+		collider_velocity = (collider as VehicleRigidChassis).contact_entry_linear_velocity_ms()
+	elif collider is RigidBody3D:
+		collider_velocity = (collider as RigidBody3D).linear_velocity
+	var projected := (subject_velocity - collider_velocity).dot(axis)
+	var maximum_speed := absf(projected) if absolute_value else maxf(projected, 0.0)
+	# Contact manifolds can be surfaced one callback after the solver has already
+	# changed velocity. Inspect only the short rolling window of contact-free
+	# states and align dynamic peers by physics frame. This recovers the immediate
+	# collision-entry relative speed without using the scenario's t=0 velocity.
+	for sample in recent_non_ground_contact_free_velocity_samples:
+		var frame := int(sample.get("physics_frame", -1))
+		var velocity_value: Variant = sample.get("linear_velocity_ms", Vector3.ZERO)
+		if not velocity_value is Vector3:
+			continue
+		var historical_subject: Vector3 = velocity_value
+		var historical_other := collider_velocity
+		if collider is VehicleRigidChassis:
+			historical_other = (collider as VehicleRigidChassis).contact_free_linear_velocity_at_or_before(frame, collider_velocity)
+		var historical_projected := (historical_subject - historical_other).dot(axis)
+		var historical_speed := absf(historical_projected) if absolute_value else maxf(historical_projected, 0.0)
+		maximum_speed = maxf(maximum_speed, historical_speed)
+	return maximum_speed
+
+func contact_free_linear_velocity_at_or_before(physics_frame: int, fallback: Vector3 = Vector3.ZERO) -> Vector3:
+	var best_frame := -1
+	var best_velocity := fallback
+	for sample in recent_non_ground_contact_free_velocity_samples:
+		var sample_frame := int(sample.get("physics_frame", -1))
+		if sample_frame > physics_frame or sample_frame < best_frame:
+			continue
+		var velocity_value: Variant = sample.get("linear_velocity_ms", fallback)
+		if velocity_value is Vector3:
+			best_frame = sample_frame
+			best_velocity = velocity_value
+	return best_velocity
+
+func _record_contact_free_linear_velocity(velocity_ms: Vector3) -> void:
+	var physics_frame := Engine.get_physics_frames()
+	last_non_ground_contact_free_linear_velocity_ms = velocity_ms
+	last_non_ground_contact_free_physics_frame = physics_frame
+	if not recent_non_ground_contact_free_velocity_samples.is_empty():
+		var last_sample := recent_non_ground_contact_free_velocity_samples[-1]
+		if int(last_sample.get("physics_frame", -1)) == physics_frame:
+			last_sample["linear_velocity_ms"] = velocity_ms
+			recent_non_ground_contact_free_velocity_samples[-1] = last_sample
+			return
+	recent_non_ground_contact_free_velocity_samples.append({
+		"physics_frame": physics_frame,
+		"linear_velocity_ms": velocity_ms,
+	})
+	while recent_non_ground_contact_free_velocity_samples.size() > CONTACT_ENTRY_HISTORY_SAMPLES:
+		recent_non_ground_contact_free_velocity_samples.pop_front()
+
 func _record_integrated_linear_velocity(velocity_ms: Vector3) -> void:
 	var physics_frame := Engine.get_physics_frames()
 	if last_integrated_physics_frame == physics_frame:
@@ -470,8 +541,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 				front_body_contact_collider = collider
 
 	if not had_non_ground_contact:
-		last_non_ground_contact_free_linear_velocity_ms = state.linear_velocity
-		last_non_ground_contact_free_physics_frame = Engine.get_physics_frames()
+		_record_contact_free_linear_velocity(state.linear_velocity)
 
 	# Summarize after collecting the step's contacts and before any consumer drains
 	# contact_samples. The summary is observational only.
