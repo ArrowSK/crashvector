@@ -110,12 +110,11 @@ func apply_replay_visual_state(state: Dictionary) -> void:
 			continue
 		body.freeze = true
 		body.sleeping = false
-		if rider_released:
-			body.remove_collision_exception_with(chassis)
-			if chassis != null:
+		if chassis != null:
+			if rider_released:
+				body.remove_collision_exception_with(chassis)
 				chassis.remove_collision_exception_with(body)
-		else:
-			if chassis != null:
+			else:
 				body.add_collision_exception_with(chassis)
 				chassis.add_collision_exception_with(body)
 	var by_name: Dictionary = {}
