@@ -50,11 +50,29 @@ func _run() -> void:
 		_expect(not tank.rigid_chassis.freeze, "M23 dynamic tank did not resume its rigid chassis")
 	tank.queue_free()
 	await process_frame
+	_check_rigidbody_contact_settings()
 	await _check_two_vehicle_world()
 	await _check_articulated_target_materials()
 	await _check_vehicle_fixture_world()
 	await _check_editor_reciprocal_vehicle_pair()
 	_finish()
+
+func _check_rigidbody_contact_settings() -> void:
+	var config := ScenarioConfig.new()
+	config.apply_primary_vehicle_defaults(ScenarioConfig.TARGET_LORRY)
+	config.apply_target_defaults(ScenarioConfig.TARGET_PASSENGER_CAR)
+	config.car_position_m = Vector3(-8.0, 0.0, 0.0)
+	config.target_position_m = Vector3(6.0, 0.0, 0.0)
+	_expect(TwoVehicleWorld3D.contact_setting_errors(config).is_empty(), "M23 rigid-body contact preflight rejected the production defaults")
+	config.contact_friction = TwoVehicleWorld3D.MAX_CONTACT_FRICTION + 0.01
+	_expect(not TwoVehicleWorld3D.contact_setting_errors(config).is_empty(), "M23 rigid-body contact preflight accepted friction that the world cannot represent")
+	var rejected_friction_world := TwoVehicleWorld3D.new()
+	_expect(not rejected_friction_world.configure(config), "M23 rigid-body world silently accepted out-of-range friction")
+	config.contact_friction = 0.55
+	config.restitution = TwoVehicleWorld3D.MAX_CONTACT_RESTITUTION + 0.01
+	_expect(not TwoVehicleWorld3D.contact_setting_errors(config).is_empty(), "M23 rigid-body contact preflight accepted restitution outside the production bound")
+	var rejected_restitution_world := TwoVehicleWorld3D.new()
+	_expect(not rejected_restitution_world.configure(config), "M23 rigid-body world silently accepted out-of-range restitution")
 
 func _check_two_vehicle_world() -> void:
 	var config := ScenarioConfig.new()
@@ -168,6 +186,12 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 		await process_frame
 	var world := editor.get("m23_vehicle_world") as TwoVehicleWorld3D
 	_expect(world != null, "M23 editor did not route a truck primary through TwoVehicleWorld3D")
+	var substeps_control := editor.get("m10_substeps") as SpinBox
+	_expect(substeps_control != null and not substeps_control.editable, "M23 editor still presents solver substeps as an active RigidBody3D control")
+	if substeps_control != null:
+		_expect(int(substeps_control.value) == config.solver_substeps, "M23 editor changed the persisted structural-solver substep value while disabling it")
+	var physics_warning := editor.find_child("PhysicsScopeWarning", true, false) as Label
+	_expect(physics_warning != null and physics_warning.text.contains("do not affect this path"), "M23 Physics tab does not explain that solver substeps are unused by RigidBody3D")
 	if world != null:
 		_expect(world.primary_actor is M21HeavyTruck, "M23 editor did not create the truck as the primary actor")
 		_expect(world.target_actor is M162CompactHatchback, "M23 editor did not create the passenger car as the target actor")
