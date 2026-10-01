@@ -497,7 +497,11 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	_expect(substeps_control != null and not substeps_control.editable, "M23 editor still presents solver substeps as an active RigidBody3D control")
 	if substeps_control != null:
 		_expect(int(substeps_control.value) == config.solver_substeps, "M23 editor changed the persisted structural-solver substep value while disabling it")
-	var physics_warning := editor.find_child("PhysicsScopeWarning", true, false) as Label
+	var physics_warning: Label
+	if substeps_control != null and substeps_control.get_parent() != null:
+		var physics_column := substeps_control.get_parent().get_parent()
+		if physics_column != null:
+			physics_warning = physics_column.get_node_or_null("PhysicsScopeWarning") as Label
 	_expect(physics_warning != null and physics_warning.text.contains("do not affect this path"), "M23 Physics tab does not explain that solver substeps are unused by RigidBody3D")
 	var primary_class_control := editor.get("m10_primary_class") as OptionButton
 	var primary_paint_control := editor.get("m10_primary_paint") as OptionButton
@@ -553,7 +557,7 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	var quick_wall_enabled := false
 	var left_panel := editor.get("m10_left_panel") as Control
 	if left_panel != null:
-		for node in left_panel.find_children("*", "Button", true, false):
+		for node in left_panel.find_children("*", "", true, false):
 			var button := node as Button
 			if button == null or not button.has_meta("target_id"):
 				continue
@@ -649,6 +653,11 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 					+ Vector3.DOWN * passenger.wheel_rig.suspension_drop_m
 					+ rotated_lateral * side_sign * passenger.wheel_rig.side_offset_m
 				)
+				# The production wheel rig also enforces the ground-height floor after
+				# applying the vehicle-relative lateral offset. Mirror that unrelated
+				# vertical constraint so this assertion isolates the rotated X/Z basis.
+				if expected_attached_position.y < passenger.wheel_rig.wheel_radius_m:
+					expected_attached_position.y = passenger.wheel_rig.wheel_radius_m
 				_expect(passenger.wheel_rig.wheel_instances[attached_index].position.distance_to(expected_attached_position) < 0.000001, "Attached passenger wheel offset still uses fixed world Z after vehicle rotation")
 				if passenger.rigid_chassis != null:
 					passenger.rigid_chassis.suspension_contact_points_world.resize(passenger.rigid_chassis.suspension_points.size())
