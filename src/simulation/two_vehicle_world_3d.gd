@@ -43,7 +43,12 @@ func configure(config: ScenarioConfig) -> bool:
 		config.car_position_m, config.car_heading_deg, config.show_structure,
 		config.car_preset_id
 	)
-	if ScenarioConfig.is_vehicle_actor_id(config.target_type):
+	# The generic tank has intentionally asymmetric role semantics established by
+	# the scenario contract: as a primary it is a movable DynamicTank3D, while as
+	# a target it is the existing fixed educational tank obstacle and must have
+	# zero target speed. Route that target role through StaticObstacle3D here too,
+	# so passenger-primary and role-neutral worlds cannot disagree.
+	if ScenarioConfig.is_vehicle_actor_id(config.target_type) and config.target_type != ScenarioConfig.TARGET_TANK:
 		target_actor = VehicleActorFactory.create(
 			config.target_type, config.target_mass_kg, config.target_speed_kmh,
 			config.target_position_m, config.target_heading_deg, config.show_structure,
