@@ -35,6 +35,7 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 	var peak_deceleration_g: float = 0.0
 	var peak_acceleration_g: float = 0.0
 	var peak_deceleration_time_s: float = 0.0
+	var peak_acceleration_time_s: float = 0.0
 	var max_delta_v_ms: float = 0.0
 	var max_front_crush_m: float = 0.0
 	var max_safety_cell_m: float = 0.0
@@ -104,6 +105,7 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 				crash_pulse.append(Vector2(time_s, longitudinal_deceleration_g))
 				if first_contact_time_s >= 0.0 and acceleration_g > peak_acceleration_g:
 					peak_acceleration_g = acceleration_g
+					peak_acceleration_time_s = time_s
 				if first_contact_time_s >= 0.0 and longitudinal_deceleration_g > peak_deceleration_g:
 					peak_deceleration_g = longitudinal_deceleration_g
 					peak_deceleration_time_s = time_s
@@ -119,6 +121,8 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 		markers.append(_marker(&"first_contact", "First contact", first_contact_time_s))
 	if peak_deceleration_g > 0.0:
 		markers.append(_marker(&"peak_loading", "Peak loading", peak_deceleration_time_s))
+	elif peak_acceleration_g > 0.0:
+		markers.append(_marker(&"peak_loading", "Peak loading", peak_acceleration_time_s))
 	if first_failure_time_s >= 0.0:
 		markers.append(_marker(&"structural_failure", "Structural failure", first_failure_time_s))
 	if last_contact_increment_time_s >= 0.0 and last_contact_increment_time_s < recording.duration_s - recording.sample_interval_s:
@@ -137,6 +141,7 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 		"peak_deceleration_g": peak_deceleration_g,
 		"peak_deceleration_time_s": peak_deceleration_time_s,
 		"peak_acceleration_g": peak_acceleration_g,
+		"peak_acceleration_time_s": peak_acceleration_time_s,
 		"primary_initial_motion_direction_valid": has_initial_motion_direction,
 		"max_front_crush_mm": max_front_crush_m * 1000.0,
 		"max_safety_cell_deformation_mm": max_safety_cell_m * 1000.0,
