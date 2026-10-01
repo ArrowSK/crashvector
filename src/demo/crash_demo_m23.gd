@@ -348,6 +348,8 @@ func _m23_sync_primary_specific_controls() -> void:
 	if scenario == null:
 		return
 	var passenger_primary := scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR
+	if m10_primary_class != null and m10_primary_class.get_parent() != null:
+		m10_primary_class.get_parent().visible = passenger_primary
 	if m10_primary_paint != null and m10_primary_paint.get_parent() != null:
 		m10_primary_paint.get_parent().visible = passenger_primary
 	if primary_paint_option != null and primary_paint_option.get_parent() != null:
