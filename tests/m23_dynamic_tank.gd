@@ -290,10 +290,19 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 				var released_visual_state := passenger.replay_visual_state()
 				var expected_left_position := passenger.wheel_rig.released_positions[2]
 				var expected_right_position := passenger.wheel_rig.released_positions[3]
+				var wheel_recorder := ReplayRecorder.new()
+				wheel_recorder.begin()
+				_expect(
+					wheel_recorder.capture(0.0, passenger.model, null, {}, {}, {}, released_visual_state, {}, true),
+					"M23 replay recorder rejected a passenger-wheel visual-state frame"
+				)
+				var recorded_visual_state: Dictionary = wheel_recorder.recording.first_frame().get("primary_visual_state", {})
+				var recorded_wheel_value: Variant = recorded_visual_state.get("wheel_rig", {})
+				_expect(recorded_wheel_value is Dictionary, "M23 replay frame omitted the serialized wheel-rig state")
 				passenger.apply_replay_visual_state(attached_visual_state)
 				_expect(not passenger.front_wheels_released, "M23 passenger replay could not restore the pre-release wheel state")
 				_expect(passenger.wheel_rig.released[2] == 0 and passenger.wheel_rig.released[3] == 0, "M23 passenger replay left front wheels detached when scrubbing before release")
-				passenger.apply_replay_visual_state(released_visual_state)
+				passenger.apply_replay_visual_state(recorded_visual_state)
 				_expect(passenger.front_wheels_released, "M23 passenger replay dropped the front-wheel release flag")
 				_expect(passenger.wheel_rig.released[2] != 0 and passenger.wheel_rig.released[3] != 0, "M23 passenger replay reattached released front wheels")
 				_expect(passenger.wheel_rig.released_positions[2].distance_to(expected_left_position) < 0.000001, "M23 passenger replay lost the released left-front wheel position")
