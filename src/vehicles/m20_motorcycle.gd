@@ -145,12 +145,23 @@ func _m20_consume_contacts() -> void:
 			collider_local = rigid_chassis.to_local((collider as Node3D).global_position)
 			has_collider_center = true
 		var subject_velocity: Vector3 = sample.get("pre_contact_linear_velocity_ms", rigid_chassis.pre_contact_linear_velocity_ms())
+		var collider_pre_contact_velocity: Vector3 = sample.get("collider_pre_contact_linear_velocity_ms", Vector3.ZERO)
 		var reduced_mass := PhysicsMetrics.collision_effective_mass_kg(rigid_chassis.mass, collider)
 		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
-		# Use the short contact-free solver history to bridge Godot's delayed
-		# manifold reporting without restoring the scenario's t=0 speed.
-		var longitudinal_speed := rigid_chassis.recent_relative_axis_speed_ms(collider, forward, subject_velocity, true)
-		var lateral_speed := rigid_chassis.recent_relative_axis_speed_ms(collider, lateral, subject_velocity, true)
+		# Prefer the two velocities captured from the same contact-entry callback.
+		# Keep the short contact-free history as a delayed-manifold fallback, but
+		# never restore the scenario's t=0 relative speed.
+		var sampled_relative_velocity := subject_velocity - collider_pre_contact_velocity
+		var longitudinal_speed := absf(sampled_relative_velocity.dot(forward))
+		var lateral_speed := absf(sampled_relative_velocity.dot(lateral))
+		longitudinal_speed = maxf(
+			longitudinal_speed,
+			rigid_chassis.recent_relative_axis_speed_ms(collider, forward, subject_velocity, true)
+		)
+		lateral_speed = maxf(
+			lateral_speed,
+			rigid_chassis.recent_relative_axis_speed_ms(collider, lateral, subject_velocity, true)
+		)
 		var longitudinal_impulse := absf(impulse.dot(forward))
 		var lateral_impulse := absf(impulse.dot(lateral))
 		var longitudinal_energy := maxf(
