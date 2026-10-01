@@ -168,6 +168,10 @@ func _check_offset_crush_resistance_torque() -> void:
 	var resolved_contact_world: Vector3 = vehicle.call("_hybrid_resistance_contact_world")
 	_expect(resolved_contact_world.distance_to(expected_contact_world) < 0.000001, "Passenger crush resistance lost the observed off-centre contact point")
 	vehicle.call("_apply_hybrid_crush_resistance", 1.0 / 60.0)
+	# SceneTree.physics_frame is emitted before the physics step. Wait through the
+	# following step before reading RigidBody3D angular velocity so the assertion
+	# observes the force Godot actually integrated rather than the pre-step state.
+	await physics_frame
 	await physics_frame
 	_expect(absf(vehicle.rigid_chassis.angular_velocity.y) > 0.0001, "Off-centre passenger crush resistance still behaves like a centre-of-mass force with no yaw torque")
 
