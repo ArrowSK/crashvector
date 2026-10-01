@@ -279,7 +279,29 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 			_expect(absf(float(truck_metrics.get("side_impact_energy_j", -1.0)) - 12345.0) < 0.001, "M23 actor metrics dropped heavy-truck side-impact energy")
 			_expect(absf(float(truck_metrics.get("maximum_articulation_yaw_deg", -1.0)) - 8.5) < 0.000001, "M23 actor metrics dropped articulated-truck peak yaw")
 		if world.target_actor is CompactHatchback:
-			var car_metrics: Dictionary = editor.call("_m23_actor_metrics", world.target_actor, config.target_mass_kg)
+			var passenger := world.target_actor as CompactHatchback
+			var attached_visual_state := passenger.replay_visual_state()
+			_expect(passenger.wheel_rig != null, "M23 passenger target is missing its wheel rig")
+			if passenger.wheel_rig != null:
+				passenger.wheel_rig.release_wheel(2, Vector3(2.0, 1.2, -0.6))
+				passenger.wheel_rig.release_wheel(3, Vector3(2.0, 1.2, 0.6))
+				passenger.front_wheels_released = true
+				passenger.wheel_rig.update_from_model(0.12)
+				var released_visual_state := passenger.replay_visual_state()
+				var expected_left_position := passenger.wheel_rig.released_positions[2]
+				var expected_right_position := passenger.wheel_rig.released_positions[3]
+				passenger.apply_replay_visual_state(attached_visual_state)
+				_expect(not passenger.front_wheels_released, "M23 passenger replay could not restore the pre-release wheel state")
+				_expect(passenger.wheel_rig.released[2] == 0 and passenger.wheel_rig.released[3] == 0, "M23 passenger replay left front wheels detached when scrubbing before release")
+				passenger.apply_replay_visual_state(released_visual_state)
+				_expect(passenger.front_wheels_released, "M23 passenger replay dropped the front-wheel release flag")
+				_expect(passenger.wheel_rig.released[2] != 0 and passenger.wheel_rig.released[3] != 0, "M23 passenger replay reattached released front wheels")
+				_expect(passenger.wheel_rig.released_positions[2].distance_to(expected_left_position) < 0.000001, "M23 passenger replay lost the released left-front wheel position")
+				_expect(passenger.wheel_rig.released_positions[3].distance_to(expected_right_position) < 0.000001, "M23 passenger replay lost the released right-front wheel position")
+				_expect(passenger.wheel_rig.wheel_instances[2].position.distance_to(expected_left_position) < 0.000001, "M23 passenger replay did not render the released left-front wheel at its recorded position")
+				_expect(passenger.wheel_rig.wheel_instances[3].position.distance_to(expected_right_position) < 0.000001, "M23 passenger replay did not render the released right-front wheel at its recorded position")
+				passenger.apply_replay_visual_state(attached_visual_state)
+			var car_metrics: Dictionary = editor.call("_m23_actor_metrics", passenger, config.target_mass_kg)
 			_expect(car_metrics.has("front_crush_m"), "M23 actor metrics dropped passenger-car front crush")
 			_expect(car_metrics.has("safety_cell_m"), "M23 actor metrics dropped passenger-car safety-cell deformation")
 	editor.call("_on_simulate_pressed")
