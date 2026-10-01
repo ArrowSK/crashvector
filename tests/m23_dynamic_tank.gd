@@ -280,16 +280,31 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 			_expect(absf(float(truck_metrics.get("maximum_articulation_yaw_deg", -1.0)) - 8.5) < 0.000001, "M23 actor metrics dropped articulated-truck peak yaw")
 		if world.target_actor is CompactHatchback:
 			var passenger := world.target_actor as CompactHatchback
+			VehicleActorRuntime.set_preview_pose(passenger, config.target_position_m, 90.0)
+			var rotated_reference := passenger.global_reference_transform()
+			var release_base_velocity := passenger.global_linear_velocity_ms()
+			var rotated_release_velocity := passenger._front_wheel_release_velocity(1.0)
+			var rotated_kick := rotated_release_velocity - release_base_velocity
+			_expect(absf(rotated_kick.dot(rotated_reference.basis.x.normalized()) - 0.7) < 0.0001, "Released passenger wheel kick is not aligned with the rotated vehicle forward axis")
+			_expect(absf(rotated_kick.dot(rotated_reference.basis.y.normalized()) - 0.9) < 0.0001, "Released passenger wheel kick lost its vehicle-relative upward component")
+			_expect(absf(rotated_kick.dot(rotated_reference.basis.z.normalized()) - 0.8) < 0.0001, "Released passenger wheel kick is not aligned with the rotated vehicle lateral axis")
+			VehicleActorRuntime.set_preview_pose(passenger, config.target_position_m, config.target_heading_deg)
 			var attached_visual_state := passenger.replay_visual_state()
 			_expect(passenger.wheel_rig != null, "M23 passenger target is missing its wheel rig")
 			if passenger.wheel_rig != null:
-				passenger.wheel_rig.release_wheel(2, Vector3(2.0, 1.2, -0.6))
-				passenger.wheel_rig.release_wheel(3, Vector3(2.0, 1.2, 0.6))
+				var rolling_forward := passenger.global_reference_transform().basis.x.normalized()
+				passenger.wheel_rig.release_wheel(2, Vector3(2.0, 1.2, -0.6), rolling_forward)
+				passenger.wheel_rig.release_wheel(3, Vector3(2.0, 1.2, 0.6), rolling_forward)
 				passenger.front_wheels_released = true
+				var release_rotation_before := passenger.wheel_rig.wheel_instances[2].rotation.z
+				_expect(absf(passenger.wheel_rig.released_spin_rad_s[2]) > 0.01, "Released passenger wheel did not inherit rolling spin")
 				passenger.wheel_rig.update_from_model(0.12)
+				_expect(absf(passenger.wheel_rig.wheel_instances[2].rotation.z - release_rotation_before) > 0.01, "Released passenger wheel stopped spinning after detachment")
 				var released_visual_state := passenger.replay_visual_state()
 				var expected_left_position := passenger.wheel_rig.released_positions[2]
 				var expected_right_position := passenger.wheel_rig.released_positions[3]
+				var expected_left_rotation := passenger.wheel_rig.wheel_instances[2].rotation.z
+				var expected_left_spin := passenger.wheel_rig.released_spin_rad_s[2]
 				var wheel_recorder := ReplayRecorder.new()
 				wheel_recorder.begin()
 				_expect(
@@ -309,6 +324,8 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 				_expect(passenger.wheel_rig.released_positions[3].distance_to(expected_right_position) < 0.000001, "M23 passenger replay lost the released right-front wheel position")
 				_expect(passenger.wheel_rig.wheel_instances[2].position.distance_to(expected_left_position) < 0.000001, "M23 passenger replay did not render the released left-front wheel at its recorded position")
 				_expect(passenger.wheel_rig.wheel_instances[3].position.distance_to(expected_right_position) < 0.000001, "M23 passenger replay did not render the released right-front wheel at its recorded position")
+				_expect(absf(passenger.wheel_rig.wheel_instances[2].rotation.z - expected_left_rotation) < 0.000001, "M23 passenger replay lost released-wheel spin orientation")
+				_expect(absf(passenger.wheel_rig.released_spin_rad_s[2] - expected_left_spin) < 0.000001, "M23 passenger replay lost released-wheel angular speed")
 				passenger.apply_replay_visual_state(attached_visual_state)
 			var car_metrics: Dictionary = editor.call("_m23_actor_metrics", passenger, config.target_mass_kg)
 			_expect(car_metrics.has("front_crush_m"), "M23 actor metrics dropped passenger-car front crush")
