@@ -43,6 +43,34 @@ static func contact_manifold_diagnostics(actor: Node) -> Dictionary:
 	var body := chassis(actor)
 	return body.contact_manifold_diagnostics() if body != null else {}
 
+static func deformation_metrics(actor: Node) -> Dictionary:
+	# Preserve the actor-specific production metrics that the pre-M23 replay path
+	# already exposed. The role-neutral world must not erase deformation merely
+	# because a vehicle moved from the historical target role to primary.
+	var result: Dictionary = {}
+	if actor == null:
+		return result
+	if actor.has_method("front_crush_deformation_m"):
+		result["front_crush_m"] = float(actor.call("front_crush_deformation_m"))
+	if actor.has_method("safety_cell_deformation_m"):
+		result["safety_cell_m"] = float(actor.call("safety_cell_deformation_m"))
+	if actor.has_method("rear_impact_deformation_m"):
+		result["rear_crush_m"] = float(actor.call("rear_impact_deformation_m"))
+	elif actor is M17HeavyTruck:
+		result["rear_crush_m"] = float((actor as M17HeavyTruck).hybrid_rear_crush_m)
+	if actor.has_method("rear_guard_deformation_m"):
+		result["rear_guard_m"] = float(actor.call("rear_guard_deformation_m"))
+	if actor.has_method("side_impact_deformation_m"):
+		result["side_crush_m"] = float(actor.call("side_impact_deformation_m"))
+	if actor.has_method("side_impact_energy_j"):
+		result["side_impact_energy_j"] = float(actor.call("side_impact_energy_j"))
+	if actor is M21HeavyTruck:
+		var articulated := actor as M21HeavyTruck
+		result["articulation_yaw_deg"] = articulated.articulation_yaw_deg()
+		result["maximum_articulation_yaw_deg"] = articulated.maximum_articulation_yaw_deg
+		result["fifth_wheel_separation_m"] = articulated.fifth_wheel_separation_m()
+	return result
+
 static func set_preview_pose(actor: Node, position_m: Vector3, heading_deg: float) -> void:
 	if actor != null and actor.has_method("set_preview_pose"):
 		actor.call("set_preview_pose", position_m, heading_deg)
