@@ -309,6 +309,20 @@ func _m23_sync_physics_controls() -> void:
 		return
 	var role_neutral_rigidbody := _m23_has_non_passenger_primary()
 	m10_substeps.editable = not role_neutral_rigidbody
+	if m10_friction != null:
+		# For normal M23 values, make the actual supported range the UI range.
+		# If an imported scenario already exceeds it, retain that exact value so the
+		# user can see/fix the invalid input; preflight rejects it rather than
+		# silently rewriting the scenario.
+		m10_friction.max_value = (
+			maxf(TwoVehicleWorld3D.MAX_CONTACT_FRICTION, scenario.contact_friction)
+			if role_neutral_rigidbody else 1.5
+		)
+	if m10_restitution != null:
+		m10_restitution.max_value = (
+			maxf(TwoVehicleWorld3D.MAX_CONTACT_RESTITUTION, scenario.restitution)
+			if role_neutral_rigidbody else 0.5
+		)
 	if role_neutral_rigidbody:
 		m10_substeps.tooltip_text = "The M23 RigidBody3D world runs at the project physics tick and does not use the legacy structural-solver substep setting."
 		if m10_friction != null:
@@ -321,9 +335,18 @@ func _m23_sync_physics_controls() -> void:
 			m10_friction.tooltip_text = ""
 		if m10_restitution != null:
 			m10_restitution.tooltip_text = ""
+	for control_data in [
+		[m10_friction, "Contact friction (RigidBody3D 0–%.2f)" % TwoVehicleWorld3D.MAX_CONTACT_FRICTION, "Contact friction"],
+		[m10_restitution, "Restitution (RigidBody3D 0–%.2f)" % TwoVehicleWorld3D.MAX_CONTACT_RESTITUTION, "Restitution"],
+		[m10_substeps, "Solver substeps (not used by RigidBody3D)", "Solver substeps"],
+	]:
+		var control := control_data[0] as SpinBox
+		if control == null:
+			continue
+		var control_row := control.get_parent()
+		if control_row != null and control_row.get_child_count() > 0 and control_row.get_child(0) is Label:
+			(control_row.get_child(0) as Label).text = String(control_data[1] if role_neutral_rigidbody else control_data[2])
 	var row := m10_substeps.get_parent()
-	if row != null and row.get_child_count() > 0 and row.get_child(0) is Label:
-		(row.get_child(0) as Label).text = "Solver substeps (not used by RigidBody3D)" if role_neutral_rigidbody else "Solver substeps"
 	var column := row.get_parent() if row != null else null
 	if column != null:
 		var warning := column.get_node_or_null("PhysicsScopeWarning") as Label
