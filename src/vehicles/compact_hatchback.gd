@@ -403,8 +403,34 @@ func _apply_rigid_delta_to_model(delta_transform: Transform3D) -> void:
 func _consume_real_contact_impulses() -> void:
 	if rigid_chassis == null:
 		return
-	for sample in rigid_chassis.drain_contact_samples():
-		_consume_front_contact_sample(sample)
+	var samples := rigid_chassis.drain_contact_samples()
+	# Godot reports one impulse per manifold point. Collision-energy demand is a
+	# property of the whole same-step contact patch, so combine those vectors per
+	# collider before converting impulse to an equivalent normal energy. Using the
+	# largest single point can understate wide wall/truck impacts by several times.
+	var front_impulse_by_collider: Dictionary = {}
+	for sample in samples:
+		var collider_name: StringName = sample.get("collider_name", StringName(""))
+		if collider_name == &"Road" or collider_name == &"Ground" or collider_name == &"ProvingGround":
+			continue
+		if StringName(sample.get("surface_region", &"body")) != &"front":
+			continue
+		var collider: Object = sample.get("collider", null)
+		if collider == null:
+			continue
+		var collider_id := collider.get_instance_id()
+		front_impulse_by_collider[collider_id] = (
+			front_impulse_by_collider.get(collider_id, Vector3.ZERO)
+			+ sample.get("impulse", Vector3.ZERO)
+		)
+	for sample in samples:
+		var enriched_sample: Dictionary = sample.duplicate(true)
+		var collider: Object = enriched_sample.get("collider", null)
+		if collider != null:
+			var collider_id := collider.get_instance_id()
+			if front_impulse_by_collider.has(collider_id):
+				enriched_sample["front_contact_impulse_total_ns"] = front_impulse_by_collider[collider_id]
+		_consume_front_contact_sample(enriched_sample)
 
 func _consume_front_contact_sample(sample: Dictionary) -> void:
 	var collider_name: StringName = sample.get("collider_name", StringName(""))
@@ -413,6 +439,7 @@ func _consume_front_contact_sample(sample: Dictionary) -> void:
 	if StringName(sample.get("surface_region", &"body")) != &"front":
 		return
 	var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
+	var contact_impulse_total: Vector3 = sample.get("front_contact_impulse_total_ns", impulse)
 	hybrid_crush_impulse_ns += impulse.length()
 	# A distance probe intentionally sees an obstacle before the collision
 	# shapes meet. It may prepare the resistance force, but it must never be
@@ -432,7 +459,7 @@ func _consume_front_contact_sample(sample: Dictionary) -> void:
 		var pre_contact_velocity: Vector3 = sample.get("pre_contact_linear_velocity_ms", rigid_chassis.pre_contact_linear_velocity_ms())
 		hybrid_peak_collision_energy_j = maxf(
 			hybrid_peak_collision_energy_j,
-			_normal_collision_energy_j(collider, pre_contact_velocity, impulse)
+			_normal_collision_energy_j(collider, pre_contact_velocity, contact_impulse_total)
 		)
 
 func _update_hybrid_crush_target() -> void:
