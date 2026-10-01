@@ -31,6 +31,16 @@ const UNSUPPORTED_RECIPROCAL_TARGETS = [
 	ScenarioConfig.TARGET_PEDESTRIAN,
 ]
 
+# Representative full-editor collisions cover every movable M23 actor family in
+# both roles where the scenario contract permits it. Tank remains asymmetric by
+# design: dynamic as primary, fixed when selected as target.
+const EDITOR_VEHICLE_CASES = [
+	[ScenarioConfig.TARGET_TRUCK, ScenarioConfig.TARGET_PASSENGER_CAR],
+	[ScenarioConfig.TARGET_LORRY, ScenarioConfig.TARGET_TRUCK],
+	[ScenarioConfig.TARGET_MOTORCYCLE, ScenarioConfig.TARGET_LORRY],
+	[ScenarioConfig.TARGET_TANK, ScenarioConfig.TARGET_MOTORCYCLE],
+]
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -148,13 +158,16 @@ func _check_editor_vehicle_family_matrix() -> void:
 	_expect(packed != null, "M23 production-matrix editor scene did not load")
 	if packed == null:
 		return
-	for primary_type in MATRIX_PRIMARIES:
-		var config := _near_contact_config(primary_type, ScenarioConfig.TARGET_PASSENGER_CAR)
+	for pair in EDITOR_VEHICLE_CASES:
+		var primary_type: StringName = pair[0]
+		var target_type: StringName = pair[1]
+		var pair_label := "%s -> %s" % [ScenarioConfig.actor_display_name(primary_type), ScenarioConfig.target_display_name(target_type)]
+		var config := _near_contact_config(primary_type, target_type)
 		var errors := config.validation_errors()
 		_expect(
 			errors.is_empty(),
-			"M23 end-to-end matrix scenario failed validation for %s -> passenger car: %s"
-			% [ScenarioConfig.actor_display_name(primary_type), "; ".join(errors)]
+			"M23 end-to-end matrix scenario failed validation for %s: %s"
+			% [pair_label, "; ".join(errors)]
 		)
 		if not errors.is_empty():
 			continue
@@ -166,21 +179,21 @@ func _check_editor_vehicle_family_matrix() -> void:
 			await process_frame
 
 		var world := editor.get("m23_vehicle_world") as TwoVehicleWorld3D
-		_expect(world != null, "M23 editor did not build production world for %s primary" % ScenarioConfig.actor_display_name(primary_type))
+		_expect(world != null, "M23 editor did not build production world for %s" % pair_label)
 		if world != null:
-			_expect(_actor_matches_vehicle_type(world.primary_actor, primary_type), "M23 editor created the wrong primary actor for %s" % ScenarioConfig.actor_display_name(primary_type))
-			_expect(world.target_actor is M162CompactHatchback, "M23 editor did not create the passenger-car target for %s primary" % ScenarioConfig.actor_display_name(primary_type))
+			_expect(_actor_matches_vehicle_type(world.primary_actor, primary_type), "M23 editor created the wrong primary actor for %s" % pair_label)
+			_expect(_actor_matches_vehicle_type(world.target_actor, target_type), "M23 editor created the wrong movable target actor for %s" % pair_label)
 
 		var replay_supported := bool(editor.call("_m23_replay_supported"))
 		_expect(
 			replay_supported == (primary_type != ScenarioConfig.TARGET_TANK),
-			"M23 editor replay capability changed unexpectedly for %s primary" % ScenarioConfig.actor_display_name(primary_type)
+			"M23 editor replay capability changed unexpectedly for %s" % pair_label
 		)
 
 		editor.call("_on_simulate_pressed")
-		_expect(bool(editor.get("simulation_running")), "M23 editor did not start %s -> passenger car" % ScenarioConfig.actor_display_name(primary_type))
+		_expect(bool(editor.get("simulation_running")), "M23 editor did not start %s" % pair_label)
 		var completed := await _wait_for_editor_completion(editor, config.duration_s)
-		_expect(completed, "M23 editor did not complete %s -> passenger car within the bounded production window" % ScenarioConfig.actor_display_name(primary_type))
+		_expect(completed, "M23 editor did not complete %s within the bounded production window" % pair_label)
 
 		world = editor.get("m23_vehicle_world") as TwoVehicleWorld3D
 		if world != null:
@@ -188,13 +201,13 @@ func _check_editor_vehicle_family_matrix() -> void:
 				VehicleActorRuntime.contact_event_count(world.primary_actor),
 				VehicleActorRuntime.contact_event_count(world.target_actor)
 			)
-			_expect(contact_count > 0, "M23 end-to-end run never recorded rigid-body contact for %s -> passenger car" % ScenarioConfig.actor_display_name(primary_type))
+			_expect(contact_count > 0, "M23 end-to-end run never recorded rigid-body contact for %s" % pair_label)
 
 		if replay_supported:
 			var recorder := editor.get("replay_recorder") as ReplayRecorder
-			_expect(recorder != null and recorder.recording != null and recorder.recording.frames.size() >= 2, "M23 end-to-end run did not finalize replay for %s primary" % ScenarioConfig.actor_display_name(primary_type))
+			_expect(recorder != null and recorder.recording != null and recorder.recording.frames.size() >= 2, "M23 end-to-end run did not finalize replay for %s" % pair_label)
 			var analysis_value: Variant = editor.get("analysis_report")
-			_expect(analysis_value is Dictionary and not (analysis_value as Dictionary).is_empty(), "M23 end-to-end run did not produce analysis for %s primary" % ScenarioConfig.actor_display_name(primary_type))
+			_expect(analysis_value is Dictionary and not (analysis_value as Dictionary).is_empty(), "M23 end-to-end run did not produce analysis for %s" % pair_label)
 			if recorder != null and recorder.recording != null and recorder.recording.has_frames():
 				var saw_contact_frame := false
 				var all_frames_role_neutral := true
@@ -208,15 +221,15 @@ func _check_editor_vehicle_family_matrix() -> void:
 						all_frames_role_neutral = false
 					if int(context.get("contact_count", 0)) > 0:
 						saw_contact_frame = true
-				_expect(all_frames_role_neutral, "M23 replay mixed non-role-neutral frame context for %s primary" % ScenarioConfig.actor_display_name(primary_type))
-				_expect(saw_contact_frame, "M23 replay never captured contact for %s primary" % ScenarioConfig.actor_display_name(primary_type))
-				_expect(recorder.recording.marker_time(&"first_contact") >= 0.0, "M23 analysis did not mark first contact for %s primary" % ScenarioConfig.actor_display_name(primary_type))
+				_expect(all_frames_role_neutral, "M23 replay mixed non-role-neutral frame context for %s" % pair_label)
+				_expect(saw_contact_frame, "M23 replay never captured contact for %s" % pair_label)
+				_expect(recorder.recording.marker_time(&"first_contact") >= 0.0, "M23 analysis did not mark first contact for %s" % pair_label)
 				var final_primary_metrics: Dictionary = recorder.recording.last_frame().get("primary_metrics", {})
 				var final_target_metrics: Dictionary = recorder.recording.last_frame().get("target_metrics", {})
-				_expect(final_primary_metrics.has("linear_velocity_ms") and final_primary_metrics.has("kinetic_energy_j"), "M23 replay omitted primary motion metrics for %s" % ScenarioConfig.actor_display_name(primary_type))
-				_expect(final_target_metrics.has("linear_velocity_ms") and final_target_metrics.has("kinetic_energy_j"), "M23 replay omitted passenger-target motion metrics for %s primary" % ScenarioConfig.actor_display_name(primary_type))
+				_expect(final_primary_metrics.has("linear_velocity_ms") and final_primary_metrics.has("kinetic_energy_j"), "M23 replay omitted primary motion metrics for %s" % pair_label)
+				_expect(final_target_metrics.has("linear_velocity_ms") and final_target_metrics.has("kinetic_energy_j"), "M23 replay omitted target motion metrics for %s" % pair_label)
 				editor.call("_apply_replay_time", recorder.recording.duration_s * 0.5, true)
-				_expect(is_finite(float(editor.get("replay_time_s"))), "M23 replay scrub produced a non-finite time for %s primary" % ScenarioConfig.actor_display_name(primary_type))
+				_expect(is_finite(float(editor.get("replay_time_s"))), "M23 replay scrub produced a non-finite time for %s" % pair_label)
 
 		editor.queue_free()
 		await process_frame
