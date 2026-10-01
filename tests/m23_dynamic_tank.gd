@@ -160,6 +160,30 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	recorder = editor.get("replay_recorder") as ReplayRecorder
 	_expect(recorder != null and recorder.recording != null and recorder.recording.frames.size() >= 2, "M23 reciprocal editor run did not finalize a replay recording")
 	if recorder != null and recorder.recording != null and recorder.recording.has_frames():
+		var first_context: Dictionary = recorder.recording.first_frame().get("context", {})
+		_expect(int(first_context.get("contact_count", 0)) == 0, "M23 reciprocal replay reported non-ground contact before the vehicles reached each other")
+		var saw_contact := false
+		var saw_primary_manifold := false
+		var saw_target_manifold := false
+		for frame in recorder.recording.frames:
+			var context_value: Variant = frame.get("context", {})
+			if not context_value is Dictionary:
+				continue
+			var context: Dictionary = context_value
+			if int(context.get("contact_count", 0)) > 0:
+				saw_contact = true
+			var primary_manifold_value: Variant = context.get("primary_contact_manifold", {})
+			if primary_manifold_value is Dictionary and int((primary_manifold_value as Dictionary).get("maximum_contact_points", 0)) > 0:
+				saw_primary_manifold = true
+			var target_manifold_value: Variant = context.get("target_contact_manifold", {})
+			if target_manifold_value is Dictionary and int((target_manifold_value as Dictionary).get("maximum_contact_points", 0)) > 0:
+				saw_target_manifold = true
+		_expect(saw_contact, "M23 reciprocal replay never recorded the real rigid-body contact counter")
+		_expect(saw_primary_manifold, "M23 reciprocal replay never recorded the primary contact manifold")
+		_expect(saw_target_manifold, "M23 reciprocal replay never recorded the target contact manifold")
+		var analysis := CrashAnalysis.analyze(recorder.recording)
+		_expect(recorder.recording.marker_time(&"first_contact") >= 0.0, "M23 reciprocal analysis did not create a first-contact marker")
+		_expect(float(analysis.get("peak_deceleration_g", 0.0)) > 0.0, "M23 reciprocal analysis still reports zero peak deceleration after a real impact")
 		editor.call("_apply_replay_time", recorder.recording.duration_s * 0.5, true)
 		_expect(is_finite(float(editor.get("replay_time_s"))), "M23 reciprocal replay scrubbing produced a non-finite time")
 	editor.queue_free()
