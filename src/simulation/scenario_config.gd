@@ -70,6 +70,8 @@ static func vehicle_actor_ids() -> Array[StringName]:
 	]
 
 static func actor_display_name(id: StringName) -> String:
+	if id == TARGET_TANK:
+		return "Tank (generic tracked vehicle)"
 	return target_display_name(id)
 
 static func is_vehicle_actor_id(id: StringName) -> bool:
@@ -100,7 +102,7 @@ static func target_display_name(id: StringName) -> String:
 		TARGET_TREE:
 			return "Tree"
 		TARGET_TANK:
-			return "Tank (generic tracked vehicle)"
+			return "Tank (fixed generic tracked vehicle)"
 		_:
 			return "Unknown target"
 
