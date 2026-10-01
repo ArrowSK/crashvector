@@ -379,7 +379,10 @@ func _m23_sync_capability_controls() -> void:
 				continue
 			m10_target_option.set_item_disabled(index, not _m23_target_supported_for_primary(target_id))
 	if m10_left_panel != null:
-		for node in m10_left_panel.find_children("*", "Button", true, false):
+		# The quick-target buttons are created dynamically and are not scene-owned.
+		# Traverse all descendants, then type-check, rather than relying on
+		# find_children()'s native-class filter to discover runtime Button nodes.
+		for node in m10_left_panel.find_children("*", "", true, false):
 			var button := node as Button
 			if button == null or not button.has_meta("target_id"):
 				continue
