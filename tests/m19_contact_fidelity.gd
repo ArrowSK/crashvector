@@ -16,6 +16,7 @@ func _run() -> void:
 	_check_validation_reference_catalog()
 	_check_contact_scenario_catalog()
 	await _check_front_probe_layout()
+	await _check_offset_crush_resistance_torque()
 	await _check_production_replay_diagnostics()
 	_finish()
 
@@ -125,6 +126,47 @@ func _check_production_front_contact_contract(preset_id: StringName) -> void:
 				_expect(negative.position.z < -0.05 and positive.position.z > 0.05, "M19 %s lateral front-crush probes must straddle the centre line" % preset_id)
 				_expect(absf(negative.position.z + positive.position.z) < 0.001, "M19 %s lateral front-crush probes must be symmetric" % preset_id)
 				_expect(absf(centre.position.x - negative.position.x) < 0.001 and absf(centre.position.x - positive.position.x) < 0.001, "M19 %s front-crush probes must share one authoritative longitudinal mount" % preset_id)
+	vehicle.queue_free()
+	await process_frame
+
+func _check_offset_crush_resistance_torque() -> void:
+	var vehicle := M17CompactHatchback.new()
+	vehicle.name = "M19OffsetResistanceCar"
+	vehicle.auto_step = false
+	vehicle.initial_speed_kmh = 0.0
+	vehicle.origin_offset_m = Vector3.ZERO
+	root.add_child(vehicle)
+	for _frame in range(3):
+		await process_frame
+	_expect(vehicle.rigid_chassis != null, "M19 offset-resistance regression could not build the passenger rigid chassis")
+	if vehicle.rigid_chassis == null:
+		vehicle.queue_free()
+		await process_frame
+		return
+
+	var fixture := StaticBody3D.new()
+	fixture.name = "M19OffsetResistanceFixture"
+	fixture.position = Vector3(8.0, 0.0, 0.0)
+	root.add_child(fixture)
+	vehicle.rigid_chassis.gravity_scale = 0.0
+	vehicle.rigid_chassis.freeze = false
+	vehicle.rigid_chassis.sleeping = false
+	vehicle.rigid_chassis.linear_velocity = Vector3(8.0, 0.0, 0.0)
+	vehicle.rigid_chassis.angular_velocity = Vector3.ZERO
+	vehicle.hybrid_real_front_contact_ever = true
+	vehicle.hybrid_primary_collider = fixture
+	vehicle.hybrid_target_front_crush_m = 0.25
+	vehicle.hybrid_primary_contact_local_position = Vector3(vehicle.front_contact_neutral_face_x_m, 0.0, 0.55)
+	vehicle.hybrid_primary_contact_position_valid = true
+	var expected_contact_world := vehicle.rigid_chassis.to_global(vehicle.hybrid_primary_contact_local_position)
+	var resolved_contact_world: Vector3 = vehicle.call("_hybrid_resistance_contact_world")
+	_expect(resolved_contact_world.distance_to(expected_contact_world) < 0.000001, "Passenger crush resistance lost the observed off-centre contact point")
+	vehicle.call("_apply_hybrid_crush_resistance", 1.0 / 60.0)
+	await physics_frame
+	_expect(absf(vehicle.rigid_chassis.angular_velocity.y) > 0.0001, "Off-centre passenger crush resistance still behaves like a centre-of-mass force with no yaw torque")
+
+	vehicle.rigid_chassis.freeze = true
+	fixture.queue_free()
 	vehicle.queue_free()
 	await process_frame
 
