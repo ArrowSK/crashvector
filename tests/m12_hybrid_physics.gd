@@ -57,6 +57,18 @@ func _test_immediate_preimpact_energy(failures: Array[String]) -> void:
 	if measured_energy >= t0_energy * 0.20:
 		failures.append("Passenger crush energy still retains an excessive t=0-speed floor: %.1f J" % measured_energy)
 
+	# A real solver manifold can arrive after the callback velocity has already
+	# fallen. Its same-contact impulse must recover that missing demand without
+	# reintroducing the scenario's original speed as a floor.
+	var impulse_speed_equivalent := 8.0
+	var contact_impulse := Vector3(-car.rigid_chassis.mass * impulse_speed_equivalent, 0.0, 0.0)
+	var impulse_energy := float(car.call("_normal_collision_energy_j", wall, cached_preimpact, contact_impulse))
+	var expected_impulse_energy := 0.5 * car.rigid_chassis.mass * impulse_speed_equivalent * impulse_speed_equivalent
+	if absf(impulse_energy - expected_impulse_energy) > 0.01:
+		failures.append("Passenger crush energy did not recover same-contact impulse demand: %.1f J vs %.1f J" % [impulse_energy, expected_impulse_energy])
+	if impulse_energy >= t0_energy * 0.20:
+		failures.append("Passenger impulse-derived demand accidentally restored the scenario t=0 energy floor: %.1f J" % impulse_energy)
+
 	var peer := VehicleRigidChassis.new()
 	peer.name = "PreImpactEnergyPeer"
 	peer.configure(1150.0, Vector3.ZERO, 0.0, 80.0)
