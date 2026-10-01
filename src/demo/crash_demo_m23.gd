@@ -363,7 +363,7 @@ func _m23_actor_model(actor: Node) -> StructuralModel:
 func _m23_actor_metrics(actor: Node3D, mass_kg: float) -> Dictionary:
 	var model := _m23_actor_model(actor)
 	var velocity := VehicleActorRuntime.linear_velocity_ms(actor)
-	return {
+	var result := {
 		"mass_kg": mass_kg,
 		"linear_velocity_ms": velocity,
 		"speed_kmh": PhysicsMetrics.ms_to_kmh(velocity.length()),
@@ -373,6 +373,8 @@ func _m23_actor_metrics(actor: Node3D, mass_kg: float) -> Dictionary:
 		"plastic_energy_j": 0.0 if model == null else model.total_plastic_energy_j(),
 		"elastic_energy_j": 0.0 if model == null else model.total_elastic_energy_j(),
 	}
+	result.merge(VehicleActorRuntime.deformation_metrics(actor), true)
+	return result
 
 func _m23_actor_visual_state(actor: Node) -> Dictionary:
 	if actor != null and actor.has_method("replay_visual_state"):
