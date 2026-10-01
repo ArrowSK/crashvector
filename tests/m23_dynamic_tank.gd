@@ -498,6 +498,38 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 		_expect(int(substeps_control.value) == config.solver_substeps, "M23 editor changed the persisted structural-solver substep value while disabling it")
 	var physics_warning := editor.find_child("PhysicsScopeWarning", true, false) as Label
 	_expect(physics_warning != null and physics_warning.text.contains("do not affect this path"), "M23 Physics tab does not explain that solver substeps are unused by RigidBody3D")
+	var primary_class_control := editor.get("m10_primary_class") as OptionButton
+	var primary_paint_control := editor.get("m10_primary_paint") as OptionButton
+	var export_primary_paint_control := editor.get("primary_paint_option") as OptionButton
+	_expect(primary_class_control != null and primary_class_control.get_parent() != null and not primary_class_control.get_parent().visible, "M23 truck primary still exposes the passenger-car class control")
+	_expect(primary_paint_control != null and primary_paint_control.get_parent() != null and not primary_paint_control.get_parent().visible, "M23 truck primary still exposes the passenger-car paint control")
+	_expect(export_primary_paint_control != null and export_primary_paint_control.get_parent() != null and not export_primary_paint_control.get_parent().visible, "M23 export settings still expose primary-car paint for a truck primary")
+	var compare_mode_control := editor.get("m10_compare_mode") as OptionButton
+	var compare_class_index := -1
+	if compare_mode_control != null:
+		for option_index in range(compare_mode_control.item_count):
+			if StringName(String(compare_mode_control.get_item_metadata(option_index))) == &"vehicle_class":
+				compare_class_index = option_index
+				break
+	_expect(compare_mode_control != null and compare_class_index >= 0 and compare_mode_control.is_item_disabled(compare_class_index), "M23 truck primary still enables passenger B/C/D class comparison")
+	if world != null and world.primary_actor != null:
+		editor.set("selected_object", &"car")
+		editor.call("_update_selection_ring")
+		var selection_ring := editor.get("m10_selection_ring") as MeshInstance3D
+		var primary_bounds := VehicleActorRuntime.collision_footprint_bounds(world.primary_actor)
+		_expect(selection_ring != null and not primary_bounds.is_empty(), "M23 geometry-aware primary selection regression could not resolve ring or actor bounds")
+		if selection_ring != null and not primary_bounds.is_empty():
+			var min_x := float(primary_bounds["min_x"])
+			var max_x := float(primary_bounds["max_x"])
+			var min_z := float(primary_bounds["min_z"])
+			var max_z := float(primary_bounds["max_z"])
+			var expected_center := Vector3((min_x + max_x) * 0.5, 0.035, (min_z + max_z) * 0.5)
+			var span_x := max_x - min_x
+			var span_z := max_z - min_z
+			var expected_radius := maxf(0.75, 0.5 * sqrt(span_x * span_x + span_z * span_z) + 0.20)
+			_expect(selection_ring.position.distance_to(expected_center) < 0.000001, "M23 primary selection ring is still centred on the truck origin instead of its collision footprint")
+			_expect(absf(selection_ring.scale.x * 1.8 - expected_radius) < 0.000001, "M23 primary selection ring still uses passenger-car sizing for the articulated truck")
+			_expect(selection_ring.position.distance_to(Vector3(config.car_position_m.x, 0.035, config.car_position_m.z)) > 1.0, "M23 articulated-truck selection ring did not account for the asymmetric actor origin")
 	var target_option := editor.get("m10_target_option") as OptionButton
 	_expect(target_option != null, "M23 capability regression could not find the target selector")
 	if target_option != null:
@@ -547,13 +579,19 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	_expect(simulate_control != null and simulate_control.disabled, "M23 Simulate control remains enabled for an imported unsupported truck-versus-pedestrian pair")
 	config.target_type = ScenarioConfig.TARGET_PASSENGER_CAR
 	config.primary_type = ScenarioConfig.TARGET_PASSENGER_CAR
+	editor.call("_m23_sync_primary_specific_controls")
 	editor.call("_m23_sync_capability_controls")
+	_expect(primary_class_control != null and primary_class_control.get_parent().visible, "M23 did not restore the passenger-car class control after returning to a passenger primary")
+	_expect(primary_paint_control != null and primary_paint_control.get_parent().visible, "M23 did not restore the passenger-car paint control after returning to a passenger primary")
+	_expect(export_primary_paint_control != null and export_primary_paint_control.get_parent().visible, "M23 did not restore export primary-car paint after returning to a passenger primary")
+	_expect(compare_mode_control != null and compare_class_index >= 0 and not compare_mode_control.is_item_disabled(compare_class_index), "M23 did not restore passenger B/C/D class comparison after returning to a passenger primary")
 	if target_option != null:
 		for option_index in range(target_option.item_count):
 			if StringName(String(target_option.get_item_metadata(option_index))) == ScenarioConfig.TARGET_PEDESTRIAN:
 				_expect(not target_option.is_item_disabled(option_index), "M23 did not re-enable pedestrian target selection after returning to the supported passenger-primary path")
 				break
 	config.primary_type = ScenarioConfig.TARGET_TRUCK
+	editor.call("_m23_sync_primary_specific_controls")
 	editor.call("_m23_sync_capability_controls")
 	_expect(simulate_control != null and not simulate_control.disabled, "M23 did not re-enable Simulate after restoring a supported truck-versus-car pair")
 	if world != null:
