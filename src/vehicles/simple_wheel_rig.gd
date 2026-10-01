@@ -125,9 +125,15 @@ func apply_replay_visual_state(state: Dictionary) -> void:
 	var replay_released_value: Variant = state.get("released", PackedByteArray())
 	var replay_positions_value: Variant = state.get("released_positions", [])
 	var replay_velocities_value: Variant = state.get("released_velocities", [])
-	var replay_released := replay_released_value as PackedByteArray if replay_released_value is PackedByteArray else PackedByteArray()
-	var replay_positions := replay_positions_value as Array if replay_positions_value is Array else []
-	var replay_velocities := replay_velocities_value as Array if replay_velocities_value is Array else []
+	var replay_released := PackedByteArray()
+	if replay_released_value is PackedByteArray:
+		replay_released = replay_released_value
+	var replay_positions: Array = []
+	if replay_positions_value is Array:
+		replay_positions = replay_positions_value
+	var replay_velocities: Array = []
+	if replay_velocities_value is Array:
+		replay_velocities = replay_velocities_value
 	for index in range(released.size()):
 		if index < replay_released.size():
 			released[index] = replay_released[index]
