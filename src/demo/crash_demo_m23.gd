@@ -230,12 +230,6 @@ func _m161_target_center() -> Vector3:
 			return chassis.global_position
 	return super._m161_target_center()
 
-func _m161_primary_half_length() -> float:
-	var bounds := _m23_actor_horizontal_bounds(m23_vehicle_world.primary_actor if m23_vehicle_world != null else null)
-	if not bounds.is_empty():
-		return (float(bounds["max_x"]) - float(bounds["min_x"])) * 0.5
-	return super._m161_primary_half_length()
-
 func _m161_target_half_length() -> float:
 	if _m23_uses_vehicle_world():
 		var bounds := _m23_actor_horizontal_bounds(m23_vehicle_world.target_actor if m23_vehicle_world != null else null)
