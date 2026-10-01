@@ -125,6 +125,16 @@ func _test_vehicle_start_envelopes(failures: Array[String]) -> void:
 	if not rejected_overlap:
 		failures.append("M4/M23 preflight accepted an articulated truck already overlapping its passenger-car target")
 
+	# The envelope test must respect actor heading rather than treating every
+	# vehicle as an axis-aligned interval around its origin.
+	scenario.car_heading_deg = 90.0
+	var rotated_errors := scenario.validation_errors()
+	for error in rotated_errors:
+		if error.contains("Vehicle start envelopes overlap"):
+			failures.append("M4/M23 vehicle-envelope preflight ignored the primary truck heading")
+			break
+	scenario.car_heading_deg = 0.0
+
 	# Moving the same target clear of the truck must restore a valid scenario;
 	# this guards against replacing the old centre-distance rule with an
 	# over-conservative blanket rejection.
