@@ -22,7 +22,7 @@ func _m23_target_supported_for_primary(target_type: StringName) -> bool:
 		return false
 	# The established passenger-primary M22 path owns the complete target set,
 	# including vulnerable road users. Non-passenger primaries use the role-neutral
-	# RigidBody3D world, whose production scope is movable vehicles plus fixed
+	# RigidBody3D world, whose production scope is vehicle targets plus fixed
 	# fixtures; it deliberately does not substitute a passenger-car simulation for
 	# pedestrian/cyclist/bicycle targets.
 	if scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR:
@@ -55,7 +55,7 @@ func _rebuild_preview() -> void:
 	_m23_dispose_vehicle_world()
 	super._clear_runtime_objects()
 	if not _m23_uses_vehicle_world():
-		status_label.text = "%s primary is currently available against movable vehicles and fixed fixtures only" % ScenarioConfig.actor_display_name(scenario.primary_type)
+		status_label.text = "%s primary is currently available against supported vehicle and fixed-fixture targets only" % ScenarioConfig.actor_display_name(scenario.primary_type)
 		return
 	var physics_errors := TwoVehicleWorld3D.contact_setting_errors(scenario)
 	if not physics_errors.is_empty():
