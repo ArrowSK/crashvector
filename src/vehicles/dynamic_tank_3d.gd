@@ -17,6 +17,19 @@ var heading_deg := 0.0
 var rigid_chassis: VehicleRigidChassis
 var hybrid_physics_enabled := true
 
+const TRACK_COLLISION_SIZE := Vector3(6.46, 0.82, 0.64)
+const TRACK_COLLISION_CENTER_Y_M := 0.42
+const TRACK_SUPPORT_MOUNT_Y_M := 0.58
+const TRACK_SUPPORT_REST_DISTANCE_M := 0.72
+# At the former 460 kN/m rate, six support rays could not carry the tank at its
+# neutral ride height: the body settled far enough for the rigid track boxes to
+# touch the road and share the load with the suspension. 700 kN/m keeps the
+# neutral equilibrium above the road across the supported 20–80 t mass range,
+# while the track boxes remain available for vehicle-to-vehicle contact.
+const TRACK_SUPPORT_STIFFNESS_N_M := 700000.0
+const TRACK_SUPPORT_DAMPING_N_S_M := 32000.0
+const TRACK_SUPPORT_MAX_FORCE_N := 160000.0
+
 func _ready() -> void:
 	_build_chassis()
 	_build_shared_presentation()
@@ -32,14 +45,25 @@ func _build_chassis() -> void:
 	rigid_chassis.add_box_shape("TankTurretCollision", Vector3(2.10, 0.76, 2.10), Vector3(0.32, 1.78, 0.0))
 	for side_value in [-1.0, 1.0]:
 		var side: float = float(side_value)
-		rigid_chassis.add_box_shape("TankTrackCollision", Vector3(6.46, 0.82, 0.64), Vector3(0.0, 0.42, side * 1.43))
+		rigid_chassis.add_box_shape(
+			"TankTrackCollision",
+			TRACK_COLLISION_SIZE,
+			Vector3(0.0, TRACK_COLLISION_CENTER_Y_M, side * 1.43)
+		)
 	var mass_scale := maxf(total_mass_kg / 55000.0, 0.35)
-	var suspension_k := 460000.0 * mass_scale
-	var suspension_c := 32000.0 * sqrt(mass_scale)
-	var suspension_max := 160000.0 * mass_scale
+	var suspension_k := TRACK_SUPPORT_STIFFNESS_N_M * mass_scale
+	var suspension_c := TRACK_SUPPORT_DAMPING_N_S_M * sqrt(mass_scale)
+	var suspension_max := TRACK_SUPPORT_MAX_FORCE_N * mass_scale
 	for x in [-2.20, 0.0, 2.20]:
 		for z in [-1.43, 1.43]:
-			rigid_chassis.add_suspension_point("TankTrackSupport", Vector3(x, 0.58, z), 0.72, suspension_k, suspension_c, suspension_max)
+			rigid_chassis.add_suspension_point(
+				"TankTrackSupport",
+				Vector3(x, TRACK_SUPPORT_MOUNT_Y_M, z),
+				TRACK_SUPPORT_REST_DISTANCE_M,
+				suspension_k,
+				suspension_c,
+				suspension_max
+			)
 	rigid_chassis.configure_box_mass_distribution(Vector3(6.80, 1.95, 2.62), Vector3(-0.10, 0.94, 0.0))
 
 func _build_shared_presentation() -> void:
