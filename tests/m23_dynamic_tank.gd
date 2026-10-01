@@ -296,6 +296,17 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 					+ rotated_lateral * side_sign * passenger.wheel_rig.side_offset_m
 				)
 				_expect(passenger.wheel_rig.wheel_instances[attached_index].position.distance_to(expected_attached_position) < 0.000001, "Attached passenger wheel offset still uses fixed world Z after vehicle rotation")
+				if passenger.rigid_chassis != null:
+					passenger.rigid_chassis.suspension_contact_points_world.resize(passenger.rigid_chassis.suspension_points.size())
+					for support_index in range(passenger.rigid_chassis.suspension_contact_points_world.size()):
+						passenger.rigid_chassis.suspension_contact_points_world[support_index] = Vector3.INF
+					var synthetic_support := Vector3(1.25, 0.0, -2.5)
+					passenger.rigid_chassis.suspension_contact_points_world[attached_index] = synthetic_support
+					passenger.wheel_rig.update_from_model(0.0)
+					var expected_supported_position := synthetic_support + Vector3.UP * passenger.wheel_rig.wheel_radius_m + rotated_lateral * side_sign * passenger.wheel_rig.side_offset_m
+					_expect(passenger.wheel_rig.wheel_instances[attached_index].position.distance_to(expected_supported_position) < 0.000001, "Attached passenger wheel support offset still uses fixed world Z after vehicle rotation")
+					passenger.rigid_chassis.suspension_contact_points_world[attached_index] = Vector3.INF
+					passenger.wheel_rig.update_from_model(0.0)
 				var saved_velocity := anchor_node.velocity_ms
 				var rotated_forward := rotated_reference.basis.x.normalized()
 				anchor_node.velocity_ms = rotated_forward * 3.0
