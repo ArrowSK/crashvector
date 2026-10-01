@@ -331,6 +331,7 @@ func _sync_m10_from_scenario() -> void:
 	if m10_primary_class != null:
 		m10_primary_class.get_parent().visible = scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR
 		_select_metadata(m10_primary_class, scenario.car_preset_id)
+	_m23_sync_primary_specific_controls()
 	_m23_set_primary_spin_ranges()
 	_m23_sync_physics_controls()
 	_m23_sync_capability_controls()
@@ -342,6 +343,27 @@ func _sync_m10_from_scenario() -> void:
 		ScenarioConfig.target_display_name(scenario.target_type)
 	]
 	m10_syncing = false
+
+func _m23_sync_primary_specific_controls() -> void:
+	if scenario == null:
+		return
+	var passenger_primary := scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR
+	if m10_primary_paint != null and m10_primary_paint.get_parent() != null:
+		m10_primary_paint.get_parent().visible = passenger_primary
+	if m10_compare_mode != null:
+		var speed_index := -1
+		var class_index := -1
+		for index in range(m10_compare_mode.item_count):
+			var mode_id := _item_metadata_id(m10_compare_mode, index)
+			if mode_id == MODE_SPEED:
+				speed_index = index
+			elif mode_id == MODE_CLASS:
+				class_index = index
+		if class_index >= 0:
+			m10_compare_mode.set_item_disabled(class_index, not passenger_primary)
+		if not passenger_primary and class_index >= 0 and m10_compare_mode.selected == class_index and speed_index >= 0:
+			m10_compare_mode.select(speed_index)
+			_on_m10_compare_mode_selected(speed_index)
 
 func _m23_sync_capability_controls() -> void:
 	if scenario == null:
@@ -381,6 +403,49 @@ func _on_target_palette_pressed(target_id: StringName) -> void:
 func _refresh_m10_runtime_state() -> void:
 	super._refresh_m10_runtime_state()
 	_m23_sync_capability_controls()
+
+func _update_selection_ring() -> void:
+	if (
+		scenario == null
+		or selected_object != &"car"
+		or scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR
+	):
+		super._update_selection_ring()
+		return
+	if m10_selection_ring == null:
+		return
+	m10_selection_ring.visible = not simulation_running and not comparison_active
+	if not m10_selection_ring.visible:
+		return
+	var bounds: Dictionary = {}
+	if m23_vehicle_world != null and is_instance_valid(m23_vehicle_world):
+		bounds = VehicleActorRuntime.collision_footprint_bounds(m23_vehicle_world.primary_actor)
+	if not bounds.is_empty():
+		var min_x := float(bounds["min_x"])
+		var max_x := float(bounds["max_x"])
+		var min_z := float(bounds["min_z"])
+		var max_z := float(bounds["max_z"])
+		m10_selection_ring.position = Vector3((min_x + max_x) * 0.5, 0.035, (min_z + max_z) * 0.5)
+		var span_x := max_x - min_x
+		var span_z := max_z - min_z
+		var radius := maxf(0.75, 0.5 * sqrt(span_x * span_x + span_z * span_z) + 0.20)
+		m10_selection_ring.scale = Vector3(radius / 1.8, 1.0, radius / 1.8)
+		return
+	# Unsupported imported pairings may deliberately have no preview world. Use
+	# the same neutral envelope as scenario preflight so the primary selection
+	# marker still reflects the chosen actor rather than falling back to car size.
+	var envelope := ScenarioConfig._vehicle_start_envelope(scenario.primary_type, scenario.car_preset_id)
+	if envelope.is_empty():
+		super._update_selection_ring()
+		return
+	var center_offset := Vector3(float(envelope.get("center_offset_x_m", 0.0)), 0.0, 0.0)
+	center_offset = center_offset.rotated(Vector3.UP, deg_to_rad(scenario.car_heading_deg))
+	var center := scenario.car_position_m + center_offset
+	m10_selection_ring.position = Vector3(center.x, 0.035, center.z)
+	var half_length := float(envelope.get("half_length_m", 1.75))
+	var half_width := float(envelope.get("half_width_m", 1.0))
+	var radius := maxf(0.75, sqrt(half_length * half_length + half_width * half_width) + 0.20)
+	m10_selection_ring.scale = Vector3(radius / 1.8, 1.0, radius / 1.8)
 
 func _m23_sync_physics_controls() -> void:
 	if m10_substeps == null:
