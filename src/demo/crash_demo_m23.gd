@@ -447,7 +447,7 @@ func _refresh_analysis_ui() -> void:
 	var target_deformation_text := " • target deformation %.0f mm" % target_deformation_mm if target_deformation_mm > 0.0 else ""
 	analysis_summary_label.text = (
 		"Primary Δv %.1f km/h • %s %.1f g • max reported deformation %.0f mm%s%s\n"
-		+ "Primary KE %.1f → %.1f kJ • broken members %d • %d replay samples. Reported deformation is the maximum actor-specific front/rear/side/guard/cell displacement available for that vehicle, not an occupant-injury measure."
+		+ "Primary KE %.1f → %.1f kJ • broken members %d • %d replay samples. Reported deformation is the maximum actor-specific deformation channel available for that vehicle, not an occupant-injury measure."
 	) % [
 		float(analysis_report.get("final_delta_v_kmh", 0.0)),
 		loading_label,
