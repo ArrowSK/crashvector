@@ -44,6 +44,10 @@ func _rebuild_preview() -> void:
 	if not _m23_uses_vehicle_world():
 		status_label.text = "%s primary is currently available against movable vehicles and fixed fixtures only" % ScenarioConfig.actor_display_name(scenario.primary_type)
 		return
+	var physics_errors := TwoVehicleWorld3D.contact_setting_errors(scenario)
+	if not physics_errors.is_empty():
+		status_label.text = "Preflight failed: %s" % "; ".join(physics_errors)
+		return
 	m23_vehicle_world = TwoVehicleWorld3D.new()
 	m23_vehicle_world.name = "VehiclePairWorld"
 	# The editor already provides the single authoritative road collider and its
@@ -83,6 +87,7 @@ func _on_simulate_pressed() -> void:
 		status_label.text = "%s primary cannot run against this target yet; CrashVector will not substitute a passenger-car simulation" % ScenarioConfig.actor_display_name(scenario.primary_type)
 		return
 	var errors := scenario.validation_errors()
+	errors.append_array(TwoVehicleWorld3D.contact_setting_errors(scenario))
 	if not errors.is_empty():
 		status_label.text = "Preflight failed: %s" % "; ".join(errors)
 		return
@@ -289,6 +294,7 @@ func _sync_m10_from_scenario() -> void:
 		m10_primary_class.get_parent().visible = scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR
 		_select_metadata(m10_primary_class, scenario.car_preset_id)
 	_m23_set_primary_spin_ranges()
+	_m23_sync_physics_controls()
 	m10_vehicle_mass.set_value_no_signal(scenario.car_mass_kg)
 	m10_vehicle_speed.set_value_no_signal(scenario.car_speed_kmh)
 	var primary_name := PassengerCarCatalog.display_name(scenario.car_preset_id) if scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR else ScenarioConfig.actor_display_name(scenario.primary_type)
@@ -297,6 +303,35 @@ func _sync_m10_from_scenario() -> void:
 		ScenarioConfig.target_display_name(scenario.target_type)
 	]
 	m10_syncing = false
+
+func _m23_sync_physics_controls() -> void:
+	if m10_substeps == null:
+		return
+	var role_neutral_rigidbody := _m23_has_non_passenger_primary()
+	m10_substeps.editable = not role_neutral_rigidbody
+	if role_neutral_rigidbody:
+		m10_substeps.tooltip_text = "The M23 RigidBody3D world runs at the project physics tick and does not use the legacy structural-solver substep setting."
+		if m10_friction != null:
+			m10_friction.tooltip_text = "M23 RigidBody3D contact supports friction from 0.00 to %.2f; larger imported values fail preflight rather than being silently clamped." % TwoVehicleWorld3D.MAX_CONTACT_FRICTION
+		if m10_restitution != null:
+			m10_restitution.tooltip_text = "M23 RigidBody3D contact supports restitution from 0.00 to %.2f; larger imported values fail preflight rather than being silently clamped." % TwoVehicleWorld3D.MAX_CONTACT_RESTITUTION
+	else:
+		m10_substeps.tooltip_text = ""
+		if m10_friction != null:
+			m10_friction.tooltip_text = ""
+		if m10_restitution != null:
+			m10_restitution.tooltip_text = ""
+	var row := m10_substeps.get_parent()
+	if row != null and row.get_child_count() > 0 and row.get_child(0) is Label:
+		(row.get_child(0) as Label).text = "Solver substeps (not used by RigidBody3D)" if role_neutral_rigidbody else "Solver substeps"
+	var column := row.get_parent() if row != null else null
+	if column != null:
+		var warning := column.get_node_or_null("PhysicsScopeWarning") as Label
+		if warning != null:
+			warning.text = (
+				"RigidBody3D contact uses friction 0–%.2f and restitution 0–%.2f. Solver substeps belong to the structural solver and do not affect this path."
+				% [TwoVehicleWorld3D.MAX_CONTACT_FRICTION, TwoVehicleWorld3D.MAX_CONTACT_RESTITUTION]
+			) if role_neutral_rigidbody else "Advanced contact/solver values change the numerical scenario. Presentation controls do not."
 
 func _m23_set_primary_spin_ranges() -> void:
 	match scenario.primary_type:
