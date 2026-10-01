@@ -286,6 +286,25 @@ func _result_text() -> String:
 	var scope_note := "Educational simulation — not certified reconstruction or injury prediction"
 	if scenario.target_type == ScenarioConfig.TARGET_PEDESTRIAN or scenario.target_type == ScenarioConfig.TARGET_BICYCLE:
 		scope_note = "Road-user contact/trajectory visualisation only — no injury probability or medical outcome"
+	if scenario.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR:
+		var has_initial_direction := bool(analysis.get("primary_initial_motion_direction_valid", false))
+		var loading_label := "peak simulated longitudinal deceleration" if has_initial_direction else "peak simulated acceleration"
+		var loading_g := (
+			float(analysis.get("peak_deceleration_g", 0.0))
+			if has_initial_direction else float(analysis.get("peak_acceleration_g", 0.0))
+		)
+		return (
+			"CRASH ANALYSIS\n\nΔv %.1f km/h   •   %s %.1f g\n"
+			+ "Maximum reported vehicle deformation %.0f mm\n"
+			+ "Initial kinetic energy %.1f kJ\n\n%s"
+		) % [
+			float(analysis.get("final_delta_v_kmh", 0.0)),
+			loading_label,
+			loading_g,
+			float(analysis.get("primary_max_reported_deformation_mm", 0.0)),
+			float(analysis.get("initial_kinetic_energy_kj", 0.0)),
+			scope_note,
+		]
 	return (
 		"CRASH ANALYSIS\n\nΔv %.1f km/h   •   peak simulated deceleration %.1f g\n"
 		+ "Maximum front crush %.0f mm   •   safety-cell deformation proxy %.0f mm\n"
