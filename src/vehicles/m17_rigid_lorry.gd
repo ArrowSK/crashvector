@@ -15,6 +15,12 @@ var rigid_chassis: VehicleRigidChassis
 var last_chassis_transform := Transform3D.IDENTITY
 var chassis_sync_ready := false
 
+# Neutral undeformed box-truck envelope. M20 later retreats the cargo/cab/frame
+# collision faces as they crush; those contact-shell edits must not redefine the
+# body's centre of mass or rotational inertia.
+const NEUTRAL_MASS_DISTRIBUTION_SIZE := Vector3(7.465, 2.99, 2.26)
+const NEUTRAL_CENTER_OF_MASS_LOCAL := Vector3(3.6425, 1.865, 0.0)
+
 func _ready() -> void:
 	super._ready()
 	_prepare_m17_rigid_model()
@@ -100,6 +106,7 @@ func _build_m17_chassis() -> void:
 	rigid_chassis.add_box_shape("LorryCabCollision", Vector3(2.55, 2.45, 2.10), Vector3(6.10, 1.70, 0.0))
 	rigid_chassis.add_box_shape("LorryFrameCollision", Vector3(7.35, 0.28, 1.74), Vector3(3.67, 0.58, 0.0))
 	rigid_chassis.add_box_shape("LorryRearGuardCollision", Vector3(0.22, 0.60, 2.04), Vector3(0.02, 0.67, 0.0))
+	rigid_chassis.configure_box_mass_distribution(NEUTRAL_MASS_DISTRIBUTION_SIZE, NEUTRAL_CENTER_OF_MASS_LOCAL)
 	var mass_scale := maxf(total_mass_kg / 12000.0, 0.20)
 	var suspension_k := 220000.0 * mass_scale
 	var suspension_c := 18000.0 * sqrt(mass_scale)
