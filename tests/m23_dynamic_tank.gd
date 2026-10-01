@@ -555,10 +555,12 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	if quick_target_value is Array:
 		for target_value in quick_target_value:
 			var button := target_value as Button
-			if button == null or not button.has_meta("target_id"):
+			if button == null:
+				continue
+			var target_id: StringName = editor.call("_m23_quick_target_id", button)
+			if target_id.is_empty():
 				continue
 			quick_target_buttons += 1
-			var target_id := StringName(String(button.get_meta("target_id")))
 			if target_id == ScenarioConfig.TARGET_PEDESTRIAN:
 				quick_pedestrian_disabled = button.disabled
 			elif target_id == ScenarioConfig.TARGET_BICYCLE:
