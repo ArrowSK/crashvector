@@ -51,6 +51,7 @@ func _run() -> void:
 	tank.queue_free()
 	await process_frame
 	await _check_two_vehicle_world()
+	await _check_articulated_target_materials()
 	await _check_vehicle_fixture_world()
 	await _check_editor_reciprocal_vehicle_pair()
 	_finish()
@@ -91,6 +92,31 @@ func _check_two_vehicle_world() -> void:
 	var primary_model := (world.primary_actor as M21HeavyTruck).model if world.primary_actor is M21HeavyTruck else null
 	_expect(primary_model != null and primary_model.center_of_mass_m().x > -7.8, "M23 shared world did not synchronize the moving truck model")
 	world.stop()
+	world.queue_free()
+	await process_frame
+
+func _check_articulated_target_materials() -> void:
+	var config := ScenarioConfig.new()
+	config.apply_primary_vehicle_defaults(ScenarioConfig.TARGET_LORRY)
+	config.car_position_m = Vector3(-8.0, 0.0, 0.0)
+	config.car_speed_kmh = 12.0
+	config.apply_target_defaults(ScenarioConfig.TARGET_TRUCK)
+	config.target_position_m = Vector3(6.0, 0.0, 0.0)
+	config.target_speed_kmh = 0.0
+	config.contact_friction = 0.37
+	config.restitution = 0.01
+	_expect(config.validation_errors().is_empty(), "M23 lorry-versus-truck material scenario failed preflight")
+	var world := TwoVehicleWorld3D.new()
+	root.add_child(world)
+	_expect(world.configure(config), "M23 two-vehicle world did not configure articulated truck as target")
+	await process_frame
+	var target_bodies := VehicleActorRuntime.physics_bodies(world.target_actor)
+	_expect(target_bodies.size() == 2, "M23 actor runtime did not expose both physics bodies when the articulated truck was the target")
+	for body in target_bodies:
+		_expect(body.physics_material_override != null, "M23 articulated target body did not receive the configured contact material")
+		if body.physics_material_override != null:
+			_expect(absf(body.physics_material_override.friction - config.contact_friction) < 0.000001, "M23 articulated target body kept a hard-coded friction value")
+			_expect(absf(body.physics_material_override.bounce - config.restitution) < 0.000001, "M23 articulated target body kept a hard-coded restitution value")
 	world.queue_free()
 	await process_frame
 
