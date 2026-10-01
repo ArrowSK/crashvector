@@ -32,6 +32,14 @@ var maximum_suspension_compression_m: float = 0.0
 var active_suspension_contacts: int = 0
 var initial_forward_world := Vector3.RIGHT
 var initial_linear_velocity_ms := Vector3.ZERO
+# One-step velocity history for deformation-energy estimation. Godot contact
+# callbacks expose the body's velocity after the current solver step; keeping the
+# immediately preceding integrated velocity avoids substituting the scenario's
+# t=0 speed when the vehicle has accelerated, braked or already exchanged
+# momentum before the contact being evaluated.
+var previous_integrated_linear_velocity_ms := Vector3.ZERO
+var last_integrated_linear_velocity_ms := Vector3.ZERO
+var last_integrated_physics_frame: int = -1
 var stored_linear_velocity := Vector3.ZERO
 var stored_angular_velocity := Vector3.ZERO
 # Some light targets need the normal rigid-body contact to occur before the
@@ -65,6 +73,9 @@ func configure(
 	initial_forward_world = Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
 	linear_velocity = initial_forward_world * PhysicsMetrics.kmh_to_ms(initial_speed_kmh)
 	initial_linear_velocity_ms = linear_velocity
+	previous_integrated_linear_velocity_ms = linear_velocity
+	last_integrated_linear_velocity_ms = linear_velocity
+	last_integrated_physics_frame = -1
 	angular_velocity = Vector3.ZERO
 	continuous_cd = true
 	contact_monitor = true
@@ -228,6 +239,9 @@ func begin_motion(speed_kmh: float, heading_deg: float) -> void:
 	initial_forward_world = Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
 	linear_velocity = initial_forward_world * PhysicsMetrics.kmh_to_ms(speed_kmh)
 	initial_linear_velocity_ms = linear_velocity
+	previous_integrated_linear_velocity_ms = linear_velocity
+	last_integrated_linear_velocity_ms = linear_velocity
+	last_integrated_physics_frame = -1
 	angular_velocity = Vector3.ZERO
 	stored_linear_velocity = linear_velocity
 	stored_angular_velocity = Vector3.ZERO
@@ -270,6 +284,24 @@ func stop_motion() -> void:
 	stored_linear_velocity = linear_velocity
 	stored_angular_velocity = angular_velocity
 	freeze = true
+
+func pre_contact_linear_velocity_ms() -> Vector3:
+	# If this body's integration callback has already run in the current physics
+	# frame, the previous sample is the last completed-step velocity. If it has not
+	# run yet, the last sample already represents that same pre-contact step. This
+	# makes the result independent of callback order between two colliding bodies.
+	if last_integrated_physics_frame == Engine.get_physics_frames():
+		return previous_integrated_linear_velocity_ms
+	return last_integrated_linear_velocity_ms
+
+func _record_integrated_linear_velocity(velocity_ms: Vector3) -> void:
+	var physics_frame := Engine.get_physics_frames()
+	if last_integrated_physics_frame == physics_frame:
+		last_integrated_linear_velocity_ms = velocity_ms
+		return
+	previous_integrated_linear_velocity_ms = last_integrated_linear_velocity_ms
+	last_integrated_linear_velocity_ms = velocity_ms
+	last_integrated_physics_frame = physics_frame
 
 func drain_contact_samples() -> Array[Dictionary]:
 	var result: Array[Dictionary] = contact_samples.duplicate(true)
@@ -386,6 +418,7 @@ func _update_front_crush_probe() -> void:
 			front_probe_collider = collider
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
+	_record_integrated_linear_velocity(state.linear_velocity)
 	contact_samples.clear()
 	front_body_contact_active = false
 	maximum_vertical_speed_ms = maxf(maximum_vertical_speed_ms, absf(state.linear_velocity.y))
@@ -407,6 +440,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 			"position_local": local_position,
 			"normal": state.get_contact_local_normal(contact_index),
 			"impulse": impulse,
+			"pre_contact_linear_velocity_ms": pre_contact_linear_velocity_ms(),
 			"collider_name": collider_name,
 			"collider": collider,
 			"local_shape": state.get_contact_local_shape(contact_index),
