@@ -33,6 +33,8 @@ var hybrid_target_front_crush_m: float = 0.0
 var hybrid_geometric_front_crush_m: float = 0.0
 var hybrid_real_front_contact_ever: bool = false
 var hybrid_front_lateral_bias: float = 0.0
+var hybrid_primary_contact_local_position := Vector3.ZERO
+var hybrid_primary_contact_position_valid: bool = false
 var hybrid_reference_local_positions: Array[Vector3] = []
 
 # M13 staged whole-body failure state. Whole-vehicle translation/rotation remains
@@ -341,6 +343,8 @@ func _reset_hybrid_failure_state() -> void:
 		wheel_rig.reset_releases()
 	hybrid_real_front_contact_ever = false
 	hybrid_front_lateral_bias = 0.0
+	hybrid_primary_contact_local_position = Vector3.ZERO
+	hybrid_primary_contact_position_valid = false
 	hybrid_peak_collision_energy_j = 0.0
 	hybrid_firewall_intrusion_m = 0.0
 	hybrid_cabin_collapse_m = 0.0
@@ -419,6 +423,9 @@ func _consume_front_contact_sample(sample: Dictionary) -> void:
 	if hybrid_primary_collider == null:
 		hybrid_primary_collider = collider
 	var local_position: Vector3 = sample.get("position_local", Vector3.ZERO)
+	if collider == hybrid_primary_collider:
+		hybrid_primary_contact_local_position = local_position
+		hybrid_primary_contact_position_valid = true
 	if local_position.x > 0.0 and absf(local_position.z) > 0.03:
 		hybrid_front_lateral_bias = clampf(local_position.z / 0.72, -1.0, 1.0)
 	if collider != null:
@@ -542,15 +549,41 @@ func _apply_hybrid_crush_resistance(delta: float) -> void:
 		var reduced_mass := rigid_chassis.mass * other.mass / maxf(rigid_chassis.mass + other.mass, 1.0)
 		var stopping_force := reduced_mass * closing_speed / maxf(delta, 0.001)
 		force_n = minf(force_n, stopping_force * 0.80)
-		rigid_chassis.apply_central_force(-forward * force_n)
-		other.apply_central_force(forward * force_n)
+		var contact_world := _hybrid_resistance_contact_world()
+		var primary_offset_world := contact_world - rigid_chassis.global_position
+		var other_offset_world := contact_world - other.global_position
+		# Apply the supplemental crush load at the observed manifold point rather
+		# than at both centres of mass. Off-centre and oblique impacts therefore
+		# retain the lever-arm torque already implied by the physical contact.
+		rigid_chassis.apply_force(-forward * force_n, primary_offset_world)
+		other.apply_force(forward * force_n, other_offset_world)
 	elif _requires_additional_crush_resistance(collider):
 		# Static obstacles need the modelled crush-resistance force because there
 		# is no second dynamic body to receive it. Do not apply that same
 		# wall-like force against a pedestrian, cyclist, motorcycle part or other
 		# light rigid body: their real Godot contact manifold already transfers
 		# momentum, and the unilateral extra force was reversing the primary car.
-		rigid_chassis.apply_central_force(-forward * force_n)
+		var primary_offset_world := _hybrid_resistance_contact_world() - rigid_chassis.global_position
+		rigid_chassis.apply_force(-forward * force_n, primary_offset_world)
+
+func _hybrid_resistance_contact_world() -> Vector3:
+	if rigid_chassis == null:
+		return Vector3.ZERO
+	if hybrid_primary_contact_position_valid:
+		return rigid_chassis.to_global(hybrid_primary_contact_local_position)
+	# Compatibility fallback for old/manual states that have a confirmed front
+	# contact but no retained manifold point. Keep the force on the front face and
+	# use the existing lateral-bias estimate, so even that path does not silently
+	# collapse to a centre-of-mass force.
+	var half_width := 0.0
+	if front_contact_collision != null and front_contact_collision.shape is BoxShape3D:
+		half_width = (front_contact_collision.shape as BoxShape3D).size.z * 0.5
+	var local_point := Vector3(
+		front_contact_neutral_face_x_m,
+		0.0,
+		hybrid_front_lateral_bias * half_width
+	)
+	return rigid_chassis.to_global(local_point)
 
 func _requires_additional_crush_resistance(collider: Object) -> bool:
 	if not collider is RigidBody3D:
