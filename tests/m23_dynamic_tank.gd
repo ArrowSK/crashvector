@@ -350,6 +350,17 @@ func _check_role_neutral_analysis() -> void:
 	var primary_components_value: Variant = analysis.get("primary_deformation_components_mm", {})
 	_expect(primary_components_value is Dictionary and absf(float((primary_components_value as Dictionary).get("side_crush_m", 0.0)) - 200.0) < 0.000001, "Role-neutral analysis lost the primary deformation component")
 	_expect(recording.marker_time(&"peak_loading") >= 0.0, "Stationary-primary analysis did not create a peak-loading marker from acceleration magnitude")
+	var result_stage := CinematicRenderStage.new()
+	var result_scenario := ScenarioConfig.new()
+	result_scenario.apply_primary_vehicle_defaults(ScenarioConfig.TARGET_LORRY)
+	result_scenario.apply_target_defaults(ScenarioConfig.TARGET_PASSENGER_CAR)
+	result_stage.scenario = result_scenario
+	result_stage.analysis = analysis
+	var result_text := String(result_stage.call("_result_text"))
+	_expect(result_text.contains("Maximum reported vehicle deformation"), "M23 cinematic result card did not switch to role-neutral deformation terminology")
+	_expect(result_text.contains("peak simulated acceleration"), "M23 cinematic result card still labels a stationary primary as longitudinal deceleration")
+	_expect(not result_text.contains("front crush") and not result_text.contains("safety-cell"), "M23 cinematic result card still uses passenger-car-only deformation labels")
+	result_stage.free()
 
 func _check_editor_reciprocal_vehicle_pair() -> void:
 	var packed := load("res://app/main.tscn") as PackedScene
