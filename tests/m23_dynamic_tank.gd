@@ -245,6 +245,24 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 		_expect(world.primary_actor is M21HeavyTruck, "M23 editor did not create the truck as the primary actor")
 		_expect(world.target_actor is M162CompactHatchback, "M23 editor did not create the passenger car as the target actor")
 		if world.primary_actor is M21HeavyTruck:
+			var truck_geometry := world.primary_actor as M21HeavyTruck
+			var longitudinal_bounds := VehicleActorRuntime.collision_footprint_bounds(truck_geometry)
+			_expect(not longitudinal_bounds.is_empty(), "M23 camera regression could not resolve articulated-truck collision bounds")
+			if not longitudinal_bounds.is_empty():
+				var longitudinal_span := float(longitudinal_bounds["max_x"]) - float(longitudinal_bounds["min_x"])
+				_expect(longitudinal_span > 9.0, "M23 articulated-truck collision footprint lost its full longitudinal envelope")
+				var camera_bounds: Vector2 = editor.call("_m161_horizontal_bounds")
+				_expect(absf(camera_bounds.x - float(longitudinal_bounds["min_x"])) < 0.05, "M23 camera bounds still use a symmetric half-length instead of the truck's asymmetric collision geometry")
+				var camera_center: Vector3 = editor.call("_m161_primary_center")
+				var geometry_center_x := (float(longitudinal_bounds["min_x"]) + float(longitudinal_bounds["max_x"])) * 0.5
+				_expect(absf(camera_center.x - geometry_center_x) < 0.05, "M23 camera focus still uses the articulated-truck origin instead of its geometry centre")
+				VehicleActorRuntime.set_preview_pose(truck_geometry, config.car_position_m, 90.0)
+				var rotated_bounds := VehicleActorRuntime.collision_footprint_bounds(truck_geometry)
+				_expect(not rotated_bounds.is_empty(), "M23 rotated-truck camera regression could not resolve collision bounds")
+				if not rotated_bounds.is_empty():
+					var rotated_span_x := float(rotated_bounds["max_x"]) - float(rotated_bounds["min_x"])
+					_expect(rotated_span_x < longitudinal_span * 0.5, "M23 camera footprint does not follow actor heading")
+				VehicleActorRuntime.set_preview_pose(truck_geometry, config.car_position_m, config.car_heading_deg)
 			# Seed known actor-specific values before begin_simulation() resets them so
 			# this regression verifies the M23 adapter itself rather than relying on a
 			# particular collision severity to produce every metric.
