@@ -141,24 +141,16 @@ func _m20_consume_contacts() -> void:
 		var contact_local: Vector3 = sample.get("position_local", Vector3.ZERO)
 		var collider_local := contact_local
 		var has_collider_center := false
-		var other_velocity := Vector3.ZERO
 		if collider is Node3D:
 			collider_local = rigid_chassis.to_local((collider as Node3D).global_position)
 			has_collider_center = true
-		if collider is VehicleRigidChassis:
-			other_velocity = (collider as VehicleRigidChassis).contact_entry_linear_velocity_ms()
-		elif collider is RigidBody3D:
-			other_velocity = (collider as RigidBody3D).linear_velocity
 		var subject_velocity: Vector3 = sample.get("pre_contact_linear_velocity_ms", rigid_chassis.pre_contact_linear_velocity_ms())
-		var relative_velocity := other_velocity - subject_velocity
 		var reduced_mass := PhysicsMetrics.collision_effective_mass_kg(rigid_chassis.mass, collider)
 		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
-		# Deformation demand is based on the immediately preceding physics-step
-		# velocity, not the scenario's t=0 speed. The impulse term remains an
-		# independent lower bound when the first reported manifold arrives after the
-		# solver has already removed most of the closing velocity.
-		var longitudinal_speed := absf(relative_velocity.dot(forward))
-		var lateral_speed := absf(relative_velocity.dot(lateral))
+		# Use the short contact-free solver history to bridge Godot's delayed
+		# manifold reporting without restoring the scenario's t=0 speed.
+		var longitudinal_speed := rigid_chassis.recent_relative_axis_speed_ms(collider, forward, subject_velocity, true)
+		var lateral_speed := rigid_chassis.recent_relative_axis_speed_ms(collider, lateral, subject_velocity, true)
 		var longitudinal_impulse := absf(impulse.dot(forward))
 		var lateral_impulse := absf(impulse.dot(lateral))
 		var longitudinal_energy := maxf(
