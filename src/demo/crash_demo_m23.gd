@@ -428,6 +428,56 @@ func _update_metrics() -> void:
 		ScenarioConfig.target_display_name(scenario.target_type), scenario.target_mass_kg, PhysicsMetrics.ms_to_kmh(target_velocity.length()),
 	]
 
+func _refresh_analysis_ui() -> void:
+	if not _m23_has_non_passenger_primary():
+		super._refresh_analysis_ui()
+		return
+	if analysis_report.is_empty():
+		return
+	var target_delta_text := ""
+	if analysis_report.has("target_final_delta_v_kmh"):
+		target_delta_text = " • target Δv %.1f km/h" % float(analysis_report["target_final_delta_v_kmh"])
+	var has_initial_direction := bool(analysis_report.get("primary_initial_motion_direction_valid", false))
+	var loading_label := "peak longitudinal decel" if has_initial_direction else "peak acceleration"
+	var loading_g := (
+		float(analysis_report.get("peak_deceleration_g", 0.0))
+		if has_initial_direction else float(analysis_report.get("peak_acceleration_g", 0.0))
+	)
+	var target_deformation_mm := float(analysis_report.get("target_max_reported_deformation_mm", 0.0))
+	var target_deformation_text := " • target deformation %.0f mm" % target_deformation_mm if target_deformation_mm > 0.0 else ""
+	analysis_summary_label.text = (
+		"Primary Δv %.1f km/h • %s %.1f g • max reported deformation %.0f mm%s%s\n"
+		+ "Primary KE %.1f → %.1f kJ • broken members %d • %d replay samples. Reported deformation is the maximum actor-specific front/rear/side/guard/cell displacement available for that vehicle, not an occupant-injury measure."
+	) % [
+		float(analysis_report.get("final_delta_v_kmh", 0.0)),
+		loading_label,
+		loading_g,
+		float(analysis_report.get("primary_max_reported_deformation_mm", 0.0)),
+		target_delta_text,
+		target_deformation_text,
+		float(analysis_report.get("initial_kinetic_energy_kj", 0.0)),
+		float(analysis_report.get("final_kinetic_energy_kj", 0.0)),
+		int(analysis_report.get("max_broken_beams", 0)),
+		int(analysis_report.get("sample_count", 0)),
+	]
+	var marker_parts: Array[String] = []
+	for marker in replay_recorder.recording.event_markers:
+		marker_parts.append("%s %.2fs" % [String(marker.get("label", "Event")), float(marker.get("time_s", 0.0))])
+	event_markers_label.text = "Events: %s" % (" • ".join(marker_parts) if not marker_parts.is_empty() else "none detected in recorded window")
+	crash_pulse_graph.configure(
+		"Crash pulse — longitudinal deceleration" if has_initial_direction else "Impact pulse — acceleration magnitude",
+		"g",
+		_series_from_report("crash_pulse_series" if has_initial_direction else "acceleration_magnitude_series"),
+		replay_recorder.recording.event_markers
+	)
+	deformation_graph.configure(
+		"Maximum reported vehicle deformation",
+		"mm",
+		_series_from_report("primary_deformation_series"),
+		replay_recorder.recording.event_markers
+	)
+	_update_replay_time_label()
+
 func _m23_replay_supported() -> bool:
 	return _m23_actor_model(_m23_primary_actor()) != null and _m23_actor_model(_m23_target_actor()) != null
 
