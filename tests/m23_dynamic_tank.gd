@@ -63,6 +63,8 @@ func _check_two_vehicle_world() -> void:
 	config.apply_target_defaults(ScenarioConfig.TARGET_TANK)
 	config.target_position_m = Vector3(6.0, 0.0, 0.0)
 	config.target_speed_kmh = 0.0
+	config.contact_friction = 0.41
+	config.restitution = 0.02
 	config.duration_s = 0.6
 	_expect(config.validation_errors().is_empty(), "M23 truck-versus-tank scenario failed preflight")
 	var world := TwoVehicleWorld3D.new()
@@ -75,6 +77,13 @@ func _check_two_vehicle_world() -> void:
 	var target_chassis := VehicleActorRuntime.chassis(world.target_actor)
 	_expect(primary_chassis != null and primary_chassis.physics_material_override != null, "M23 primary vehicle did not receive the configured contact material")
 	_expect(target_chassis != null and target_chassis.physics_material_override != null, "M23 target vehicle did not receive the configured contact material")
+	var primary_bodies := VehicleActorRuntime.physics_bodies(world.primary_actor)
+	_expect(primary_bodies.size() == 2, "M23 actor runtime did not expose both articulated-truck physics bodies")
+	for body in primary_bodies:
+		_expect(body.physics_material_override != null, "M23 articulated-truck body did not receive the configured contact material")
+		if body.physics_material_override != null:
+			_expect(absf(body.physics_material_override.friction - config.contact_friction) < 0.000001, "M23 articulated-truck body kept a hard-coded friction value")
+			_expect(absf(body.physics_material_override.bounce - config.restitution) < 0.000001, "M23 articulated-truck body kept a hard-coded restitution value")
 	world.begin()
 	for _frame in range(50):
 		await physics_frame
