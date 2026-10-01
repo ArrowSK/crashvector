@@ -172,6 +172,16 @@ func apply_replay_visual_state(state: Dictionary) -> void:
 func update_from_model(delta_s: float) -> void:
 	if model == null:
 		return
+	var forward_world := Vector3.RIGHT
+	var lateral_world := Vector3.BACK
+	if get_parent() is CompactHatchback:
+		var reference := (get_parent() as CompactHatchback).global_reference_transform()
+		forward_world = reference.basis.x.normalized()
+		lateral_world = reference.basis.z.normalized()
+		if forward_world.is_zero_approx():
+			forward_world = Vector3.RIGHT
+		if lateral_world.is_zero_approx():
+			lateral_world = Vector3.BACK
 	for i in range(mini(anchor_indices.size(), wheel_instances.size())):
 		if released[i] != 0:
 			if delta_s > 0.0:
@@ -194,15 +204,15 @@ func update_from_model(delta_s: float) -> void:
 			continue
 		var node := model.nodes[anchor_indices[i]]
 		var center := _vehicle_center()
-		var side_sign := -1.0 if node.position_m.z < center.z else 1.0
-		var desired := node.position_m + Vector3(0.0, -suspension_drop_m, side_sign * side_offset_m)
+		var side_sign := -1.0 if (node.position_m - center).dot(lateral_world) < 0.0 else 1.0
+		var desired := node.position_m + Vector3.DOWN * suspension_drop_m + lateral_world * side_sign * side_offset_m
 		var visual_target := desired
 		if model != null and get_parent() is CompactHatchback:
 			var vehicle := get_parent() as CompactHatchback
 			if vehicle.rigid_chassis != null:
 				var support := vehicle.rigid_chassis.suspension_contact_point_world(i)
 				if is_finite(support.x) and is_finite(support.y) and is_finite(support.z):
-					visual_target = support + Vector3.UP * wheel_radius_m + Vector3.FORWARD * side_sign * side_offset_m
+					visual_target = support + Vector3.UP * wheel_radius_m + lateral_world * side_sign * side_offset_m
 		if visual_target.y < wheel_radius_m:
 			visual_target.y = wheel_radius_m
 		suspension_compression_m[i] = maxf(visual_target.y - desired.y, 0.0)
@@ -212,7 +222,7 @@ func update_from_model(delta_s: float) -> void:
 		rim_instances[i].position = new_position
 		hub_instances[i].position = new_position
 		if delta_s > 0.0:
-			var spin_speed := node.velocity_ms.x / maxf(wheel_radius_m, 0.01)
+			var spin_speed := node.velocity_ms.dot(forward_world) / maxf(wheel_radius_m, 0.01)
 			wheel_instances[i].rotation.z -= spin_speed * delta_s
 			rim_instances[i].rotation.z -= spin_speed * delta_s
 			hub_instances[i].rotation.z -= spin_speed * delta_s
