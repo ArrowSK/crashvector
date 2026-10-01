@@ -110,6 +110,33 @@ func reset_releases() -> void:
 		released_positions[index] = Vector3.ZERO
 		released_velocities[index] = Vector3.ZERO
 
+func replay_visual_state() -> Dictionary:
+	return {
+		"released": released.duplicate(),
+		"released_positions": released_positions.duplicate(),
+		"released_velocities": released_velocities.duplicate(),
+	}
+
+func apply_replay_visual_state(state: Dictionary) -> void:
+	# A replay frame must own the detached/attached state. Otherwise scrubbing
+	# backward after a severe impact leaves the rig in its final released state,
+	# while scrubbing a newly loaded frame can incorrectly reattach the wheels.
+	reset_releases()
+	var replay_released_value: Variant = state.get("released", PackedByteArray())
+	var replay_positions_value: Variant = state.get("released_positions", [])
+	var replay_velocities_value: Variant = state.get("released_velocities", [])
+	var replay_released := replay_released_value as PackedByteArray if replay_released_value is PackedByteArray else PackedByteArray()
+	var replay_positions := replay_positions_value as Array if replay_positions_value is Array else []
+	var replay_velocities := replay_velocities_value as Array if replay_velocities_value is Array else []
+	for index in range(released.size()):
+		if index < replay_released.size():
+			released[index] = replay_released[index]
+		if index < replay_positions.size() and replay_positions[index] is Vector3:
+			released_positions[index] = replay_positions[index]
+		if index < replay_velocities.size() and replay_velocities[index] is Vector3:
+			released_velocities[index] = replay_velocities[index]
+	update_from_model(0.0)
+
 func update_from_model(delta_s: float) -> void:
 	if model == null:
 		return
