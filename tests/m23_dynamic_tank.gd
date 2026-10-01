@@ -229,6 +229,8 @@ func _check_motorcycle_rider_replay() -> void:
 		await process_frame
 		return
 
+	var attached_torso_transform := actor.rider_rig.torso.global_transform
+	var attached_head_transform := actor.rider_rig.head.global_transform
 	var attached_state := actor.replay_visual_state()
 	var attached_rider_value: Variant = attached_state.get("rider_state", {})
 	_expect(attached_rider_value is Dictionary and not bool((attached_rider_value as Dictionary).get("rider_released", true)), "M23 motorcycle replay did not capture the attached rider state")
@@ -267,11 +269,15 @@ func _check_motorcycle_rider_replay() -> void:
 	actor.apply_replay_visual_state(attached_state)
 	_expect(not actor.rider_rig.rider_released, "M23 motorcycle replay could not restore the pre-release rider state")
 	_expect(actor.rider_rig.torso.freeze and actor.rider_rig.head.freeze, "M23 motorcycle replay left attached rider bodies live during timeline playback")
+	_expect(actor.rider_rig.torso.global_transform.origin.distance_to(attached_torso_transform.origin) < 0.000001, "M23 motorcycle replay lost the attached torso pose")
+	_expect(actor.rider_rig.head.global_transform.origin.distance_to(attached_head_transform.origin) < 0.000001, "M23 motorcycle replay lost the attached head pose")
 	actor.apply_replay_visual_state(recorded_state)
 	_expect(actor.rider_rig.rider_released, "M23 motorcycle replay reattached the released rider")
 	_expect(actor.rider_rig.torso.freeze and actor.rider_rig.head.freeze, "M23 motorcycle replay left released rider bodies live during timeline playback")
 	_expect(actor.rider_rig.torso.global_transform.origin.distance_to(torso_transform.origin) < 0.000001, "M23 motorcycle replay lost the released torso position")
 	_expect(actor.rider_rig.head.global_transform.origin.distance_to(head_transform.origin) < 0.000001, "M23 motorcycle replay lost the released head position")
+	_expect(actor.rider_rig.torso.global_transform.basis.x.distance_to(torso_transform.basis.x) < 0.000001, "M23 motorcycle replay lost the released torso orientation")
+	_expect(actor.rider_rig.head.global_transform.basis.y.distance_to(head_transform.basis.y) < 0.000001, "M23 motorcycle replay lost the released head orientation")
 	_expect(actor.rider_rig.torso.linear_velocity.distance_to(Vector3(6.0, 2.5, -1.2)) < 0.000001, "M23 motorcycle replay lost the released torso velocity")
 	_expect(actor.rider_rig.head.linear_velocity.distance_to(Vector3(6.4, 2.9, -0.8)) < 0.000001, "M23 motorcycle replay lost the released head velocity")
 	_expect(actor.rider_rig.torso.angular_velocity.distance_to(Vector3(0.4, -0.8, 1.1)) < 0.000001, "M23 motorcycle replay lost the released torso angular velocity")
