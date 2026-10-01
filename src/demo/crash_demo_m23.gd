@@ -17,13 +17,26 @@ func _ready() -> void:
 	_m23_refresh_primary_options()
 	_sync_m10_from_scenario()
 
+func _m23_target_supported_for_primary(target_type: StringName) -> bool:
+	if scenario == null or not ScenarioConfig.target_ids().has(target_type):
+		return false
+	# The established passenger-primary M22 path owns the complete target set,
+	# including vulnerable road users. Non-passenger primaries use the role-neutral
+	# RigidBody3D world, whose production scope is movable vehicles plus fixed
+	# fixtures; it deliberately does not substitute a passenger-car simulation for
+	# pedestrian/cyclist/bicycle targets.
+	if scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR:
+		return true
+	return TwoVehicleWorld3D.supports_target(target_type)
+
 func _m23_uses_vehicle_world() -> bool:
 	# Keep the established passenger-primary production path intact while it is
-	# still the owner of static fixtures, road users, replay and export. The
-	# shared world is the reciprocal path: truck/lorry/motorcycle/tank primary
-	# against any movable vehicle target. This avoids changing existing car-versus
-	# target behavior merely because a common actor contract now exists.
-	return scenario != null and scenario.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR and TwoVehicleWorld3D.supports_target(scenario.target_type)
+	# still the owner of static fixtures, road users, replay and export.
+	return (
+		scenario != null
+		and scenario.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR
+		and _m23_target_supported_for_primary(scenario.target_type)
+	)
 
 func _m23_has_non_passenger_primary() -> bool:
 	return scenario != null and scenario.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR
@@ -320,6 +333,7 @@ func _sync_m10_from_scenario() -> void:
 		_select_metadata(m10_primary_class, scenario.car_preset_id)
 	_m23_set_primary_spin_ranges()
 	_m23_sync_physics_controls()
+	_m23_sync_capability_controls()
 	m10_vehicle_mass.set_value_no_signal(scenario.car_mass_kg)
 	m10_vehicle_speed.set_value_no_signal(scenario.car_speed_kmh)
 	var primary_name := PassengerCarCatalog.display_name(scenario.car_preset_id) if scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR else ScenarioConfig.actor_display_name(scenario.primary_type)
@@ -328,6 +342,45 @@ func _sync_m10_from_scenario() -> void:
 		ScenarioConfig.target_display_name(scenario.target_type)
 	]
 	m10_syncing = false
+
+func _m23_sync_capability_controls() -> void:
+	if scenario == null:
+		return
+	if m10_target_option != null:
+		for index in range(m10_target_option.item_count):
+			var target_id := _item_metadata_id(m10_target_option, index)
+			if target_id.is_empty():
+				continue
+			m10_target_option.set_item_disabled(index, not _m23_target_supported_for_primary(target_id))
+	if m10_left_panel != null:
+		for node in m10_left_panel.find_children("*", "Button", true, false):
+			var button := node as Button
+			if button == null or not button.has_meta("target_id"):
+				continue
+			var target_id := StringName(String(button.get_meta("target_id")))
+			var supported := _m23_target_supported_for_primary(target_id)
+			button.disabled = not supported
+			button.tooltip_text = (
+				"Not available with %s as the primary vehicle in M23."
+				% ScenarioConfig.actor_display_name(scenario.primary_type)
+			) if not supported else ""
+	if m10_simulate_button != null and not simulation_running:
+		m10_simulate_button.disabled = comparison_active or not _m23_target_supported_for_primary(scenario.target_type)
+
+func _on_target_palette_pressed(target_id: StringName) -> void:
+	if scenario != null and not _m23_target_supported_for_primary(target_id):
+		if status_label != null:
+			status_label.text = "%s primary supports vehicle and fixed-fixture targets only; %s is not available for this role" % [
+				ScenarioConfig.actor_display_name(scenario.primary_type),
+				ScenarioConfig.target_display_name(target_id),
+			]
+		_m23_sync_capability_controls()
+		return
+	super._on_target_palette_pressed(target_id)
+
+func _refresh_m10_runtime_state() -> void:
+	super._refresh_m10_runtime_state()
+	_m23_sync_capability_controls()
 
 func _m23_sync_physics_controls() -> void:
 	if m10_substeps == null:
