@@ -56,6 +56,7 @@ func _run() -> void:
 	await _check_articulated_target_materials()
 	await _check_vehicle_fixture_world()
 	await _check_motorcycle_rider_replay()
+	_check_role_neutral_analysis()
 	await _check_editor_reciprocal_vehicle_pair()
 	_finish()
 
@@ -286,6 +287,70 @@ func _check_motorcycle_rider_replay() -> void:
 	actor.queue_free()
 	await process_frame
 
+func _check_role_neutral_analysis() -> void:
+	var recording := ReplayRecording.new()
+	recording.sample_interval_s = 0.10
+	recording.add_frame({
+		"time_s": 0.0,
+		"primary_metrics": {
+			"linear_velocity_ms": Vector3.ZERO,
+			"speed_kmh": 0.0,
+			"kinetic_energy_j": 0.0,
+			"side_crush_m": 0.02,
+			"broken_beams": 0,
+		},
+		"target_metrics": {
+			"linear_velocity_ms": Vector3(0.0, 0.0, -8.0),
+			"speed_kmh": 28.8,
+			"rear_crush_m": 0.01,
+			"broken_beams": 0,
+		},
+		"context": {"contact_count": 0},
+	})
+	recording.add_frame({
+		"time_s": 0.10,
+		"primary_metrics": {
+			"linear_velocity_ms": Vector3(0.0, 0.0, 2.0),
+			"speed_kmh": 7.2,
+			"kinetic_energy_j": 2200.0,
+			"side_crush_m": 0.10,
+			"broken_beams": 0,
+		},
+		"target_metrics": {
+			"linear_velocity_ms": Vector3(0.0, 0.0, -5.0),
+			"speed_kmh": 18.0,
+			"rear_crush_m": 0.04,
+			"broken_beams": 0,
+		},
+		"context": {"contact_count": 1},
+	})
+	recording.add_frame({
+		"time_s": 0.20,
+		"primary_metrics": {
+			"linear_velocity_ms": Vector3(0.0, 0.0, 4.0),
+			"speed_kmh": 14.4,
+			"kinetic_energy_j": 8800.0,
+			"side_crush_m": 0.20,
+			"broken_beams": 0,
+		},
+		"target_metrics": {
+			"linear_velocity_ms": Vector3(0.0, 0.0, -2.0),
+			"speed_kmh": 7.2,
+			"rear_crush_m": 0.08,
+			"broken_beams": 0,
+		},
+		"context": {"contact_count": 2},
+	})
+	var analysis := CrashAnalysis.analyze(recording)
+	_expect(not bool(analysis.get("primary_initial_motion_direction_valid", true)), "Role-neutral analysis invented an initial direction for a stationary primary")
+	_expect(absf(float(analysis.get("peak_deceleration_g", -1.0))) < 0.000001, "Stationary-primary analysis still reports artificial longitudinal deceleration")
+	_expect(float(analysis.get("peak_acceleration_g", 0.0)) > 0.0, "Stationary-primary analysis dropped the real post-contact acceleration")
+	_expect(absf(float(analysis.get("primary_max_reported_deformation_mm", 0.0)) - 200.0) < 0.000001, "Role-neutral analysis did not summarize primary side deformation")
+	_expect(absf(float(analysis.get("target_max_reported_deformation_mm", 0.0)) - 80.0) < 0.000001, "Role-neutral analysis did not summarize target rear deformation")
+	var primary_components_value: Variant = analysis.get("primary_deformation_components_mm", {})
+	_expect(primary_components_value is Dictionary and absf(float((primary_components_value as Dictionary).get("side_crush_m", 0.0)) - 200.0) < 0.000001, "Role-neutral analysis lost the primary deformation component")
+	_expect(recording.marker_time(&"peak_loading") >= 0.0, "Stationary-primary analysis did not create a peak-loading marker from acceleration magnitude")
+
 func _check_editor_reciprocal_vehicle_pair() -> void:
 	var packed := load("res://app/main.tscn") as PackedScene
 	_expect(packed != null, "M23 production editor scene did not load")
@@ -498,6 +563,13 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 		var analysis := CrashAnalysis.analyze(recorder.recording)
 		_expect(recorder.recording.marker_time(&"first_contact") >= 0.0, "M23 reciprocal analysis did not create a first-contact marker")
 		_expect(float(analysis.get("peak_deceleration_g", 0.0)) > 0.0, "M23 reciprocal analysis still reports zero peak deceleration after a real impact")
+		_expect(analysis.has("primary_max_reported_deformation_mm"), "M23 reciprocal analysis omitted role-neutral primary deformation")
+		editor.set("analysis_report", analysis)
+		editor.call("_refresh_analysis_ui")
+		var analysis_summary := editor.get("analysis_summary_label") as Label
+		_expect(analysis_summary != null and analysis_summary.text.contains("max reported deformation"), "M23 analysis UI did not switch to role-neutral deformation terminology")
+		_expect(analysis_summary == null or not analysis_summary.text.contains("front crush"), "M23 analysis UI still presents passenger-car front-crush terminology for a truck primary")
+		_expect(analysis_summary == null or not analysis_summary.text.contains("safety-cell"), "M23 analysis UI still presents passenger-car safety-cell terminology for a truck primary")
 		editor.call("_apply_replay_time", recorder.recording.duration_s * 0.5, true)
 		_expect(is_finite(float(editor.get("replay_time_s"))), "M23 reciprocal replay scrubbing produced a non-finite time")
 	editor.queue_free()
