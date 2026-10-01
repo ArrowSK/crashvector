@@ -379,7 +379,7 @@ func _m23_sync_capability_controls() -> void:
 				continue
 			m10_target_option.set_item_disabled(index, not _m23_target_supported_for_primary(target_id))
 	for button in _m23_quick_target_button_nodes():
-		var target_id := StringName(String(button.get_meta("target_id")))
+		var target_id := _m23_quick_target_id(button)
 		var supported := _m23_target_supported_for_primary(target_id)
 		button.disabled = not supported
 		button.tooltip_text = (
@@ -398,22 +398,65 @@ func _m23_quick_target_button_nodes() -> Array[Button]:
 
 func _m23_collect_quick_target_buttons(node: Node, result: Array[Button]) -> void:
 	for child in node.get_children():
-		if child is Button and child.has_meta("target_id"):
+		if child is Button and not _m23_quick_target_id(child as Button).is_empty():
 			result.append(child as Button)
 		_m23_collect_quick_target_buttons(child, result)
+
+func _m23_quick_target_id(button: Button) -> StringName:
+	if button == null:
+		return &""
+	if button.has_meta("target_id"):
+		return StringName(String(button.get_meta("target_id")))
+	# M10 release hardening can reparent dynamically created controls. Keep the
+	# capability layer resilient if runtime metadata is unavailable by recognizing
+	# the seven stable quick-target labels; other toolbar/camera buttons are ignored.
+	match button.text:
+		"Wall":
+			return ScenarioConfig.TARGET_WALL
+		"Car":
+			return ScenarioConfig.TARGET_PASSENGER_CAR
+		"Truck":
+			return ScenarioConfig.TARGET_TRUCK
+		"Lorry":
+			return ScenarioConfig.TARGET_LORRY
+		"Tank":
+			return ScenarioConfig.TARGET_TANK
+		"Pedestrian":
+			return ScenarioConfig.TARGET_PEDESTRIAN
+		"Bicycle":
+			return ScenarioConfig.TARGET_BICYCLE
+	return &""
 
 func _m23_physics_scope_label() -> Label:
 	if m10_physics_scope_warning != null and is_instance_valid(m10_physics_scope_warning):
 		return m10_physics_scope_warning
+	if m10_substeps != null and m10_substeps.get_parent() != null:
+		var column := m10_substeps.get_parent().get_parent()
+		if column != null:
+			for child in column.get_children():
+				if child is Label:
+					var label := child as Label
+					if (
+						label.name == &"PhysicsScopeWarning"
+						or label.text.contains("contact/solver")
+						or label.text.contains("Solver substeps belong")
+					):
+						return label
 	if m10_right_panel == null:
 		return null
-	return _m23_find_named_label(m10_right_panel, &"PhysicsScopeWarning")
+	return _m23_find_physics_scope_label(m10_right_panel)
 
-func _m23_find_named_label(node: Node, wanted_name: StringName) -> Label:
+func _m23_find_physics_scope_label(node: Node) -> Label:
 	for child in node.get_children():
-		if child is Label and child.name == wanted_name:
-			return child as Label
-		var nested := _m23_find_named_label(child, wanted_name)
+		if child is Label:
+			var label := child as Label
+			if (
+				label.name == &"PhysicsScopeWarning"
+				or label.text.contains("contact/solver")
+				or label.text.contains("Solver substeps belong")
+			):
+				return label
+		var nested := _m23_find_physics_scope_label(child)
 		if nested != null:
 			return nested
 	return null
