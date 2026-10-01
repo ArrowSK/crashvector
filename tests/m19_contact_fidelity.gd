@@ -153,12 +153,18 @@ func _check_offset_crush_resistance_torque() -> void:
 	vehicle.rigid_chassis.sleeping = false
 	vehicle.rigid_chassis.linear_velocity = Vector3(8.0, 0.0, 0.0)
 	vehicle.rigid_chassis.angular_velocity = Vector3.ZERO
-	vehicle.hybrid_real_front_contact_ever = true
-	vehicle.hybrid_primary_collider = fixture
+	var observed_contact_local := Vector3(vehicle.front_contact_neutral_face_x_m, 0.0, 0.55)
+	vehicle.call("_consume_front_contact_sample", {
+		"collider_name": fixture.name,
+		"collider": fixture,
+		"surface_region": &"front",
+		"position_local": observed_contact_local,
+		"impulse": Vector3.ZERO,
+		"pre_contact_linear_velocity_ms": Vector3(8.0, 0.0, 0.0),
+	})
 	vehicle.hybrid_target_front_crush_m = 0.25
-	vehicle.hybrid_primary_contact_local_position = Vector3(vehicle.front_contact_neutral_face_x_m, 0.0, 0.55)
-	vehicle.hybrid_primary_contact_position_valid = true
-	var expected_contact_world := vehicle.rigid_chassis.to_global(vehicle.hybrid_primary_contact_local_position)
+	_expect(vehicle.hybrid_primary_contact_position_valid, "Passenger crush resistance did not retain the observed manifold point")
+	var expected_contact_world := vehicle.rigid_chassis.to_global(observed_contact_local)
 	var resolved_contact_world: Vector3 = vehicle.call("_hybrid_resistance_contact_world")
 	_expect(resolved_contact_world.distance_to(expected_contact_world) < 0.000001, "Passenger crush resistance lost the observed off-centre contact point")
 	vehicle.call("_apply_hybrid_crush_resistance", 1.0 / 60.0)
