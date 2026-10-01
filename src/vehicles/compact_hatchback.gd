@@ -492,7 +492,7 @@ func _normal_collision_energy_j(
 		subject_velocity = rigid_chassis.pre_contact_linear_velocity_ms()
 	var collider_velocity := Vector3.ZERO
 	if collider is VehicleRigidChassis:
-		collider_velocity = (collider as VehicleRigidChassis).pre_contact_linear_velocity_ms()
+		collider_velocity = (collider as VehicleRigidChassis).contact_entry_linear_velocity_ms()
 	elif collider is RigidBody3D:
 		# Generic rigid bodies do not expose CrashVector's one-step history. Their
 		# current solver velocity is the best available local estimate; never
