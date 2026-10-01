@@ -422,9 +422,11 @@ func _consume_front_contact_sample(sample: Dictionary) -> void:
 	if local_position.x > 0.0 and absf(local_position.z) > 0.03:
 		hybrid_front_lateral_bias = clampf(local_position.z / 0.72, -1.0, 1.0)
 	if collider != null:
-		hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _normal_collision_energy_j(collider))
-		if not collider is RigidBody3D and not _is_yielding_obstacle_collider(collider):
-			hybrid_peak_collision_energy_j = maxf(hybrid_peak_collision_energy_j, _initial_fixed_obstacle_energy_j())
+		var pre_contact_velocity: Vector3 = sample.get("pre_contact_linear_velocity_ms", rigid_chassis.pre_contact_linear_velocity_ms())
+		hybrid_peak_collision_energy_j = maxf(
+			hybrid_peak_collision_energy_j,
+			_normal_collision_energy_j(collider, pre_contact_velocity)
+		)
 
 func _update_hybrid_crush_target() -> void:
 	if rigid_chassis == null:
@@ -443,33 +445,24 @@ func _update_hybrid_crush_target() -> void:
 	var energy_limited_crush := 0.18 * scale_x + hybrid_peak_collision_energy_j / maxf(520000.0 * scale_x, 1.0)
 	hybrid_target_front_crush_m = clampf(hybrid_target_front_crush_m, 0.0, minf(0.98 * scale_x, energy_limited_crush))
 
-func _normal_collision_energy_j(collider: Object) -> float:
+func _normal_collision_energy_j(collider: Object, pre_contact_velocity_ms: Vector3 = Vector3.INF) -> float:
 	if rigid_chassis == null:
 		return 0.0
 	var forward := rigid_chassis.global_transform.basis.x.normalized()
+	var subject_velocity := pre_contact_velocity_ms
+	if not is_finite(subject_velocity.x) or not is_finite(subject_velocity.y) or not is_finite(subject_velocity.z):
+		subject_velocity = rigid_chassis.pre_contact_linear_velocity_ms()
 	var collider_velocity := Vector3.ZERO
-	var collider_initial_velocity := Vector3.ZERO
-	var effective_mass := rigid_chassis.mass
-	if collider is RigidBody3D:
-		var other := collider as RigidBody3D
-		collider_velocity = other.linear_velocity
-		if other is VehicleRigidChassis:
-			collider_initial_velocity = (other as VehicleRigidChassis).initial_linear_velocity_ms
-		var other_mass := maxf(other.mass, 1.0)
-		effective_mass = rigid_chassis.mass * other_mass / maxf(rigid_chassis.mass + other_mass, 1.0)
-	var closing_speed := maxf((rigid_chassis.linear_velocity - collider_velocity).dot(forward), 0.0)
-	var initial_closing_speed := maxf((rigid_chassis.initial_linear_velocity_ms - collider_initial_velocity).dot(forward), 0.0)
-	# The direct-body callback is issued after Godot applies the first impulse.
-	# Preserve the larger of that current reading and the bodies' pre-impact
-	# relative kinetic energy, which is the collision demand available to the
-	# crush zone and does not depend on a probe or visual overlap.
-	return 0.5 * effective_mass * maxf(closing_speed * closing_speed, initial_closing_speed * initial_closing_speed)
-
-func _initial_fixed_obstacle_energy_j() -> float:
-	if rigid_chassis == null:
-		return 0.0
-	var initial_speed_ms := PhysicsMetrics.kmh_to_ms(initial_speed_kmh)
-	return 0.5 * rigid_chassis.mass * initial_speed_ms * initial_speed_ms
+	if collider is VehicleRigidChassis:
+		collider_velocity = (collider as VehicleRigidChassis).pre_contact_linear_velocity_ms()
+	elif collider is RigidBody3D:
+		# Generic rigid bodies do not expose CrashVector's one-step history. Their
+		# current solver velocity is the best available local estimate; never
+		# substitute the scenario's t=0 velocity.
+		collider_velocity = (collider as RigidBody3D).linear_velocity
+	var effective_mass := PhysicsMetrics.collision_effective_mass_kg(rigid_chassis.mass, collider)
+	var closing_speed := maxf((subject_velocity - collider_velocity).dot(forward), 0.0)
+	return 0.5 * effective_mass * closing_speed * closing_speed
 
 func _is_yielding_obstacle_collider(collider: Object) -> bool:
 	var node := collider as Node
