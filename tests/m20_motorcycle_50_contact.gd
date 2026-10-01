@@ -86,10 +86,10 @@ func _check_preimpact_energy_source() -> void:
 	})
 	motorcycle.call("_m20_consume_contacts")
 	var expected_energy := 0.5 * motorcycle.rigid_chassis.mass * 25.0
-	_expect(absf(motorcycle.hybrid_front_collision_energy_j - expected_energy) < 0.01, "Motorcycle deformation energy used t=0 speed instead of the immediate pre-impact velocity")
+	_expect(absf(motorcycle.hybrid_front_energy_j - expected_energy) < 0.01, "Motorcycle deformation energy used t=0 speed instead of the immediate pre-impact velocity")
 	var initial_speed_ms := PhysicsMetrics.kmh_to_ms(motorcycle.initial_speed_kmh)
 	var t0_energy := 0.5 * motorcycle.rigid_chassis.mass * initial_speed_ms * initial_speed_ms
-	_expect(motorcycle.hybrid_front_collision_energy_j < t0_energy * 0.20, "Motorcycle deformation energy still retains an excessive t=0-speed floor")
+	_expect(motorcycle.hybrid_front_energy_j < t0_energy * 0.20, "Motorcycle deformation energy still retains an excessive t=0-speed floor")
 
 	fixture.queue_free()
 	motorcycle.queue_free()
