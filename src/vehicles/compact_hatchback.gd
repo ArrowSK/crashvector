@@ -211,6 +211,8 @@ func replay_visual_state() -> Dictionary:
 		"front_bumper_detached": front_bumper_detached,
 		"front_bumper_position_m": front_bumper.position,
 		"front_bumper_velocity_ms": front_bumper_velocity_ms,
+		"front_wheels_released": front_wheels_released,
+		"wheel_rig": wheel_rig.replay_visual_state() if wheel_rig != null else {},
 		"rigid_transform": global_reference_transform(),
 		"rigid_linear_velocity_ms": global_linear_velocity_ms(),
 		"hybrid_front_crush_m": hybrid_geometric_front_crush_m,
@@ -224,6 +226,7 @@ func replay_visual_state() -> Dictionary:
 func apply_replay_visual_state(state: Dictionary) -> void:
 	front_bumper_detached = bool(state.get("front_bumper_detached", false))
 	front_bumper_velocity_ms = state.get("front_bumper_velocity_ms", Vector3.ZERO)
+	front_wheels_released = bool(state.get("front_wheels_released", false))
 	hybrid_geometric_front_crush_m = float(state.get("hybrid_front_crush_m", hybrid_geometric_front_crush_m))
 	hybrid_peak_collision_energy_j = float(state.get("hybrid_collision_energy_j", hybrid_peak_collision_energy_j))
 	hybrid_firewall_intrusion_m = float(state.get("hybrid_firewall_intrusion_m", hybrid_firewall_intrusion_m))
@@ -232,6 +235,12 @@ func apply_replay_visual_state(state: Dictionary) -> void:
 	hybrid_cell_front_retreat_m = float(state.get("hybrid_cell_front_retreat_m", hybrid_cell_front_retreat_m))
 	if front_bumper_detached:
 		front_bumper.position = state.get("front_bumper_position_m", front_bumper.position)
+	if wheel_rig != null:
+		var wheel_state: Variant = state.get("wheel_rig", {})
+		if wheel_state is Dictionary:
+			wheel_rig.apply_replay_visual_state(wheel_state)
+		else:
+			wheel_rig.reset_releases()
 	_update_visuals(0.0)
 
 func _prepare_local_crush_model() -> void:
