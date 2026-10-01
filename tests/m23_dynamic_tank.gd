@@ -55,6 +55,7 @@ func _run() -> void:
 	await _check_tank_primary_role()
 	await _check_articulated_target_materials()
 	await _check_vehicle_fixture_world()
+	await _check_motorcycle_rider_replay()
 	await _check_editor_reciprocal_vehicle_pair()
 	_finish()
 
@@ -206,6 +207,77 @@ func _check_vehicle_fixture_world() -> void:
 	_expect(world.running and VehicleActorRuntime.linear_velocity_ms(world.primary_actor).length() > 4.0, "M23 lorry-versus-wall world did not start the primary actor")
 	world.stop()
 	world.queue_free()
+	await process_frame
+
+func _check_motorcycle_rider_replay() -> void:
+	var actor := VehicleActorFactory.create(
+		ScenarioConfig.TARGET_MOTORCYCLE,
+		220.0,
+		30.0,
+		Vector3(-3.0, 0.0, 1.0),
+		25.0,
+		false
+	) as M20Motorcycle
+	_expect(actor != null, "M23 motorcycle rider replay regression could not create the production motorcycle")
+	if actor == null:
+		return
+	root.add_child(actor)
+	await process_frame
+	_expect(actor.rider_rig != null and actor.rider_rig.rider_body_count() == 2, "M23 motorcycle replay regression is missing the two-body rider rig")
+	if actor.rider_rig == null:
+		actor.queue_free()
+		await process_frame
+		return
+
+	var attached_state := actor.replay_visual_state()
+	var attached_rider_value: Variant = attached_state.get("rider_state", {})
+	_expect(attached_rider_value is Dictionary and not bool((attached_rider_value as Dictionary).get("rider_released", true)), "M23 motorcycle replay did not capture the attached rider state")
+
+	actor.rider_rig.arm_for_simulation()
+	actor.rider_rig.release_from_real_contact()
+	var torso_transform := actor.rider_rig.torso.global_transform
+	torso_transform.origin += Vector3(1.25, 0.70, -0.45)
+	torso_transform.basis = torso_transform.basis.rotated(Vector3.UP, deg_to_rad(18.0))
+	actor.rider_rig.torso.global_transform = torso_transform
+	actor.rider_rig.torso.linear_velocity = Vector3(6.0, 2.5, -1.2)
+	actor.rider_rig.torso.angular_velocity = Vector3(0.4, -0.8, 1.1)
+	var head_transform := actor.rider_rig.head.global_transform
+	head_transform.origin += Vector3(1.55, 0.95, -0.25)
+	head_transform.basis = head_transform.basis.rotated(Vector3.RIGHT, deg_to_rad(-11.0))
+	actor.rider_rig.head.global_transform = head_transform
+	actor.rider_rig.head.linear_velocity = Vector3(6.4, 2.9, -0.8)
+	actor.rider_rig.head.angular_velocity = Vector3(-0.3, 0.6, 1.4)
+
+	var released_state := actor.replay_visual_state()
+	var rider_value: Variant = released_state.get("rider_state", {})
+	_expect(rider_value is Dictionary, "M23 motorcycle replay omitted rider state after release")
+	if rider_value is Dictionary:
+		var rider_state: Dictionary = rider_value
+		_expect(bool(rider_state.get("rider_released", false)), "M23 motorcycle replay dropped the rider-release flag")
+		var parts_value: Variant = rider_state.get("part_states", [])
+		_expect(parts_value is Array and (parts_value as Array).size() == 2, "M23 motorcycle replay did not serialize both rider rigid bodies")
+
+	var recorder := ReplayRecorder.new()
+	recorder.begin()
+	_expect(
+		recorder.capture(0.0, actor.model, null, {}, {}, {}, released_state, {}, true),
+		"M23 replay recorder rejected the motorcycle rider visual state"
+	)
+	var recorded_state: Dictionary = recorder.recording.first_frame().get("primary_visual_state", {})
+	actor.apply_replay_visual_state(attached_state)
+	_expect(not actor.rider_rig.rider_released, "M23 motorcycle replay could not restore the pre-release rider state")
+	_expect(actor.rider_rig.torso.freeze and actor.rider_rig.head.freeze, "M23 motorcycle replay left attached rider bodies live during timeline playback")
+	actor.apply_replay_visual_state(recorded_state)
+	_expect(actor.rider_rig.rider_released, "M23 motorcycle replay reattached the released rider")
+	_expect(actor.rider_rig.torso.freeze and actor.rider_rig.head.freeze, "M23 motorcycle replay left released rider bodies live during timeline playback")
+	_expect(actor.rider_rig.torso.global_transform.origin.distance_to(torso_transform.origin) < 0.000001, "M23 motorcycle replay lost the released torso position")
+	_expect(actor.rider_rig.head.global_transform.origin.distance_to(head_transform.origin) < 0.000001, "M23 motorcycle replay lost the released head position")
+	_expect(actor.rider_rig.torso.linear_velocity.distance_to(Vector3(6.0, 2.5, -1.2)) < 0.000001, "M23 motorcycle replay lost the released torso velocity")
+	_expect(actor.rider_rig.head.linear_velocity.distance_to(Vector3(6.4, 2.9, -0.8)) < 0.000001, "M23 motorcycle replay lost the released head velocity")
+	_expect(actor.rider_rig.torso.angular_velocity.distance_to(Vector3(0.4, -0.8, 1.1)) < 0.000001, "M23 motorcycle replay lost the released torso angular velocity")
+	_expect(actor.rider_rig.head.angular_velocity.distance_to(Vector3(-0.3, 0.6, 1.4)) < 0.000001, "M23 motorcycle replay lost the released head angular velocity")
+
+	actor.queue_free()
 	await process_frame
 
 func _check_editor_reciprocal_vehicle_pair() -> void:
