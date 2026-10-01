@@ -441,6 +441,7 @@ func _build_physics_tab() -> void:
 	m10_scope_chip.pressed.connect(_on_m10_calibration_pressed)
 	column.add_child(m10_scope_chip)
 	var warning := Label.new()
+	warning.name = "PhysicsScopeWarning"
 	warning.text = "Advanced contact/solver values change the numerical scenario. Presentation controls do not."
 	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	warning.add_theme_color_override("font_color", CrashVectorM10Theme.MUTED)
