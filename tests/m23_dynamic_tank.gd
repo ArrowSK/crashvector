@@ -52,6 +52,7 @@ func _run() -> void:
 	await process_frame
 	_check_rigidbody_contact_settings()
 	await _check_two_vehicle_world()
+	await _check_tank_primary_role()
 	await _check_articulated_target_materials()
 	await _check_vehicle_fixture_world()
 	await _check_editor_reciprocal_vehicle_pair()
@@ -91,11 +92,17 @@ func _check_two_vehicle_world() -> void:
 	_expect(world.configure(config), "M23 two-vehicle world did not configure truck versus tank")
 	await process_frame
 	_expect(world.primary_actor is M21HeavyTruck, "M23 two-vehicle world did not create an articulated truck primary")
-	_expect(world.target_actor is DynamicTank3D, "M23 two-vehicle world did not create a dynamic tank target")
+	_expect(world.target_actor is StaticObstacle3D, "M23 tank target did not preserve the fixed-target scenario contract")
 	var primary_chassis := VehicleActorRuntime.chassis(world.primary_actor)
-	var target_chassis := VehicleActorRuntime.chassis(world.target_actor)
 	_expect(primary_chassis != null and primary_chassis.physics_material_override != null, "M23 primary vehicle did not receive the configured contact material")
-	_expect(target_chassis != null and target_chassis.physics_material_override != null, "M23 target vehicle did not receive the configured contact material")
+	var tank_fixture := world.target_actor as StaticObstacle3D
+	_expect(tank_fixture != null and tank_fixture.obstacle_type == ScenarioConfig.TARGET_TANK, "M23 tank target was not configured as the generic fixed tank obstacle")
+	_expect(tank_fixture != null and tank_fixture.physics_body is StaticBody3D, "M23 tank target unexpectedly owns a movable rigid body")
+	if tank_fixture != null and tank_fixture.physics_body != null:
+		_expect(tank_fixture.physics_body.physics_material_override != null, "M23 fixed tank target did not receive the configured contact material")
+		if tank_fixture.physics_body.physics_material_override != null:
+			_expect(absf(tank_fixture.physics_body.physics_material_override.friction - config.contact_friction) < 0.000001, "M23 fixed tank target did not retain scenario friction")
+			_expect(absf(tank_fixture.physics_body.physics_material_override.bounce - config.restitution) < 0.000001, "M23 fixed tank target did not retain scenario restitution")
 	var primary_bodies := VehicleActorRuntime.physics_bodies(world.primary_actor)
 	_expect(primary_bodies.size() == 2, "M23 actor runtime did not expose both articulated-truck physics bodies")
 	for body in primary_bodies:
@@ -109,6 +116,32 @@ func _check_two_vehicle_world() -> void:
 	_expect(world.elapsed_s > 0.0, "M23 two-vehicle world did not advance")
 	var primary_model := (world.primary_actor as M21HeavyTruck).model if world.primary_actor is M21HeavyTruck else null
 	_expect(primary_model != null and primary_model.center_of_mass_m().x > -7.8, "M23 shared world did not synchronize the moving truck model")
+	world.stop()
+	world.queue_free()
+	await process_frame
+
+func _check_tank_primary_role() -> void:
+	var config := ScenarioConfig.new()
+	config.apply_primary_vehicle_defaults(ScenarioConfig.TARGET_TANK)
+	config.car_position_m = Vector3(-8.0, 0.0, 0.0)
+	config.car_speed_kmh = 18.0
+	config.apply_target_defaults(ScenarioConfig.TARGET_TRUCK)
+	config.target_position_m = Vector3(6.0, 0.0, 0.0)
+	config.target_speed_kmh = 0.0
+	config.duration_s = 0.6
+	_expect(config.validation_errors().is_empty(), "M23 tank-primary scenario failed preflight")
+	var world := TwoVehicleWorld3D.new()
+	root.add_child(world)
+	_expect(world.configure(config), "M23 two-vehicle world did not configure a movable tank primary")
+	await process_frame
+	_expect(world.primary_actor is DynamicTank3D, "M23 tank primary did not create the movable DynamicTank3D actor")
+	_expect(world.target_actor is M21HeavyTruck, "M23 tank-primary scenario did not create the truck as a movable target")
+	var tank_body := VehicleActorRuntime.chassis(world.primary_actor)
+	_expect(tank_body != null and tank_body is RigidBody3D, "M23 movable tank primary is missing its authoritative rigid body")
+	world.begin()
+	for _frame in range(12):
+		await physics_frame
+	_expect(VehicleActorRuntime.linear_velocity_ms(world.primary_actor).length() > 4.0, "M23 movable tank primary did not begin from its configured speed")
 	world.stop()
 	world.queue_free()
 	await process_frame
