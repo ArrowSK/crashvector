@@ -87,7 +87,10 @@ func configure(
 	last_non_ground_contact_free_linear_velocity_ms = linear_velocity
 	last_non_ground_contact_free_physics_frame = -1
 	recent_non_ground_contact_free_velocity_samples.clear()
-	_record_contact_free_linear_velocity(linear_velocity)
+	# Do not seed the rolling history with the scenario start velocity. The first
+	# actual contact-free integration callback will populate it; until then the
+	# explicit pre-contact fallback above is sufficient. This prevents t=0 from
+	# becoming an artificial energy floor in direct/delayed-contact evaluation.
 	angular_velocity = Vector3.ZERO
 	continuous_cd = true
 	contact_monitor = true
