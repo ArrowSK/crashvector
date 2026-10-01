@@ -5,6 +5,9 @@
 class_name TwoVehicleWorld3D
 extends Node3D
 
+const MAX_CONTACT_FRICTION: float = 1.0
+const MAX_CONTACT_RESTITUTION: float = 0.04
+
 # Production rigid-body world for a movable primary vehicle and either another
 # movable vehicle or a supported fixed fixture. It has no UI, replay, or legacy
 # structural-solver ownership; callers use it as the common physical core for
@@ -29,6 +32,8 @@ func _ready() -> void:
 
 func configure(config: ScenarioConfig) -> bool:
 	if config == null or not ScenarioConfig.is_vehicle_actor_id(config.primary_type) or not supports_target(config.target_type):
+		return false
+	if not contact_setting_errors(config).is_empty():
 		return false
 	scenario = config
 	if build_road:
@@ -73,6 +78,17 @@ static func supports_target(target_type: StringName) -> bool:
 		ScenarioConfig.TARGET_POLE,
 		ScenarioConfig.TARGET_TREE,
 	]
+
+static func contact_setting_errors(config: ScenarioConfig) -> Array[String]:
+	var errors: Array[String] = []
+	if config == null:
+		errors.append("Rigid-body vehicle world requires a scenario")
+		return errors
+	if config.contact_friction < 0.0 or config.contact_friction > MAX_CONTACT_FRICTION:
+		errors.append("Rigid-body contact friction must be between 0 and %.2f" % MAX_CONTACT_FRICTION)
+	if config.restitution < 0.0 or config.restitution > MAX_CONTACT_RESTITUTION:
+		errors.append("Rigid-body restitution must be between 0 and %.2f" % MAX_CONTACT_RESTITUTION)
+	return errors
 
 func begin() -> void:
 	if primary_actor == null or target_actor == null:
@@ -126,8 +142,8 @@ func _configure_material(chassis: VehicleRigidChassis) -> void:
 		return
 	if chassis.physics_material_override == null:
 		chassis.physics_material_override = PhysicsMaterial.new()
-	chassis.physics_material_override.friction = clampf(scenario.contact_friction, 0.0, 1.0)
-	chassis.physics_material_override.bounce = clampf(scenario.restitution, 0.0, 0.04)
+	chassis.physics_material_override.friction = scenario.contact_friction
+	chassis.physics_material_override.bounce = scenario.restitution
 
 func _configure_fixture_material(actor: Node3D) -> void:
 	if not (actor is StaticObstacle3D) or scenario == null:
@@ -137,5 +153,5 @@ func _configure_fixture_material(actor: Node3D) -> void:
 		return
 	if fixture.physics_body.physics_material_override == null:
 		fixture.physics_body.physics_material_override = PhysicsMaterial.new()
-	fixture.physics_body.physics_material_override.friction = clampf(scenario.contact_friction, 0.0, 1.0)
-	fixture.physics_body.physics_material_override.bounce = clampf(scenario.restitution, 0.0, 0.04)
+	fixture.physics_body.physics_material_override.friction = scenario.contact_friction
+	fixture.physics_body.physics_material_override.bounce = scenario.restitution
