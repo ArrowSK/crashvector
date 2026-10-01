@@ -282,6 +282,29 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 			var passenger := world.target_actor as CompactHatchback
 			VehicleActorRuntime.set_preview_pose(passenger, config.target_position_m, 90.0)
 			var rotated_reference := passenger.global_reference_transform()
+			if passenger.wheel_rig != null and not passenger.wheel_rig.anchor_indices.is_empty():
+				passenger.wheel_rig.update_from_model(0.0)
+				var attached_index := 0
+				var anchor_index := passenger.wheel_rig.anchor_indices[attached_index]
+				var anchor_node := passenger.model.nodes[anchor_index]
+				var vehicle_center := passenger.wheel_rig._vehicle_center()
+				var rotated_lateral := rotated_reference.basis.z.normalized()
+				var side_sign := -1.0 if (anchor_node.position_m - vehicle_center).dot(rotated_lateral) < 0.0 else 1.0
+				var expected_attached_position := (
+					anchor_node.position_m
+					+ Vector3.DOWN * passenger.wheel_rig.suspension_drop_m
+					+ rotated_lateral * side_sign * passenger.wheel_rig.side_offset_m
+				)
+				_expect(passenger.wheel_rig.wheel_instances[attached_index].position.distance_to(expected_attached_position) < 0.000001, "Attached passenger wheel offset still uses fixed world Z after vehicle rotation")
+				var saved_velocity := anchor_node.velocity_ms
+				var rotated_forward := rotated_reference.basis.x.normalized()
+				anchor_node.velocity_ms = rotated_forward * 3.0
+				var attached_rotation_before := passenger.wheel_rig.wheel_instances[attached_index].rotation.z
+				passenger.wheel_rig.update_from_model(0.10)
+				var expected_spin_delta := 3.0 / maxf(passenger.wheel_rig.wheel_radius_m, 0.01) * 0.10
+				var actual_spin_delta := absf(passenger.wheel_rig.wheel_instances[attached_index].rotation.z - attached_rotation_before)
+				_expect(absf(actual_spin_delta - expected_spin_delta) < 0.0001, "Attached passenger wheel spin still uses world velocity X instead of vehicle-forward speed")
+				anchor_node.velocity_ms = saved_velocity
 			var release_base_velocity := passenger.global_linear_velocity_ms()
 			var rotated_release_velocity := passenger._front_wheel_release_velocity(1.0)
 			var rotated_kick := rotated_release_velocity - release_base_velocity
