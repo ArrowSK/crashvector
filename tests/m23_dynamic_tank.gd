@@ -542,6 +542,20 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	_expect(config.target_type == original_target, "M23 programmatic target selection bypassed the capability matrix and replaced a supported target with an unsupported pedestrian")
 	var capability_status := editor.get("status_label") as Label
 	_expect(capability_status != null and capability_status.text.contains("not available for this role"), "M23 rejected target selection without explaining the capability boundary")
+	config.target_type = ScenarioConfig.TARGET_PEDESTRIAN
+	editor.call("_m23_sync_capability_controls")
+	_expect(simulate_control != null and simulate_control.disabled, "M23 Simulate control remains enabled for an imported unsupported truck-versus-pedestrian pair")
+	config.target_type = ScenarioConfig.TARGET_PASSENGER_CAR
+	config.primary_type = ScenarioConfig.TARGET_PASSENGER_CAR
+	editor.call("_m23_sync_capability_controls")
+	if target_option != null:
+		for option_index in range(target_option.item_count):
+			if StringName(String(target_option.get_item_metadata(option_index))) == ScenarioConfig.TARGET_PEDESTRIAN:
+				_expect(not target_option.is_item_disabled(option_index), "M23 did not re-enable pedestrian target selection after returning to the supported passenger-primary path")
+				break
+	config.primary_type = ScenarioConfig.TARGET_TRUCK
+	editor.call("_m23_sync_capability_controls")
+	_expect(simulate_control != null and not simulate_control.disabled, "M23 did not re-enable Simulate after restoring a supported truck-versus-car pair")
 	if world != null:
 		_expect(world.primary_actor is M21HeavyTruck, "M23 editor did not create the truck as the primary actor")
 		_expect(world.target_actor is M162CompactHatchback, "M23 editor did not create the passenger car as the target actor")
