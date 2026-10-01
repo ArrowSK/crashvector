@@ -378,21 +378,17 @@ func _m23_sync_capability_controls() -> void:
 			if target_id.is_empty():
 				continue
 			m10_target_option.set_item_disabled(index, not _m23_target_supported_for_primary(target_id))
-	if m10_left_panel != null:
-		# The quick-target buttons are created dynamically and are not scene-owned.
-		# Traverse all descendants, then type-check, rather than relying on
-		# find_children()'s native-class filter to discover runtime Button nodes.
-		for node in m10_left_panel.find_children("*", "", true, false):
-			var button := node as Button
-			if button == null or not button.has_meta("target_id"):
-				continue
-			var target_id := StringName(String(button.get_meta("target_id")))
-			var supported := _m23_target_supported_for_primary(target_id)
-			button.disabled = not supported
-			button.tooltip_text = (
-				"Not available with %s as the primary vehicle in M23."
-				% ScenarioConfig.actor_display_name(scenario.primary_type)
-			) if not supported else ""
+	for target_value in m10_quick_target_buttons.values():
+		var button := target_value as Button
+		if button == null or not button.has_meta("target_id"):
+			continue
+		var target_id := StringName(String(button.get_meta("target_id")))
+		var supported := _m23_target_supported_for_primary(target_id)
+		button.disabled = not supported
+		button.tooltip_text = (
+			"Not available with %s as the primary vehicle in M23."
+			% ScenarioConfig.actor_display_name(scenario.primary_type)
+		) if not supported else ""
 	if m10_simulate_button != null and not simulation_running:
 		m10_simulate_button.disabled = comparison_active or not _m23_target_supported_for_primary(scenario.target_type)
 
@@ -496,15 +492,11 @@ func _m23_sync_physics_controls() -> void:
 		var control_row := control.get_parent()
 		if control_row != null and control_row.get_child_count() > 0 and control_row.get_child(0) is Label:
 			(control_row.get_child(0) as Label).text = String(control_data[1] if role_neutral_rigidbody else control_data[2])
-	var row := m10_substeps.get_parent()
-	var column := row.get_parent() if row != null else null
-	if column != null:
-		var warning := column.get_node_or_null("PhysicsScopeWarning") as Label
-		if warning != null:
-			warning.text = (
-				"RigidBody3D contact uses friction 0–%.2f and restitution 0–%.2f. Solver substeps belong to the structural solver and do not affect this path."
-				% [TwoVehicleWorld3D.MAX_CONTACT_FRICTION, TwoVehicleWorld3D.MAX_CONTACT_RESTITUTION]
-			) if role_neutral_rigidbody else "Advanced contact/solver values change the numerical scenario. Presentation controls do not."
+	if m10_physics_scope_warning != null:
+		m10_physics_scope_warning.text = (
+			"RigidBody3D contact uses friction 0–%.2f and restitution 0–%.2f. Solver substeps belong to the structural solver and do not affect this path."
+			% [TwoVehicleWorld3D.MAX_CONTACT_FRICTION, TwoVehicleWorld3D.MAX_CONTACT_RESTITUTION]
+		) if role_neutral_rigidbody else "Advanced contact/solver values change the numerical scenario. Presentation controls do not."
 
 func _m23_set_primary_spin_ranges() -> void:
 	match scenario.primary_type:
