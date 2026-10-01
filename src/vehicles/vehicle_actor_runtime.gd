@@ -21,6 +21,28 @@ static func chassis(actor: Node) -> VehicleRigidChassis:
 		return (actor as DynamicTank3D).rigid_chassis
 	return null
 
+static func contact_event_count(actor: Node) -> int:
+	# Keep the replay/analysis contact counter role-neutral. VehicleRigidChassis
+	# stores a cumulative count of real non-ground contact samples for the current
+	# run, so this remains monotonic in the same way as the established passenger-
+	# car hybrid_contact_count() contract.
+	if actor is M21HeavyTruck:
+		var truck := actor as M21HeavyTruck
+		var count := 0
+		if truck.rigid_chassis != null:
+			count += truck.rigid_chassis.non_ground_contact_events
+		if truck.tractor_chassis != null:
+			count += truck.tractor_chassis.non_ground_contact_events
+		return count
+	var body := chassis(actor)
+	return body.non_ground_contact_events if body != null else 0
+
+static func contact_manifold_diagnostics(actor: Node) -> Dictionary:
+	if actor is M21HeavyTruck:
+		return (actor as M21HeavyTruck).combined_contact_manifold_diagnostics()
+	var body := chassis(actor)
+	return body.contact_manifold_diagnostics() if body != null else {}
+
 static func set_preview_pose(actor: Node, position_m: Vector3, heading_deg: float) -> void:
 	if actor != null and actor.has_method("set_preview_pose"):
 		actor.call("set_preview_pose", position_m, heading_deg)
