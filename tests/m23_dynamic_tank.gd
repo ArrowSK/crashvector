@@ -50,6 +50,7 @@ func _run() -> void:
 		_expect(not tank.rigid_chassis.freeze, "M23 dynamic tank did not resume its rigid chassis")
 	tank.queue_free()
 	await process_frame
+	await _check_dynamic_tank_road_support()
 	_check_rigidbody_contact_settings()
 	await _check_two_vehicle_world()
 	await _check_tank_primary_role()
@@ -59,6 +60,91 @@ func _run() -> void:
 	_check_role_neutral_analysis()
 	await _check_editor_reciprocal_vehicle_pair()
 	_finish()
+
+func _check_dynamic_tank_road_support() -> void:
+	# The suspension must carry the tank before its rigid track collision boxes
+	# reach the flat road. Otherwise the same road load is resolved once by the
+	# ray springs and again by Godot's rigid contact solver.
+	for supported_mass in [20000.0, 55000.0, 80000.0]:
+		var mass_scale := maxf(supported_mass / 55000.0, 0.35)
+		var stiffness_per_support := DynamicTank3D.TRACK_SUPPORT_STIFFNESS_N_M * mass_scale
+		var static_compression := supported_mass * 9.80665 / (6.0 * stiffness_per_support)
+		var equilibrium_body_y := (
+			DynamicTank3D.TRACK_SUPPORT_REST_DISTANCE_M
+			- static_compression
+			- DynamicTank3D.TRACK_SUPPORT_MOUNT_Y_M
+		)
+		var equilibrium_track_clearance := (
+			equilibrium_body_y
+			+ DynamicTank3D.TRACK_COLLISION_CENTER_Y_M
+			- DynamicTank3D.TRACK_COLLISION_SIZE.y * 0.5
+		)
+		_expect(
+			equilibrium_track_clearance > 0.01,
+			"M23 dynamic tank %.0f kg neutral suspension would settle onto the rigid track/road collision: %.4f m clearance" % [supported_mass, equilibrium_track_clearance]
+		)
+
+	var road := StaticBody3D.new()
+	road.name = "Road"
+	road.position = Vector3(0.0, -0.25, 0.0)
+	var road_material := PhysicsMaterial.new()
+	road_material.friction = 0.90
+	road_material.bounce = 0.0
+	road.physics_material_override = road_material
+	var road_shape := BoxShape3D.new()
+	road_shape.size = Vector3(120.0, 0.5, 20.0)
+	var road_collision := CollisionShape3D.new()
+	road_collision.shape = road_shape
+	road.add_child(road_collision)
+	root.add_child(road)
+
+	var tank := DynamicTank3D.new()
+	tank.total_mass_kg = 55000.0
+	tank.initial_speed_kmh = 36.0
+	tank.origin_offset_m = Vector3(-20.0, 0.0, 0.0)
+	tank.heading_deg = 0.0
+	root.add_child(tank)
+	await process_frame
+	_expect(tank.rigid_chassis != null, "M23 dynamic-tank road-support regression could not build the rigid chassis")
+	if tank.rigid_chassis == null:
+		tank.queue_free()
+		road.queue_free()
+		await process_frame
+		return
+
+	_expect(tank.rigid_chassis.suspension_points.size() == 6, "M23 dynamic tank no longer has six independent track-support rays")
+	tank.begin_simulation()
+	var rigid_ground_contacts := 0
+	var minimum_settled_support_contacts := 6
+	var maximum_roll_deg := 0.0
+	var maximum_pitch_deg := 0.0
+	var maximum_height_excursion_m := 0.0
+	var initial_y := tank.rigid_chassis.global_position.y
+	for frame in range(360):
+		await physics_frame
+		maximum_height_excursion_m = maxf(maximum_height_excursion_m, absf(tank.rigid_chassis.global_position.y - initial_y))
+		maximum_roll_deg = maxf(maximum_roll_deg, absf(rad_to_deg(tank.rigid_chassis.rotation.z)))
+		maximum_pitch_deg = maxf(maximum_pitch_deg, absf(rad_to_deg(tank.rigid_chassis.rotation.x)))
+		if frame >= 60:
+			minimum_settled_support_contacts = mini(minimum_settled_support_contacts, tank.rigid_chassis.active_suspension_contacts)
+		for sample in tank.rigid_chassis.contact_samples:
+			if StringName(sample.get("collider_name", StringName(""))) == &"Road":
+				rigid_ground_contacts += 1
+
+	_expect(rigid_ground_contacts == 0, "M23 dynamic tank rigid tracks still share flat-road support with the suspension rays")
+	_expect(minimum_settled_support_contacts >= 4, "M23 dynamic tank loses too many suspension contacts on a flat road: minimum %d" % minimum_settled_support_contacts)
+	_expect(tank.rigid_chassis.maximum_suspension_compression_m > 0.08, "M23 dynamic tank suspension did not carry measurable road load")
+	_expect(tank.rigid_chassis.maximum_suspension_compression_m < 0.22, "M23 dynamic tank suspension compressed far enough to threaten rigid track/road support")
+	_expect(tank.rigid_chassis.maximum_vertical_speed_ms < 0.50, "M23 dynamic tank flat-road support produced excessive vertical speed: %.3f m/s" % tank.rigid_chassis.maximum_vertical_speed_ms)
+	_expect(maximum_height_excursion_m < 0.08, "M23 dynamic tank flat-road support oscillated excessively in height: %.3f m" % maximum_height_excursion_m)
+	_expect(maximum_roll_deg < 2.0, "M23 dynamic tank developed excessive roll on a flat road: %.2f deg" % maximum_roll_deg)
+	_expect(maximum_pitch_deg < 2.0, "M23 dynamic tank developed excessive pitch on a flat road: %.2f deg" % maximum_pitch_deg)
+	_expect(tank.rigid_chassis.non_ground_contact_events == 0, "M23 dynamic tank generated non-ground contacts while travelling alone on the road")
+
+	tank.end_simulation()
+	tank.queue_free()
+	road.queue_free()
+	await process_frame
 
 func _check_rigidbody_contact_settings() -> void:
 	var config := ScenarioConfig.new()
