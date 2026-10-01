@@ -1133,7 +1133,11 @@ func _build_m10_comparison_cards() -> void:
 		column.add_child(title)
 		var analysis: Dictionary = result.get("analysis", {})
 		var metrics := Label.new()
-		metrics.text = "Δv %.1f km/h  •  %.1f g  •  crush %.0f mm" % [float(analysis.get("final_delta_v_kmh", 0.0)), float(analysis.get("peak_deceleration_g", 0.0)), float(analysis.get("max_front_crush_mm", 0.0))]
+		if scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR:
+			metrics.text = "Δv %.1f km/h  •  %.1f g  •  crush %.0f mm" % [float(analysis.get("final_delta_v_kmh", 0.0)), float(analysis.get("peak_deceleration_g", 0.0)), float(analysis.get("max_front_crush_mm", 0.0))]
+		else:
+			var loading_g := float(analysis.get("peak_deceleration_g", 0.0)) if bool(analysis.get("primary_initial_motion_direction_valid", true)) else float(analysis.get("peak_acceleration_g", 0.0))
+			metrics.text = "Δv %.1f km/h  •  %.1f g  •  deformation %.0f mm" % [float(analysis.get("final_delta_v_kmh", 0.0)), loading_g, float(analysis.get("primary_max_reported_deformation_mm", 0.0))]
 		metrics.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		metrics.add_theme_font_size_override("font_size", 11)
 		metrics.add_theme_color_override("font_color", CrashVectorM10Theme.MUTED)
