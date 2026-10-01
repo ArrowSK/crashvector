@@ -16,6 +16,7 @@ var suspension_compression_m := PackedFloat64Array()
 var released := PackedByteArray()
 var released_positions: Array[Vector3] = []
 var released_velocities: Array[Vector3] = []
+var released_spin_rad_s := PackedFloat64Array()
 var wheel_radius_m := 0.30
 var suspension_drop_m := 0.42
 var side_offset_m := 0.10
@@ -96,25 +97,36 @@ func _build_wheels() -> void:
 		released.append(0)
 		released_positions.append(Vector3.ZERO)
 		released_velocities.append(Vector3.ZERO)
+		released_spin_rad_s.append(0.0)
 
-func release_wheel(index: int, initial_velocity_ms: Vector3) -> void:
+func release_wheel(index: int, initial_velocity_ms: Vector3, rolling_forward_world: Vector3 = Vector3.RIGHT) -> void:
 	if index < 0 or index >= wheel_instances.size() or released[index] != 0:
 		return
 	released[index] = 1
 	released_positions[index] = wheel_instances[index].position
 	released_velocities[index] = initial_velocity_ms
+	var rolling_forward := rolling_forward_world.normalized()
+	if rolling_forward.is_zero_approx():
+		rolling_forward = Vector3.RIGHT
+	released_spin_rad_s[index] = initial_velocity_ms.dot(rolling_forward) / maxf(wheel_radius_m, 0.01)
 
 func reset_releases() -> void:
 	for index in range(released.size()):
 		released[index] = 0
 		released_positions[index] = Vector3.ZERO
 		released_velocities[index] = Vector3.ZERO
+		released_spin_rad_s[index] = 0.0
 
 func replay_visual_state() -> Dictionary:
+	var wheel_rotation_z_rad := PackedFloat64Array()
+	for wheel in wheel_instances:
+		wheel_rotation_z_rad.append(wheel.rotation.z)
 	return {
 		"released": released.duplicate(),
 		"released_positions": released_positions.duplicate(),
 		"released_velocities": released_velocities.duplicate(),
+		"released_spin_rad_s": released_spin_rad_s.duplicate(),
+		"wheel_rotation_z_rad": wheel_rotation_z_rad,
 	}
 
 func apply_replay_visual_state(state: Dictionary) -> void:
@@ -125,6 +137,8 @@ func apply_replay_visual_state(state: Dictionary) -> void:
 	var replay_released_value: Variant = state.get("released", PackedByteArray())
 	var replay_positions_value: Variant = state.get("released_positions", [])
 	var replay_velocities_value: Variant = state.get("released_velocities", [])
+	var replay_spin_value: Variant = state.get("released_spin_rad_s", PackedFloat64Array())
+	var replay_rotation_value: Variant = state.get("wheel_rotation_z_rad", PackedFloat64Array())
 	var replay_released := PackedByteArray()
 	if replay_released_value is PackedByteArray:
 		replay_released = replay_released_value
@@ -134,6 +148,12 @@ func apply_replay_visual_state(state: Dictionary) -> void:
 	var replay_velocities: Array = []
 	if replay_velocities_value is Array:
 		replay_velocities = replay_velocities_value
+	var replay_spin := PackedFloat64Array()
+	if replay_spin_value is PackedFloat64Array:
+		replay_spin = replay_spin_value
+	var replay_rotation := PackedFloat64Array()
+	if replay_rotation_value is PackedFloat64Array:
+		replay_rotation = replay_rotation_value
 	for index in range(released.size()):
 		if index < replay_released.size():
 			released[index] = replay_released[index]
@@ -141,6 +161,12 @@ func apply_replay_visual_state(state: Dictionary) -> void:
 			released_positions[index] = replay_positions[index]
 		if index < replay_velocities.size() and replay_velocities[index] is Vector3:
 			released_velocities[index] = replay_velocities[index]
+		if index < replay_spin.size():
+			released_spin_rad_s[index] = replay_spin[index]
+		if index < replay_rotation.size():
+			wheel_instances[index].rotation.z = replay_rotation[index]
+			rim_instances[index].rotation.z = replay_rotation[index]
+			hub_instances[index].rotation.z = replay_rotation[index]
 	update_from_model(0.0)
 
 func update_from_model(delta_s: float) -> void:
@@ -157,6 +183,11 @@ func update_from_model(delta_s: float) -> void:
 						released_velocities[i].y *= -0.22
 					released_velocities[i].x *= 0.95
 					released_velocities[i].z *= 0.95
+					released_spin_rad_s[i] *= 0.985
+				var spin_delta := released_spin_rad_s[i] * delta_s
+				wheel_instances[i].rotation.z -= spin_delta
+				rim_instances[i].rotation.z -= spin_delta
+				hub_instances[i].rotation.z -= spin_delta
 			wheel_instances[i].position = released_positions[i]
 			rim_instances[i].position = released_positions[i]
 			hub_instances[i].position = released_positions[i]
