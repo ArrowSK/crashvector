@@ -490,16 +490,13 @@ func _normal_collision_energy_j(
 	var subject_velocity := pre_contact_velocity_ms
 	if not is_finite(subject_velocity.x) or not is_finite(subject_velocity.y) or not is_finite(subject_velocity.z):
 		subject_velocity = rigid_chassis.pre_contact_linear_velocity_ms()
-	var collider_velocity := Vector3.ZERO
-	if collider is VehicleRigidChassis:
-		collider_velocity = (collider as VehicleRigidChassis).contact_entry_linear_velocity_ms()
-	elif collider is RigidBody3D:
-		# Generic rigid bodies do not expose CrashVector's one-step history. Their
-		# current solver velocity is the best available local estimate; never
-		# substitute the scenario's t=0 velocity.
-		collider_velocity = (collider as RigidBody3D).linear_velocity
 	var effective_mass := PhysicsMetrics.collision_effective_mass_kg(rigid_chassis.mass, collider)
-	var closing_speed := maxf((subject_velocity - collider_velocity).dot(forward), 0.0)
+	var closing_speed := rigid_chassis.recent_relative_axis_speed_ms(
+		collider,
+		forward,
+		subject_velocity,
+		false
+	)
 	var velocity_energy := 0.5 * effective_mass * closing_speed * closing_speed
 	# Godot can report the first manifold after the solver has already removed a
 	# large part of the closing speed. The real contact impulse is an independent
