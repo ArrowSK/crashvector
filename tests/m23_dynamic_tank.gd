@@ -121,6 +121,18 @@ func _check_two_vehicle_world() -> void:
 	await process_frame
 
 func _check_tank_primary_role() -> void:
+	_expect(not ScenarioConfig.target_is_dynamic_id(ScenarioConfig.TARGET_TANK), "M23 scenario contract no longer identifies tank targets as fixed")
+	var fixed_target_config := ScenarioConfig.new()
+	fixed_target_config.apply_target_defaults(ScenarioConfig.TARGET_TANK)
+	fixed_target_config.target_speed_kmh = 1.0
+	var fixed_target_errors := fixed_target_config.validation_errors()
+	var rejected_moving_target := false
+	for error in fixed_target_errors:
+		if error.contains("tank target is fixed"):
+			rejected_moving_target = true
+			break
+	_expect(rejected_moving_target, "M23 scenario contract accepted a moving tank in the fixed target role")
+
 	var config := ScenarioConfig.new()
 	config.apply_primary_vehicle_defaults(ScenarioConfig.TARGET_TANK)
 	config.car_position_m = Vector3(-8.0, 0.0, 0.0)
