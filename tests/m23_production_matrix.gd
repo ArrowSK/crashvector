@@ -13,6 +13,18 @@ const MATRIX_PRIMARIES = [
 	ScenarioConfig.TARGET_TANK,
 ]
 
+const SUPPORTED_RECIPROCAL_TARGETS = [
+	ScenarioConfig.TARGET_PASSENGER_CAR,
+	ScenarioConfig.TARGET_TRUCK,
+	ScenarioConfig.TARGET_LORRY,
+	ScenarioConfig.TARGET_MOTORCYCLE,
+	ScenarioConfig.TARGET_TANK,
+	ScenarioConfig.TARGET_WALL,
+	ScenarioConfig.TARGET_BARRIER,
+	ScenarioConfig.TARGET_POLE,
+	ScenarioConfig.TARGET_TREE,
+]
+
 const UNSUPPORTED_RECIPROCAL_TARGETS = [
 	ScenarioConfig.TARGET_BICYCLE,
 	ScenarioConfig.TARGET_CYCLIST,
@@ -29,14 +41,16 @@ func _run() -> void:
 	_finish()
 
 func _check_world_capability_matrix() -> void:
-	var supported_targets: Array[StringName] = []
 	for target_type in ScenarioConfig.target_ids():
-		if TwoVehicleWorld3D.supports_target(target_type):
-			supported_targets.append(target_type)
-	_expect(supported_targets.size() == 9, "M23 production matrix no longer exposes the expected nine supported vehicle/fixed-fixture targets")
+		var expected_supported := target_type in SUPPORTED_RECIPROCAL_TARGETS
+		_expect(
+			TwoVehicleWorld3D.supports_target(target_type) == expected_supported,
+			"M23 production capability declaration disagrees with the locked matrix for %s"
+			% ScenarioConfig.target_display_name(target_type)
+		)
 
 	for primary_type in MATRIX_PRIMARIES:
-		for target_type in supported_targets:
+		for target_type in SUPPORTED_RECIPROCAL_TARGETS:
 			var config := _matrix_config(primary_type, target_type)
 			var validation_errors := config.validation_errors()
 			_expect(
