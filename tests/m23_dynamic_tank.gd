@@ -557,8 +557,10 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	var quick_bicycle_disabled := false
 	var quick_wall_enabled := false
 	var quick_target_value: Variant = editor.call("_m23_quick_target_button_nodes")
-	if quick_target_value is Array:
-		for target_value in quick_target_value:
+	_expect(typeof(quick_target_value) == TYPE_ARRAY, "M23 quick-target resolver did not return an array")
+	if typeof(quick_target_value) == TYPE_ARRAY:
+		var resolved_quick_targets: Array = quick_target_value
+		for target_value in resolved_quick_targets:
 			var button := target_value as Button
 			if button == null:
 				continue
