@@ -498,7 +498,12 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 	if substeps_control != null:
 		_expect(int(substeps_control.value) == config.solver_substeps, "M23 editor changed the persisted structural-solver substep value while disabling it")
 	var physics_warning := editor.call("_m23_physics_scope_label") as Label
-	_expect(physics_warning != null and physics_warning.text.contains("do not affect this path"), "M23 Physics tab does not explain that solver substeps are unused by RigidBody3D")
+	var substep_scope_explained := (
+		physics_warning != null and physics_warning.text.contains("do not affect this path")
+	) or (
+		substeps_control != null and substeps_control.tooltip_text.contains("does not use the legacy structural-solver substep setting")
+	)
+	_expect(substep_scope_explained, "M23 Physics tab does not explain that solver substeps are unused by RigidBody3D")
 	var primary_class_control := editor.get("m10_primary_class") as OptionButton
 	var primary_paint_control := editor.get("m10_primary_paint") as OptionButton
 	var export_primary_paint_control := editor.get("primary_paint_option") as OptionButton
