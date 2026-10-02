@@ -1272,8 +1272,10 @@ func _populate_m10_paints(option: OptionButton, selected: StringName) -> void:
 
 func _add_quick_target(parent: Container, label: String, target_id: StringName) -> void:
 	var button := Button.new()
+	button.name = "QuickTarget_%s" % String(target_id)
 	button.text = label
 	button.set_meta("target_id", target_id)
+	button.add_to_group("m10_quick_target")
 	m10_quick_target_buttons[target_id] = button
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.pressed.connect(func() -> void:
