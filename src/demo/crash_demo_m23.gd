@@ -391,9 +391,25 @@ func _m23_sync_capability_controls() -> void:
 
 func _m23_quick_target_button_nodes() -> Array[Button]:
 	var result: Array[Button] = []
-	if m10_left_panel == null:
+	# M10 already retains authoritative references to the dynamically created quick
+	# targets. Prefer those references so M23 capability state does not depend on
+	# scene ownership, release reparenting or recursive discovery semantics.
+	for target_id in m10_quick_target_buttons.keys():
+		var value: Variant = m10_quick_target_buttons[target_id]
+		if value is Button and is_instance_valid(value):
+			var button := value as Button
+			if not button.has_meta("target_id"):
+				button.set_meta("target_id", StringName(target_id))
+			result.append(button)
+	if result.size() >= m10_quick_target_buttons.size() and not result.is_empty():
 		return result
-	_m23_collect_quick_target_buttons(m10_left_panel, result)
+	# Compatibility fallback for older UI instances that predate retained refs.
+	if m10_left_panel != null:
+		var discovered: Array[Button] = []
+		_m23_collect_quick_target_buttons(m10_left_panel, discovered)
+		for button in discovered:
+			if button not in result:
+				result.append(button)
 	return result
 
 func _m23_collect_quick_target_buttons(node: Node, result: Array[Button]) -> void:
