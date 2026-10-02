@@ -391,25 +391,30 @@ func _m23_sync_capability_controls() -> void:
 
 func _m23_quick_target_button_nodes() -> Array[Button]:
 	var result: Array[Button] = []
-	# M10 already retains authoritative references to the dynamically created quick
-	# targets. Prefer those references so M23 capability state does not depend on
-	# scene ownership, release reparenting or recursive discovery semantics.
+	# Runtime groups survive reparenting and do not depend on scene ownership.
+	# Filter to this editor instance in case more than one editor exists in tests.
+	if is_inside_tree():
+		for node in get_tree().get_nodes_in_group("m10_quick_target"):
+			if node is Button and is_instance_valid(node):
+				var grouped_button := node as Button
+				if m10_root == null or m10_root.is_ancestor_of(grouped_button):
+					result.append(grouped_button)
+	if result.size() >= 7:
+		return result
+	# Retained references cover older instances created before the group marker.
 	for target_id in m10_quick_target_buttons.keys():
 		var value: Variant = m10_quick_target_buttons[target_id]
 		if value is Button and is_instance_valid(value):
 			var button := value as Button
 			if not button.has_meta("target_id"):
 				button.set_meta("target_id", StringName(target_id))
-			result.append(button)
-	if result.size() >= m10_quick_target_buttons.size() and not result.is_empty():
-		return result
-	# Compatibility fallback for older UI instances that predate retained refs.
-	if m10_left_panel != null:
-		var discovered: Array[Button] = []
-		_m23_collect_quick_target_buttons(m10_left_panel, discovered)
-		for button in discovered:
 			if button not in result:
 				result.append(button)
+	if not result.is_empty():
+		return result
+	# Last compatibility fallback for older UI instances without retained refs.
+	if m10_left_panel != null:
+		_m23_collect_quick_target_buttons(m10_left_panel, result)
 	return result
 
 func _m23_collect_quick_target_buttons(node: Node, result: Array[Button]) -> void:
