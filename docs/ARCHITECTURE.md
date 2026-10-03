@@ -4,7 +4,7 @@
 
 CrashVector separates structural mechanics, Godot world motion, target-specific deformation, scenario data, replay/analysis, comparison/export, evidence, presentation and desktop distribution.
 
-The current `main` source is implemented through M23. The full current regression stack, runtime presentation review and native package gates have run successfully; the current verified public package is `0.9.0-beta.5`.
+The current `main` source is implemented through M23. The full current regression stack and native package gates have run successfully; the current verified public package is `0.9.0-beta.10`.
 
 The governing production rule since M12 is unchanged: **Godot rigid bodies own whole-object world motion; CrashVector structural graphs own local deformation/presentation state.** Historical reduced-order solvers remain only where explicitly retained for regression continuity and do not secretly replace the current production trajectory.
 
@@ -192,7 +192,7 @@ M21 does not change the saved identifier `heavy_truck`; existing scenarios route
 
 `VehiclePairContact`, `VehiclePairSimulation`, `VehicleStaticSimulation` and `ComparisonRunner` remain for historical regression continuity.
 
-They are not authoritative M12–M22 production world motion. Since M17, current Visual Compare and Comparison Lab run each requested variant through an isolated production scene/`World3D` and consume the resulting real production replay/analysis state.
+They are not authoritative M12–M23 production world motion. Since M17, current Visual Compare and Comparison Lab run each requested variant through an isolated production scene/`World3D` and consume the resulting real production replay/analysis state.
 
 A result produced only by the historical reduced-order runner must not be presented as current production physics.
 
@@ -246,7 +246,7 @@ M8 deliberately separates evidence data from current production model constructi
 
 M19 adds a separate external-reference catalog for contact-fidelity work. The additional NHTSA/IIHS offset/oblique entries are protocol-geometry-only unless source outcome corridors are explicitly available; their geometry must not be mistaken for validation of CrashVector output.
 
-The M8 correlation reference does **not** validate the M12–M22 production architecture, including current rigid-body motion, staged collapse, road-user trajectories, reciprocal impact, side impact, M19 contact diagnostics, M20 heavy/other deformation, M21 articulation or M22 cyclist/moving-pedestrian behaviour.
+The M8 correlation reference does **not** validate the M12–M23 production architecture, including current rigid-body motion, staged collapse, road-user trajectories, reciprocal impact, side impact, M19 contact diagnostics, M20 heavy/other deformation, M21 articulation or M22 cyclist/moving-pedestrian behaviour or the M23 role-neutral vehicle matrix.
 
 ## Desktop interaction and presentation
 
@@ -273,7 +273,7 @@ Packaging is generated from repository sources:
 - optional Developer ID/notarization and Authenticode paths when credentials are configured;
 - checksum sidecars and generated update manifest.
 
-The current public packaged version is `0.9.0-beta.5`, matching the M23 source and updater discovery.
+The current public packaged version is `0.9.0-beta.10`, matching the M23 source and updater discovery.
 
 `.github/workflows/package-release.yml` now requires M21 and M22 production regressions in both publishable validation levels. `validation=none` can build diagnostic artifacts but cannot publish a release.
 
