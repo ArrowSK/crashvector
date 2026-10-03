@@ -391,6 +391,14 @@ func _m23_sync_capability_controls() -> void:
 
 func _m23_quick_target_button_nodes() -> Array[Button]:
 	var result: Array[Button] = []
+	# M10 retains the actual runtime grid. This is the authoritative path and
+	# avoids relying on scene ownership, groups or recursive type discovery.
+	if m10_quick_target_grid != null and is_instance_valid(m10_quick_target_grid):
+		for child in m10_quick_target_grid.get_children():
+			if child is Button:
+				result.append(child as Button)
+	if result.size() >= 7:
+		return result
 	# M10 gives each dynamically-created quick target a stable node name. Resolve
 	# those exact runtime controls first; this is independent of scene ownership,
 	# release reparenting and native-class filtering.
