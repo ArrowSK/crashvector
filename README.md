@@ -348,7 +348,7 @@ Or open `project.godot` directly in Godot and run the project.
 
 The current public installers are **`v0.9.0-beta.10`**. Portable checksum sidecars and `update-manifest.json` are attached to the public release.
 
-For the next release, retain the same order: full regression validation, manual presentation/contact-fidelity review, native package checks, then immutable publication. The current v0.9 beta completed those gates before release.
+For future releases, retain full regression validation and native package checks before immutable publication. Run the manual presentation/contact-fidelity review whenever presentation or evidence-facing behaviour changes; artifact generation alone is not visual acceptance.
 
 ## Licence
 
