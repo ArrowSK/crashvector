@@ -13,6 +13,8 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_check_preflight_scope()
+	_check_collision_effective_mass()
+	await _check_neutral_heavy_vehicle_inertia()
 	await _check_truck_broadside()
 	await _check_lorry_broadside()
 	await _check_motorcycle_broadside()
@@ -34,6 +36,67 @@ func _check_preflight_scope() -> void:
 			bicycle_broadside_blocked = true
 			break
 	_expect(bicycle_broadside_blocked, "M20 must not silently enable the still-unmodelled bicycle broadside path")
+
+func _check_collision_effective_mass() -> void:
+	var fixture := StaticBody3D.new()
+	var subject_mass := 12000.0
+	var fixture_effective_mass := PhysicsMetrics.collision_effective_mass_kg(subject_mass, fixture)
+	_expect(absf(fixture_effective_mass - subject_mass) < 0.000001, "Static fixture collision effective mass must equal the moving vehicle mass, not half of it")
+
+	var peer := RigidBody3D.new()
+	peer.mass = subject_mass
+	var peer_effective_mass := PhysicsMetrics.collision_effective_mass_kg(subject_mass, peer)
+	_expect(absf(peer_effective_mass - subject_mass * 0.5) < 0.000001, "Equal-mass dynamic collision must retain the reduced-mass result")
+
+	var lighter_peer := RigidBody3D.new()
+	lighter_peer.mass = 1000.0
+	var expected_reduced_mass := subject_mass * lighter_peer.mass / (subject_mass + lighter_peer.mass)
+	_expect(absf(PhysicsMetrics.collision_effective_mass_kg(subject_mass, lighter_peer) - expected_reduced_mass) < 0.000001, "Unequal dynamic collision effective mass changed unexpectedly")
+
+	fixture.free()
+	peer.free()
+	lighter_peer.free()
+
+func _check_neutral_heavy_vehicle_inertia() -> void:
+	var truck := M20HeavyTruck.new()
+	truck.name = "NeutralInertiaTruck"
+	truck.auto_step = false
+	root.add_child(truck)
+	var lorry := M20RigidLorry.new()
+	lorry.name = "NeutralInertiaLorry"
+	lorry.auto_step = false
+	root.add_child(lorry)
+	for _frame in range(3):
+		await process_frame
+
+	_expect(truck.rigid_chassis != null, "M20 heavy truck is missing its rigid chassis for inertia regression")
+	if truck.rigid_chassis != null:
+		_expect(truck.rigid_chassis.configured_mass_distribution_size_m.distance_to(HeavyTruck.NEUTRAL_MASS_DISTRIBUTION_SIZE) < 0.000001, "M20 heavy truck did not use its neutral mass envelope")
+		_expect(truck.rigid_chassis.configured_center_of_mass_local_m.distance_to(HeavyTruck.NEUTRAL_CENTER_OF_MASS_LOCAL) < 0.000001, "M20 heavy truck did not use its neutral centre of mass")
+		var truck_inertia := truck.rigid_chassis.inertia
+		truck.hybrid_rear_crush_m = 0.55
+		truck.hybrid_front_crush_m = 0.42
+		truck.hybrid_side_negative_z_crush_m = 0.30
+		truck.hybrid_side_positive_z_crush_m = 0.18
+		truck.call("_m17_update_collision_shapes")
+		truck.call("_m20_update_side_collision_shapes")
+		_expect(truck.rigid_chassis.inertia.distance_to(truck_inertia) < 0.000001, "M20 heavy-truck inertia changed when deformable collision shells were resized")
+
+	_expect(lorry.rigid_chassis != null, "M20 rigid lorry is missing its rigid chassis for inertia regression")
+	if lorry.rigid_chassis != null:
+		_expect(lorry.rigid_chassis.configured_mass_distribution_size_m.distance_to(M17RigidLorry.NEUTRAL_MASS_DISTRIBUTION_SIZE) < 0.000001, "M20 rigid lorry did not use its neutral mass envelope")
+		_expect(lorry.rigid_chassis.configured_center_of_mass_local_m.distance_to(M17RigidLorry.NEUTRAL_CENTER_OF_MASS_LOCAL) < 0.000001, "M20 rigid lorry did not use its neutral centre of mass")
+		var lorry_inertia := lorry.rigid_chassis.inertia
+		lorry.hybrid_rear_crush_m = 0.44
+		lorry.hybrid_front_crush_m = 0.36
+		lorry.hybrid_side_negative_z_crush_m = 0.24
+		lorry.hybrid_side_positive_z_crush_m = 0.16
+		lorry.call("_update_m20_collision_shapes")
+		_expect(lorry.rigid_chassis.inertia.distance_to(lorry_inertia) < 0.000001, "M20 rigid-lorry inertia changed when deformable collision shells were resized")
+
+	truck.queue_free()
+	lorry.queue_free()
+	await process_frame
 
 func _check_truck_broadside() -> void:
 	var result := await _run_case(_broadside_config(ScenarioConfig.TARGET_TRUCK))

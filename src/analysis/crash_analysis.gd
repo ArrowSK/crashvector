@@ -6,6 +6,13 @@ class_name CrashAnalysis
 extends RefCounted
 
 const STANDARD_GRAVITY_MS2: float = 9.80665
+const DEFORMATION_KEYS: Array[String] = [
+	"front_crush_m",
+	"rear_crush_m",
+	"rear_guard_m",
+	"side_crush_m",
+	"safety_cell_m",
+]
 
 static func analyze(recording: ReplayRecording) -> Dictionary:
 	if recording == null or recording.frames.size() < 2:
@@ -17,17 +24,25 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 	var initial_velocity: Vector3 = first_primary.get("linear_velocity_ms", Vector3.ZERO)
 	var final_velocity: Vector3 = last_primary.get("linear_velocity_ms", Vector3.ZERO)
 	var initial_direction := initial_velocity.normalized()
-	if initial_direction.is_zero_approx():
-		initial_direction = Vector3.RIGHT
+	var has_initial_motion_direction := not initial_direction.is_zero_approx()
 
 	var crash_pulse: Array[Vector2] = []
+	var acceleration_magnitude: Array[Vector2] = []
 	var front_crush: Array[Vector2] = []
 	var safety_cell: Array[Vector2] = []
+	var primary_deformation: Array[Vector2] = []
+	var target_deformation: Array[Vector2] = []
 	var peak_deceleration_g: float = 0.0
+	var peak_acceleration_g: float = 0.0
 	var peak_deceleration_time_s: float = 0.0
+	var peak_acceleration_time_s: float = 0.0
 	var max_delta_v_ms: float = 0.0
 	var max_front_crush_m: float = 0.0
 	var max_safety_cell_m: float = 0.0
+	var max_primary_deformation_m: float = 0.0
+	var max_target_deformation_m: float = 0.0
+	var primary_deformation_components_m: Dictionary = {}
+	var target_deformation_components_m: Dictionary = {}
 	var max_broken_beams: int = 0
 	var first_contact_time_s: float = -1.0
 	var first_failure_time_s: float = -1.0
@@ -50,9 +65,15 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 		max_safety_cell_m = maxf(max_safety_cell_m, safety_m)
 		front_crush.append(Vector2(time_s, front_m * 1000.0))
 		safety_cell.append(Vector2(time_s, safety_m * 1000.0))
+		var primary_deformation_m := _maximum_reported_deformation_m(primary, primary_deformation_components_m)
+		max_primary_deformation_m = maxf(max_primary_deformation_m, primary_deformation_m)
+		primary_deformation.append(Vector2(time_s, primary_deformation_m * 1000.0))
 
 		var broken_count := int(primary.get("broken_beams", 0))
 		var target := _metrics(frame, "target_metrics")
+		var target_deformation_m := _maximum_reported_deformation_m(target, target_deformation_components_m)
+		max_target_deformation_m = maxf(max_target_deformation_m, target_deformation_m)
+		target_deformation.append(Vector2(time_s, target_deformation_m * 1000.0))
 		broken_count += int(target.get("broken_beams", 0))
 		max_broken_beams = maxi(max_broken_beams, broken_count)
 		if broken_count > 0 and first_failure_time_s < 0.0:
@@ -76,8 +97,15 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 			var dt := time_s - previous_time_s
 			if dt > 0.000001:
 				var acceleration := (velocity - previous_velocity) / dt
-				var longitudinal_deceleration_g := maxf(-acceleration.dot(initial_direction) / STANDARD_GRAVITY_MS2, 0.0)
+				var acceleration_g := acceleration.length() / STANDARD_GRAVITY_MS2
+				acceleration_magnitude.append(Vector2(time_s, acceleration_g))
+				var longitudinal_deceleration_g := 0.0
+				if has_initial_motion_direction:
+					longitudinal_deceleration_g = maxf(-acceleration.dot(initial_direction) / STANDARD_GRAVITY_MS2, 0.0)
 				crash_pulse.append(Vector2(time_s, longitudinal_deceleration_g))
+				if first_contact_time_s >= 0.0 and acceleration_g > peak_acceleration_g:
+					peak_acceleration_g = acceleration_g
+					peak_acceleration_time_s = time_s
 				if first_contact_time_s >= 0.0 and longitudinal_deceleration_g > peak_deceleration_g:
 					peak_deceleration_g = longitudinal_deceleration_g
 					peak_deceleration_time_s = time_s
@@ -93,6 +121,8 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 		markers.append(_marker(&"first_contact", "First contact", first_contact_time_s))
 	if peak_deceleration_g > 0.0:
 		markers.append(_marker(&"peak_loading", "Peak loading", peak_deceleration_time_s))
+	elif peak_acceleration_g > 0.0:
+		markers.append(_marker(&"peak_loading", "Peak loading", peak_acceleration_time_s))
 	if first_failure_time_s >= 0.0:
 		markers.append(_marker(&"structural_failure", "Structural failure", first_failure_time_s))
 	if last_contact_increment_time_s >= 0.0 and last_contact_increment_time_s < recording.duration_s - recording.sample_interval_s:
@@ -110,14 +140,26 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 		"max_delta_v_kmh": PhysicsMetrics.ms_to_kmh(max_delta_v_ms),
 		"peak_deceleration_g": peak_deceleration_g,
 		"peak_deceleration_time_s": peak_deceleration_time_s,
+		"peak_acceleration_g": peak_acceleration_g,
+		"peak_acceleration_time_s": peak_acceleration_time_s,
+		"primary_initial_motion_direction_valid": has_initial_motion_direction,
 		"max_front_crush_mm": max_front_crush_m * 1000.0,
 		"max_safety_cell_deformation_mm": max_safety_cell_m * 1000.0,
+		"max_reported_deformation_mm": max_primary_deformation_m * 1000.0,
+		"primary_max_reported_deformation_mm": max_primary_deformation_m * 1000.0,
+		"target_max_reported_deformation_mm": max_target_deformation_m * 1000.0,
+		"primary_deformation_components_mm": _components_to_mm(primary_deformation_components_m),
+		"target_deformation_components_mm": _components_to_mm(target_deformation_components_m),
 		"max_broken_beams": max_broken_beams,
 		"initial_kinetic_energy_kj": float(first_primary.get("kinetic_energy_j", 0.0)) / 1000.0,
 		"final_kinetic_energy_kj": float(last_primary.get("kinetic_energy_j", 0.0)) / 1000.0,
 		"crash_pulse_series": crash_pulse,
+		"acceleration_magnitude_series": acceleration_magnitude,
 		"front_crush_series": front_crush,
 		"safety_cell_series": safety_cell,
+		"reported_deformation_series": primary_deformation,
+		"primary_deformation_series": primary_deformation,
+		"target_deformation_series": target_deformation,
 		"event_markers": markers,
 		# M19 contact-manifold summaries are observational metadata from Godot's
 		# reported rigid-body contacts. They are not solver inputs or evidence
@@ -132,6 +174,22 @@ static func analyze(recording: ReplayRecording) -> Dictionary:
 		var target_final_velocity: Vector3 = last_target.get("linear_velocity_ms", Vector3.ZERO)
 		report["target_final_delta_v_kmh"] = PhysicsMetrics.ms_to_kmh((target_final_velocity - target_initial_velocity).length())
 	return report
+
+static func _maximum_reported_deformation_m(metrics: Dictionary, component_maxima_m: Dictionary) -> float:
+	var maximum := 0.0
+	for key in DEFORMATION_KEYS:
+		if not metrics.has(key):
+			continue
+		var value := maxf(float(metrics.get(key, 0.0)), 0.0)
+		maximum = maxf(maximum, value)
+		component_maxima_m[key] = maxf(float(component_maxima_m.get(key, 0.0)), value)
+	return maximum
+
+static func _components_to_mm(components_m: Dictionary) -> Dictionary:
+	var result: Dictionary = {}
+	for key in components_m.keys():
+		result[key] = float(components_m[key]) * 1000.0
+	return result
 
 static func _metrics(frame: Dictionary, key: String) -> Dictionary:
 	var value: Variant = frame.get(key, {})
@@ -168,7 +226,12 @@ static func _merge_contact_manifold_summary(summary: Dictionary, value: Variant)
 		maxf(maximum_span.x, 0.0) * maxf(maximum_span.z, 0.0)
 	)
 	var peak_impulse := float(diagnostics.get("peak_total_impulse_ns", 0.0))
-	if peak_impulse > float(summary.get("peak_total_impulse_ns", 0.0)):
+	var existing_peak_value: Variant = summary.get("peak", {})
+	var has_existing_peak := existing_peak_value is Dictionary and not (existing_peak_value as Dictionary).is_empty()
+	# A retained manifold is evidence of real contact even if Godot reports zero
+	# raw solver impulse for that later integration step. Prefer the strongest
+	# raw impulse when available, otherwise preserve the first observed manifold.
+	if not has_existing_peak or peak_impulse > float(summary.get("peak_total_impulse_ns", 0.0)):
 		summary["peak_total_impulse_ns"] = peak_impulse
 		var peak_value: Variant = diagnostics.get("peak", {})
 		if peak_value is Dictionary:

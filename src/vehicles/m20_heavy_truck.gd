@@ -60,17 +60,15 @@ func _m20_consume_contacts() -> void:
 		var collider_local := contact_local
 		var has_collider_center := false
 		var other_velocity := Vector3.ZERO
-		var other_mass := rigid_chassis.mass
 		if collider is Node3D:
 			collider_local = rigid_chassis.to_local((collider as Node3D).global_position)
 			has_collider_center = true
 		if collider is RigidBody3D:
 			var other := collider as RigidBody3D
 			other_velocity = other.linear_velocity
-			other_mass = maxf(other.mass, 1.0)
 
 		var relative_velocity := other_velocity - rigid_chassis.linear_velocity
-		var reduced_mass := rigid_chassis.mass * other_mass / maxf(rigid_chassis.mass + other_mass, 1.0)
+		var reduced_mass := PhysicsMetrics.collision_effective_mass_kg(rigid_chassis.mass, collider)
 		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
 		var longitudinal_speed := absf(relative_velocity.dot(forward))
 		var lateral_speed := absf(relative_velocity.dot(lateral))

@@ -5,8 +5,9 @@
 class_name ScenarioConfig
 extends RefCounted
 
-const FORMAT_VERSION: int = 1
+const FORMAT_VERSION: int = 2
 const MAX_SOLVER_SUBSTEPS: int = 64
+const MINIMUM_VEHICLE_START_CLEARANCE_M: float = 0.05
 const TARGET_PASSENGER_CAR: StringName = &"passenger_car"
 const TARGET_TRUCK: StringName = &"heavy_truck"
 const TARGET_LORRY: StringName = &"rigid_lorry"
@@ -21,6 +22,10 @@ const TARGET_TREE: StringName = &"tree"
 const TARGET_TANK: StringName = &"tank"
 
 var title: String = "Car vs Truck"
+# Version 2 makes the primary actor explicit. The existing `car_*` fields stay
+# as the persisted passenger-car payload during the migration so version-1
+# scenarios remain readable and current production paths remain compatible.
+var primary_type: StringName = TARGET_PASSENGER_CAR
 var target_type: StringName = TARGET_TRUCK
 var car_preset_id: StringName = PassengerCarCatalog.B_SEGMENT_HATCHBACK
 var car_mass_kg: float = 1150.0
@@ -55,6 +60,23 @@ static func target_ids() -> Array[StringName]:
 		TARGET_TANK,
 	]
 
+static func vehicle_actor_ids() -> Array[StringName]:
+	return [
+		TARGET_PASSENGER_CAR,
+		TARGET_TRUCK,
+		TARGET_LORRY,
+		TARGET_MOTORCYCLE,
+		TARGET_TANK,
+	]
+
+static func actor_display_name(id: StringName) -> String:
+	if id == TARGET_TANK:
+		return "Tank (generic tracked vehicle)"
+	return target_display_name(id)
+
+static func is_vehicle_actor_id(id: StringName) -> bool:
+	return id in vehicle_actor_ids()
+
 static func target_display_name(id: StringName) -> String:
 	match id:
 		TARGET_PASSENGER_CAR:
@@ -80,7 +102,7 @@ static func target_display_name(id: StringName) -> String:
 		TARGET_TREE:
 			return "Tree"
 		TARGET_TANK:
-			return "Tank (generic tracked vehicle)"
+			return "Tank (fixed generic tracked vehicle)"
 		_:
 			return "Unknown target"
 
@@ -100,6 +122,7 @@ func target_is_dynamic() -> bool:
 
 func reset_defaults() -> void:
 	title = "Car vs Truck"
+	primary_type = TARGET_PASSENGER_CAR
 	car_preset_id = PassengerCarCatalog.B_SEGMENT_HATCHBACK
 	car_mass_kg = PassengerCarCatalog.default_mass_kg(car_preset_id)
 	car_speed_kmh = 50.0
@@ -149,11 +172,104 @@ func apply_target_defaults(id: StringName) -> void:
 			target_preset_id = &""
 			target_mass_kg = 0.0
 
+func apply_primary_vehicle_defaults(id: StringName) -> void:
+	primary_type = id
+	car_speed_kmh = 50.0
+	match id:
+		TARGET_PASSENGER_CAR:
+			car_preset_id = PassengerCarCatalog.B_SEGMENT_HATCHBACK
+			car_mass_kg = PassengerCarCatalog.default_mass_kg(car_preset_id)
+		TARGET_TRUCK:
+			car_mass_kg = 18000.0
+		TARGET_LORRY:
+			car_mass_kg = 12000.0
+		TARGET_MOTORCYCLE:
+			car_mass_kg = 220.0
+		TARGET_TANK:
+			car_mass_kg = 55000.0
+		_:
+			car_mass_kg = 0.0
+
 func car_forward() -> Vector3:
 	return Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(car_heading_deg)).normalized()
 
 func target_forward() -> Vector3:
 	return Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(target_heading_deg)).normalized()
+
+static func _vehicle_start_envelope(actor_type: StringName, passenger_preset_id: StringName) -> Dictionary:
+	# Local X/Z envelopes follow the production collision/presentation geometry
+	# used by the role-neutral vehicle actors. Passenger cars use the published
+	# representative body footprint so preflight is conservative at the visible
+	# body; the other actor values are the unions of their neutral collision
+	# shapes before any impact deformation is applied.
+	match actor_type:
+		TARGET_PASSENGER_CAR:
+			var preset := PassengerCarCatalog.data(passenger_preset_id)
+			return {
+				"center_offset_x_m": 0.0,
+				"half_length_m": float(preset.get("representative_length_m", 4.07)) * 0.5,
+				"half_width_m": float(preset.get("representative_width_m", 1.72)) * 0.5,
+			}
+		TARGET_TRUCK:
+			# M21 trailer/underride through articulated tractor: X -0.10..9.525 m.
+			return {"center_offset_x_m": 4.7125, "half_length_m": 4.8125, "half_width_m": 1.21}
+		TARGET_LORRY:
+			# M20 rigid lorry rear guard through cab: X -0.09..7.375 m.
+			return {"center_offset_x_m": 3.6425, "half_length_m": 3.7325, "half_width_m": 1.13}
+		TARGET_MOTORCYCLE:
+			# Frame plus front/rear wheel collision spheres: X -0.31..2.26 m.
+			return {"center_offset_x_m": 0.975, "half_length_m": 1.285, "half_width_m": 0.31}
+		TARGET_TANK:
+			# Dynamic tracked vehicle lower hull and tracks.
+			return {"center_offset_x_m": 0.0, "half_length_m": 3.40, "half_width_m": 1.75}
+	return {}
+
+static func _vehicle_start_envelopes_overlap(
+	primary_actor_type: StringName,
+	primary_passenger_preset_id: StringName,
+	primary_position_m: Vector3,
+	primary_heading_deg: float,
+	target_actor_type: StringName,
+	target_passenger_preset_id: StringName,
+	target_position_value_m: Vector3,
+	target_heading_value_deg: float
+) -> bool:
+	var primary := _vehicle_start_envelope(primary_actor_type, primary_passenger_preset_id)
+	var target := _vehicle_start_envelope(target_actor_type, target_passenger_preset_id)
+	if primary.is_empty() or target.is_empty():
+		return false
+
+	var primary_forward_3d := Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(primary_heading_deg)).normalized()
+	var target_forward_3d := Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(target_heading_value_deg)).normalized()
+	var primary_forward := Vector2(primary_forward_3d.x, primary_forward_3d.z).normalized()
+	var target_forward_axis := Vector2(target_forward_3d.x, target_forward_3d.z).normalized()
+	var primary_lateral := Vector2(-primary_forward.y, primary_forward.x)
+	var target_lateral := Vector2(-target_forward_axis.y, target_forward_axis.x)
+
+	var primary_center := Vector2(primary_position_m.x, primary_position_m.z)
+	primary_center += primary_forward * float(primary.get("center_offset_x_m", 0.0))
+	var target_center := Vector2(target_position_value_m.x, target_position_value_m.z)
+	target_center += target_forward_axis * float(target.get("center_offset_x_m", 0.0))
+	var center_delta := target_center - primary_center
+
+	var primary_half_length := float(primary.get("half_length_m", 0.0))
+	var primary_half_width := float(primary.get("half_width_m", 0.0))
+	var target_half_length := float(target.get("half_length_m", 0.0))
+	var target_half_width := float(target.get("half_width_m", 0.0))
+	var axes: Array[Vector2] = [primary_forward, primary_lateral, target_forward_axis, target_lateral]
+	for axis_value in axes:
+		var axis := axis_value.normalized()
+		var primary_radius := (
+			primary_half_length * absf(primary_forward.dot(axis))
+			+ primary_half_width * absf(primary_lateral.dot(axis))
+		)
+		var target_radius := (
+			target_half_length * absf(target_forward_axis.dot(axis))
+			+ target_half_width * absf(target_lateral.dot(axis))
+		)
+		if absf(center_delta.dot(axis)) >= primary_radius + target_radius + MINIMUM_VEHICLE_START_CLEARANCE_M:
+			return false
+	return true
 
 func heading_delta_deg() -> float:
 	return absf(wrapf(car_heading_deg - target_heading_deg, -180.0, 180.0))
@@ -166,14 +282,37 @@ func target_car_uses_front_contact() -> bool:
 
 func validation_errors() -> Array[String]:
 	var errors: Array[String] = []
-	if not PassengerCarCatalog.preset_ids().has(car_preset_id):
-		errors.append("Unknown primary passenger-car class")
+	if not is_vehicle_actor_id(primary_type):
+		errors.append("Primary actor must be a supported vehicle")
+	if primary_type == TARGET_PASSENGER_CAR:
+		if not PassengerCarCatalog.preset_ids().has(car_preset_id):
+			errors.append("Unknown primary passenger-car class")
+		if car_mass_kg < 500.0 or car_mass_kg > 5000.0:
+			errors.append("Primary passenger-car mass must be between 500 and 5,000 kg")
+		if car_speed_kmh < 0.0 or car_speed_kmh > 300.0:
+			errors.append("Primary passenger-car speed must be between 0 and 300 km/h")
+	elif primary_type == TARGET_TRUCK:
+		if car_mass_kg < 3500.0 or car_mass_kg > 60000.0:
+			errors.append("Primary heavy-truck mass must be between 3,500 and 60,000 kg")
+		if car_speed_kmh < 0.0 or car_speed_kmh > 140.0:
+			errors.append("Primary heavy-truck speed must be between 0 and 140 km/h")
+	elif primary_type == TARGET_LORRY:
+		if car_mass_kg < 3500.0 or car_mass_kg > 26000.0:
+			errors.append("Primary rigid-lorry mass must be between 3,500 and 26,000 kg")
+		if car_speed_kmh < 0.0 or car_speed_kmh > 140.0:
+			errors.append("Primary rigid-lorry speed must be between 0 and 140 km/h")
+	elif primary_type == TARGET_MOTORCYCLE:
+		if car_mass_kg < 80.0 or car_mass_kg > 600.0:
+			errors.append("Primary motorcycle mass must be between 80 and 600 kg")
+		if car_speed_kmh < 0.0 or car_speed_kmh > 250.0:
+			errors.append("Primary motorcycle speed must be between 0 and 250 km/h")
+	elif primary_type == TARGET_TANK:
+		if car_mass_kg < 20000.0 or car_mass_kg > 80000.0:
+			errors.append("Primary generic-tank mass must be between 20,000 and 80,000 kg")
+		if car_speed_kmh < 0.0 or car_speed_kmh > 80.0:
+			errors.append("Primary generic-tank speed must be between 0 and 80 km/h")
 	if not target_ids().has(target_type):
 		errors.append("Unknown target type")
-	if car_mass_kg < 500.0 or car_mass_kg > 5000.0:
-		errors.append("Primary passenger-car mass must be between 500 and 5,000 kg")
-	if car_speed_kmh < 0.0 or car_speed_kmh > 300.0:
-		errors.append("Primary passenger-car speed must be between 0 and 300 km/h")
 	if target_type == TARGET_PASSENGER_CAR:
 		if not PassengerCarCatalog.preset_ids().has(target_car_preset_id):
 			errors.append("Unknown target passenger-car class")
@@ -235,14 +374,32 @@ func validation_errors() -> Array[String]:
 		errors.append("Simulation duration must be between 0.5 and 20 seconds")
 	if solver_substeps < 1 or solver_substeps > MAX_SOLVER_SUBSTEPS:
 		errors.append("Solver substeps must be between 1 and %d" % MAX_SOLVER_SUBSTEPS)
-	if not _finite_vector(car_position_m) or not _finite_vector(target_position_m):
+	var positions_finite := _finite_vector(car_position_m) and _finite_vector(target_position_m)
+	if not positions_finite:
 		errors.append("Object positions must contain finite numbers")
+	var vehicle_envelopes_overlap := false
+	if positions_finite and is_vehicle_actor_id(primary_type) and is_vehicle_actor_id(target_type):
+		vehicle_envelopes_overlap = _vehicle_start_envelopes_overlap(
+			primary_type,
+			car_preset_id,
+			car_position_m,
+			car_heading_deg,
+			target_type,
+			target_car_preset_id,
+			target_position_m,
+			target_heading_deg
+		)
+		if vehicle_envelopes_overlap:
+			errors.append(
+				"Vehicle start envelopes overlap at the configured poses; move or rotate the actors to leave at least %.2f m clearance"
+				% MINIMUM_VEHICLE_START_CLEARANCE_M
+			)
 	if target_is_dynamic():
-		if car_position_m.distance_to(target_position_m) < 2.0:
+		if not vehicle_envelopes_overlap and car_position_m.distance_to(target_position_m) < 2.0:
 			errors.append("Dynamic actors must start at least 2 m apart")
 	else:
 		var forward_separation := (target_position_m - car_position_m).dot(car_forward())
-		if forward_separation < 2.0:
+		if not vehicle_envelopes_overlap and forward_separation < 2.0:
 			errors.append("Static target must begin at least 2 m ahead of the primary passenger car")
 	return errors
 
@@ -250,9 +407,10 @@ func to_dictionary() -> Dictionary:
 	return {
 		"format_version": FORMAT_VERSION,
 		"title": title,
-		"scenario_type": "single_car_impact",
+		"scenario_type": "two_actor_impact",
 		"target_type": String(target_type),
 		"car": {
+			"actor_type": String(primary_type),
 			"class_id": String(car_preset_id),
 			"mass_kg": car_mass_kg,
 			"speed_kmh": car_speed_kmh,
@@ -286,6 +444,7 @@ static func from_dictionary(data: Dictionary) -> ScenarioConfig:
 	config.title = String(data.get("title", config.title))
 	config.target_type = StringName(String(data.get("target_type", String(config.target_type))))
 	var car_data: Dictionary = data.get("car", {})
+	config.primary_type = StringName(String(car_data.get("actor_type", String(TARGET_PASSENGER_CAR))))
 	config.car_preset_id = StringName(String(car_data.get("class_id", String(config.car_preset_id))))
 	config.car_mass_kg = float(car_data.get("mass_kg", config.car_mass_kg))
 	config.car_speed_kmh = float(car_data.get("speed_kmh", config.car_speed_kmh))

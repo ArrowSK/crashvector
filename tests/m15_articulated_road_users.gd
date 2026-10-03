@@ -7,6 +7,8 @@ extends SceneTree
 const ROAD_USER_LAYER: int = 2
 const ROAD_USER_GROUND_LAYER: int = 4
 const MAX_TARGET_SPEED_MS: float = 22.0
+const MAX_PEDESTRIAN_HEIGHT_RISE_M: float = 1.50
+const MAX_PREIMPACT_VERTICAL_DRIFT_M: float = 0.10
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -24,10 +26,11 @@ func _run() -> void:
 	quit(1)
 
 func _test_pedestrian_articulation(failures: Array[String]) -> void:
-	var result := await _run_case(ScenarioConfig.TARGET_PEDESTRIAN, RoadUserCatalog.PEDESTRIAN_ADULT, 75.0, 60.0)
-	print("M15 pedestrian: impact=%s bodies=%d joints=%d speed=%.2f m/s travel=%.2f m joint_motion=%.1f deg car_y=%.3f m rebound=%.3f m/s" % [
+	var result := await _run_case(ScenarioConfig.TARGET_PEDESTRIAN, RoadUserCatalog.PEDESTRIAN_ADULT, 75.0, 50.0)
+	print("M15 pedestrian: impact=%s bodies=%d joints=%d speed=%.2f m/s travel=%.2f m joint_motion=%.1f deg preimpact_drift=%.3f m height_rise=%.3f m car_y=%.3f m rebound=%.3f m/s" % [
 		str(result.get("impact", false)), int(result.get("bodies", 0)), int(result.get("joints", 0)),
 		float(result.get("speed_ms", 0.0)), float(result.get("travel_m", 0.0)), float(result.get("articulation_deg", 0.0)),
+		float(result.get("preimpact_vertical_drift_m", 0.0)), float(result.get("height_rise_m", 0.0)),
 		float(result.get("car_y_rise_m", 0.0)), float(result.get("car_rebound_ms", 0.0)),
 	])
 	if not bool(result.get("impact", false)):
@@ -40,6 +43,10 @@ func _test_pedestrian_articulation(failures: Array[String]) -> void:
 		failures.append("M15 pedestrian did not acquire a material post-impact trajectory")
 	if float(result.get("speed_ms", 0.0)) > MAX_TARGET_SPEED_MS:
 		failures.append("M15 pedestrian solver created non-physical target energy")
+	if float(result.get("preimpact_vertical_drift_m", 0.0)) > MAX_PREIMPACT_VERTICAL_DRIFT_M:
+		failures.append("M15 pedestrian lacks a stable supported stance before contact: %.3f m" % float(result.get("preimpact_vertical_drift_m", 0.0)))
+	if float(result.get("height_rise_m", 0.0)) > MAX_PEDESTRIAN_HEIGHT_RISE_M:
+		failures.append("M15 pedestrian gains an implausible airborne trajectory after a 50 km/h impact: %.3f m" % float(result.get("height_rise_m", 0.0)))
 	if float(result.get("articulation_deg", 0.0)) < 6.0:
 		failures.append("M15 pedestrian still moves effectively as one rigid mannequin")
 	if float(result.get("articulation_deg", 0.0)) > 155.0:
@@ -48,6 +55,8 @@ func _test_pedestrian_articulation(failures: Array[String]) -> void:
 		failures.append("M15 pedestrian articulation destabilizes passenger-car vertical motion")
 	if float(result.get("car_rebound_ms", 0.0)) > 1.5:
 		failures.append("M15 pedestrian articulation launches the passenger car backwards")
+	if not bool(result.get("post_contact_gravity_released", false)):
+		failures.append("M15 pedestrian remains in its pre-impact standing state after vehicle contact")
 
 func _test_bicycle_articulation(failures: Array[String]) -> void:
 	var result := await _run_case(ScenarioConfig.TARGET_BICYCLE, RoadUserCatalog.BICYCLE_CITY, 16.0, 60.0)
@@ -88,7 +97,9 @@ func _run_case(target_type: StringName, preset_id: StringName, target_mass: floa
 	car.show_structure = false
 	car.auto_step = true
 	root.add_child(car)
-	var target := RoadUserArticulatedProxy3D.new()
+	# Exercise the exact stable articulated proxy wired into the production scene,
+	# rather than the lower-level M15 implementation alone.
+	var target := RoadUserArticulatedStableProxy3D.new()
 	target.name = "M15RoadUserTarget"
 	target.configure(target_type, preset_id, target_mass, 0.0, Vector3.ZERO, 0.0, false)
 	root.add_child(target)
@@ -107,10 +118,13 @@ func _run_case(target_type: StringName, preset_id: StringName, target_mass: floa
 		"joints": target.articulated_joint_count(),
 		"speed_ms": target.center_of_mass_velocity_ms().length(),
 		"travel_m": target.maximum_travel_m,
+		"preimpact_vertical_drift_m": target.preimpact_vertical_drift_m(),
+		"height_rise_m": maxf(target.maximum_center_height_m - target.initial_world_position.y, 0.0),
 		"articulation_deg": target.maximum_articulation_angle_deg,
 		"wheel_spin_rad_s": target.maximum_wheel_spin_rad_s,
 		"car_y_rise_m": maximum_car_y_rise,
 		"car_rebound_ms": car.hybrid_maximum_reverse_speed_ms(),
+		"post_contact_gravity_released": _all_articulated_bodies_use_gravity(target),
 	}
 	car.end_simulation()
 	target.end_simulation()
@@ -119,6 +133,14 @@ func _run_case(target_type: StringName, preset_id: StringName, target_mass: floa
 	road.queue_free()
 	await physics_frame
 	return result
+
+func _all_articulated_bodies_use_gravity(target: RoadUserRigidProxy3D) -> bool:
+	if not is_equal_approx(target.gravity_scale, 1.0):
+		return false
+	for body in target.articulated_bodies:
+		if body != null and is_instance_valid(body) and not is_equal_approx(body.gravity_scale, 1.0):
+			return false
+	return true
 
 func _configure_road_user_channels(target: RoadUserRigidProxy3D, car: CompactHatchback) -> void:
 	target.collision_layer = ROAD_USER_LAYER

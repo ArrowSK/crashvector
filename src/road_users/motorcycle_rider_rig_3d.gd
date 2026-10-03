@@ -84,6 +84,65 @@ func end_simulation() -> void:
 func rider_body_count() -> int:
 	return 2
 
+func replay_visual_state() -> Dictionary:
+	var part_states: Array[Dictionary] = []
+	for body in [torso, head]:
+		if body == null or not is_instance_valid(body):
+			continue
+		part_states.append({
+			"name": String(body.name),
+			"rigid_transform": body.global_transform,
+			"linear_velocity_ms": body.linear_velocity,
+			"angular_velocity_rad_s": body.angular_velocity,
+		})
+	return {
+		"rider_released": rider_released,
+		"part_states": part_states,
+	}
+
+func apply_replay_visual_state(state: Dictionary) -> void:
+	# Replay owns the rider pose. Keep the bodies frozen while frames are applied
+	# so Godot cannot advance them independently between timeline samples.
+	simulation_active = false
+	rider_released = bool(state.get("rider_released", false))
+	for body in [torso, head]:
+		if body == null or not is_instance_valid(body):
+			continue
+		body.freeze = true
+		body.sleeping = false
+		if chassis != null:
+			if rider_released:
+				body.remove_collision_exception_with(chassis)
+				chassis.remove_collision_exception_with(body)
+			else:
+				body.add_collision_exception_with(chassis)
+				chassis.add_collision_exception_with(body)
+	var by_name: Dictionary = {}
+	for body in [torso, head]:
+		if body != null and is_instance_valid(body):
+			by_name[String(body.name)] = body
+	var part_states: Variant = state.get("part_states", [])
+	var applied_part := false
+	if part_states is Array:
+		for raw_state in part_states:
+			if not raw_state is Dictionary:
+				continue
+			var part_state: Dictionary = raw_state
+			var body: RigidBody3D = by_name.get(String(part_state.get("name", "")))
+			if body == null:
+				continue
+			var transform_value: Variant = part_state.get("rigid_transform", body.global_transform)
+			if transform_value is Transform3D:
+				body.global_transform = transform_value
+			body.linear_velocity = part_state.get("linear_velocity_ms", Vector3.ZERO)
+			body.angular_velocity = part_state.get("angular_velocity_rad_s", Vector3.ZERO)
+			applied_part = true
+	# Older recordings have no rider-part payload. Their pre-impact representation
+	# was the seated rider, so retain that compatible fallback instead of leaving
+	# the rider at a stale final crash pose.
+	if not applied_part and not rider_released:
+		_sync_seated_pose()
+
 func _on_rider_body_entered(body: Node) -> void:
 	if simulation_active and body is VehicleRigidChassis:
 		release_from_real_contact()

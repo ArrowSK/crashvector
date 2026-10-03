@@ -54,6 +54,7 @@ var m10_duration: SpinBox
 var m10_friction: SpinBox
 var m10_restitution: SpinBox
 var m10_substeps: SpinBox
+var m10_physics_scope_warning: Label
 var m10_structure: CheckButton
 var m10_primary_paint: OptionButton
 var m10_target_paint: OptionButton
@@ -73,6 +74,8 @@ var m10_target_preset_row: HBoxContainer
 var m10_target_mass_row: HBoxContainer
 var m10_target_speed_row: HBoxContainer
 var m10_target_paint_row: HBoxContainer
+var m10_quick_target_buttons: Dictionary = {}
+var m10_quick_target_grid: GridContainer
 var m10_camera_hint: Label
 var m10_metrics_summary: Label
 var m10_mode: StringName = MODE_SCENARIO
@@ -307,16 +310,17 @@ func _build_scenario_panel() -> void:
 	column.add_child(m10_target_option)
 
 	_add_small_label(column, "Quick targets")
-	var quick := GridContainer.new()
-	quick.columns = 2
-	column.add_child(quick)
-	_add_quick_target(quick, "Wall", ScenarioConfig.TARGET_WALL)
-	_add_quick_target(quick, "Car", ScenarioConfig.TARGET_PASSENGER_CAR)
-	_add_quick_target(quick, "Truck", ScenarioConfig.TARGET_TRUCK)
-	_add_quick_target(quick, "Lorry", ScenarioConfig.TARGET_LORRY)
-	_add_quick_target(quick, "Tank", ScenarioConfig.TARGET_TANK)
-	_add_quick_target(quick, "Pedestrian", ScenarioConfig.TARGET_PEDESTRIAN)
-	_add_quick_target(quick, "Bicycle", ScenarioConfig.TARGET_BICYCLE)
+	m10_quick_target_grid = GridContainer.new()
+	m10_quick_target_grid.name = "QuickTargetGrid"
+	m10_quick_target_grid.columns = 2
+	column.add_child(m10_quick_target_grid)
+	_add_quick_target(m10_quick_target_grid, "Wall", ScenarioConfig.TARGET_WALL)
+	_add_quick_target(m10_quick_target_grid, "Car", ScenarioConfig.TARGET_PASSENGER_CAR)
+	_add_quick_target(m10_quick_target_grid, "Truck", ScenarioConfig.TARGET_TRUCK)
+	_add_quick_target(m10_quick_target_grid, "Lorry", ScenarioConfig.TARGET_LORRY)
+	_add_quick_target(m10_quick_target_grid, "Tank", ScenarioConfig.TARGET_TANK)
+	_add_quick_target(m10_quick_target_grid, "Pedestrian", ScenarioConfig.TARGET_PEDESTRIAN)
+	_add_quick_target(m10_quick_target_grid, "Bicycle", ScenarioConfig.TARGET_BICYCLE)
 
 	var separator := HSeparator.new()
 	column.add_child(separator)
@@ -440,11 +444,12 @@ func _build_physics_tab() -> void:
 	m10_scope_chip.tooltip_text = "Open calibration/evidence information"
 	m10_scope_chip.pressed.connect(_on_m10_calibration_pressed)
 	column.add_child(m10_scope_chip)
-	var warning := Label.new()
-	warning.text = "Advanced contact/solver values change the numerical scenario. Presentation controls do not."
-	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	warning.add_theme_color_override("font_color", CrashVectorM10Theme.MUTED)
-	column.add_child(warning)
+	m10_physics_scope_warning = Label.new()
+	m10_physics_scope_warning.name = "PhysicsScopeWarning"
+	m10_physics_scope_warning.text = "Advanced contact/solver values change the numerical scenario. Presentation controls do not."
+	m10_physics_scope_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	m10_physics_scope_warning.add_theme_color_override("font_color", CrashVectorM10Theme.MUTED)
+	column.add_child(m10_physics_scope_warning)
 
 func _build_appearance_tab() -> void:
 	var scroll := _tab_scroll("Appearance")
@@ -966,7 +971,9 @@ func _on_m10_primary_class_selected(index: int) -> void:
 	var option := m10_primary_option if get_signal_sender() == m10_primary_option else m10_primary_class
 	if option == null or index < 0 or index >= option.item_count:
 		return
-	var id := StringName(String(option.get_item_metadata(index)))
+	var id := _item_metadata_id(option, index)
+	if id.is_empty():
+		return
 	scenario.car_preset_id = id
 	scenario.car_mass_kg = PassengerCarCatalog.default_mass_kg(id)
 	selected_object = &"car"
@@ -976,7 +983,9 @@ func _on_m10_primary_class_selected(index: int) -> void:
 func _on_m10_target_selected(index: int) -> void:
 	if m10_syncing or index < 0 or index >= m10_target_option.item_count:
 		return
-	var id := StringName(String(m10_target_option.get_item_metadata(index)))
+	var id := _item_metadata_id(m10_target_option, index)
+	if id.is_empty():
+		return
 	_on_target_palette_pressed(id)
 	selected_object = &"target"
 	_sync_m10_from_scenario()
@@ -984,7 +993,9 @@ func _on_m10_target_selected(index: int) -> void:
 func _on_m10_target_preset_selected(index: int) -> void:
 	if m10_syncing or index < 0 or index >= m10_target_preset.item_count:
 		return
-	var id := StringName(String(m10_target_preset.get_item_metadata(index)))
+	var id := _item_metadata_id(m10_target_preset, index)
+	if id.is_empty():
+		return
 	if scenario.target_type == ScenarioConfig.TARGET_PASSENGER_CAR:
 		scenario.target_car_preset_id = id
 		scenario.target_mass_kg = PassengerCarCatalog.default_mass_kg(id)
@@ -1066,7 +1077,9 @@ func _on_m10_compare_mode() -> void:
 func _on_m10_compare_mode_selected(index: int) -> void:
 	if index < 0 or index >= m10_compare_mode.item_count:
 		return
-	var mode := StringName(String(m10_compare_mode.get_item_metadata(index)))
+	var mode := _item_metadata_id(m10_compare_mode, index)
+	if mode.is_empty():
+		return
 	var speed_visible := mode == MODE_SPEED
 	m10_compare_speed_a.visible = speed_visible
 	m10_compare_speed_b.visible = speed_visible
@@ -1077,7 +1090,9 @@ func _on_m10_compare_mode_selected(index: int) -> void:
 			comparison_lab_panel.visible = true
 
 func _on_m10_run_comparison() -> void:
-	var selected_mode := StringName(String(m10_compare_mode.get_item_metadata(m10_compare_mode.selected)))
+	var selected_mode := _item_metadata_id(m10_compare_mode, m10_compare_mode.selected)
+	if selected_mode.is_empty():
+		return
 	if selected_mode == &"lab":
 		comparison_lab_panel.visible = true
 		return
@@ -1122,7 +1137,11 @@ func _build_m10_comparison_cards() -> void:
 		column.add_child(title)
 		var analysis: Dictionary = result.get("analysis", {})
 		var metrics := Label.new()
-		metrics.text = "Δv %.1f km/h  •  %.1f g  •  crush %.0f mm" % [float(analysis.get("final_delta_v_kmh", 0.0)), float(analysis.get("peak_deceleration_g", 0.0)), float(analysis.get("max_front_crush_mm", 0.0))]
+		if scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR:
+			metrics.text = "Δv %.1f km/h  •  %.1f g  •  crush %.0f mm" % [float(analysis.get("final_delta_v_kmh", 0.0)), float(analysis.get("peak_deceleration_g", 0.0)), float(analysis.get("max_front_crush_mm", 0.0))]
+		else:
+			var loading_g := float(analysis.get("peak_deceleration_g", 0.0)) if bool(analysis.get("primary_initial_motion_direction_valid", true)) else float(analysis.get("peak_acceleration_g", 0.0))
+			metrics.text = "Δv %.1f km/h  •  %.1f g  •  deformation %.0f mm" % [float(analysis.get("final_delta_v_kmh", 0.0)), loading_g, float(analysis.get("primary_max_reported_deformation_mm", 0.0))]
 		metrics.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		metrics.add_theme_font_size_override("font_size", 11)
 		metrics.add_theme_color_override("font_color", CrashVectorM10Theme.MUTED)
@@ -1227,11 +1246,21 @@ func _truncate(text: String, length: int) -> String:
 		return text
 	return text.substr(0, maxi(length - 1, 1)) + "…"
 
+func _item_metadata_id(option: OptionButton, index: int) -> StringName:
+	if option == null or index < 0 or index >= option.item_count:
+		return &""
+	var metadata: Variant = option.get_item_metadata(index)
+	if metadata is StringName:
+		return metadata
+	if metadata is String:
+		return StringName(metadata)
+	return &""
+
 func _select_metadata(option: OptionButton, wanted: StringName) -> void:
 	if option == null:
 		return
 	for i in range(option.item_count):
-		if StringName(String(option.get_item_metadata(i))) == wanted:
+		if _item_metadata_id(option, i) == wanted:
 			option.select(i)
 			return
 
@@ -1245,7 +1274,11 @@ func _populate_m10_paints(option: OptionButton, selected: StringName) -> void:
 
 func _add_quick_target(parent: Container, label: String, target_id: StringName) -> void:
 	var button := Button.new()
+	button.name = "QuickTarget_%s" % String(target_id)
 	button.text = label
+	button.set_meta("target_id", target_id)
+	button.add_to_group("m10_quick_target")
+	m10_quick_target_buttons[target_id] = button
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.pressed.connect(func() -> void:
 		_on_target_palette_pressed(target_id)

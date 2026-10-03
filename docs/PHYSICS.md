@@ -2,7 +2,7 @@
 
 CrashVector is an educational simulator. Numerical outputs must be labelled according to the confidence of the underlying model and must not be presented as certified accident reconstruction, manufacturer crash performance, biomechanics or injury prediction.
 
-The current `main` source is implemented through M23. The full current regression stack has executed successfully, and the verified public package is `0.9.0-beta.5`.
+The current `main` source is implemented through M23. The full current regression stack has executed successfully, and the verified public package is `0.9.0-beta.10`.
 
 ## Passenger-car presets
 
@@ -24,7 +24,7 @@ Passenger cars use four force-producing raycast suspension contacts. Heavy/other
 
 `VehiclePairSimulation`, `VehiclePairContact`, `VehicleStaticSimulation` and the historical synchronous `ComparisonRunner` remain for regression continuity.
 
-They are not silently substituted for the M12–M22 production world-motion path. Since M17, Visual Compare and Comparison Lab execute each requested variant through an isolated current production scene/`World3D` and consume the resulting production `ReplayRecording` and analysis state.
+They are not silently substituted for the M12–M23 production world-motion path. Since M17, Visual Compare and Comparison Lab execute each requested variant through an isolated current production scene/`World3D` and consume the resulting production `ReplayRecording` and analysis state.
 
 A result produced only by the historical reduced-order path must not be presented as current production physics.
 
@@ -264,7 +264,7 @@ Evidence labels remain:
 - `class_scaled`;
 - `extrapolated`.
 
-The M8 runner is a separate historical reduced-order correlation/regression path. It does **not** validate the M12–M22 production architecture, including rigid-body world motion, staged collapse, road-user articulation, reciprocal impacts, passenger-car side impacts, M19 contact diagnostics, M20 heavy/other deformation, M21 fifth-wheel articulation or M22 cyclist/moving-pedestrian behaviour.
+The M8 runner is a separate historical reduced-order correlation/regression path. It does **not** validate the M12–M23 production architecture, including rigid-body world motion, staged collapse, road-user articulation, reciprocal impacts, passenger-car side impacts, M19 contact diagnostics, M20 heavy/other deformation, M21 fifth-wheel articulation or M22 cyclist/moving-pedestrian behaviour or the M23 role-neutral vehicle matrix.
 
 M19 protocol-geometry references also do not create outcome correlation corridors merely because a test geometry is public.
 

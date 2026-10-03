@@ -87,6 +87,18 @@ func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
 func rider_released_after_contact() -> bool:
 	return rider_rig != null and rider_rig.rider_released
 
+func replay_visual_state() -> Dictionary:
+	return {
+		"rider_state": rider_rig.replay_visual_state() if rider_rig != null else {},
+	}
+
+func apply_replay_visual_state(state: Dictionary) -> void:
+	if rider_rig == null:
+		return
+	var rider_state: Variant = state.get("rider_state", {})
+	if rider_state is Dictionary:
+		rider_rig.apply_replay_visual_state(rider_state)
+
 func rear_impact_deformation_m() -> float:
 	return hybrid_rear_crush_m
 
@@ -129,20 +141,27 @@ func _m20_consume_contacts() -> void:
 		var contact_local: Vector3 = sample.get("position_local", Vector3.ZERO)
 		var collider_local := contact_local
 		var has_collider_center := false
-		var other_velocity := Vector3.ZERO
-		var other_mass := rigid_chassis.mass
 		if collider is Node3D:
 			collider_local = rigid_chassis.to_local((collider as Node3D).global_position)
 			has_collider_center = true
-		if collider is RigidBody3D:
-			var other := collider as RigidBody3D
-			other_velocity = other.linear_velocity
-			other_mass = maxf(other.mass, 1.0)
-		var relative_velocity := other_velocity - rigid_chassis.linear_velocity
-		var reduced_mass := rigid_chassis.mass * other_mass / maxf(rigid_chassis.mass + other_mass, 1.0)
+		var subject_velocity: Vector3 = sample.get("pre_contact_linear_velocity_ms", rigid_chassis.pre_contact_linear_velocity_ms())
+		var collider_pre_contact_velocity: Vector3 = sample.get("collider_pre_contact_linear_velocity_ms", Vector3.ZERO)
+		var reduced_mass := PhysicsMetrics.collision_effective_mass_kg(rigid_chassis.mass, collider)
 		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
-		var longitudinal_speed := absf(relative_velocity.dot(forward))
-		var lateral_speed := absf(relative_velocity.dot(lateral))
+		# Prefer the two velocities captured from the same contact-entry callback.
+		# Keep the short contact-free history as a delayed-manifold fallback, but
+		# never restore the scenario's t=0 relative speed.
+		var sampled_relative_velocity := subject_velocity - collider_pre_contact_velocity
+		var longitudinal_speed := absf(sampled_relative_velocity.dot(forward))
+		var lateral_speed := absf(sampled_relative_velocity.dot(lateral))
+		longitudinal_speed = maxf(
+			longitudinal_speed,
+			rigid_chassis.recent_relative_axis_speed_ms(collider, forward, subject_velocity, true)
+		)
+		lateral_speed = maxf(
+			lateral_speed,
+			rigid_chassis.recent_relative_axis_speed_ms(collider, lateral, subject_velocity, true)
+		)
 		var longitudinal_impulse := absf(impulse.dot(forward))
 		var lateral_impulse := absf(impulse.dot(lateral))
 		var longitudinal_energy := maxf(

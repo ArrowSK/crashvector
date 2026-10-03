@@ -50,6 +50,19 @@ func _run() -> void:
 		for wanted in ["TorsoSkin", "HeadSkin", "LeftUpperLegSkin", "RightUpperLegSkin"]:
 			var visual := _find_named(road_skin, wanted) as MeshInstance3D
 			_expect(visual != null and visual.visible, "M16.2 pedestrian visual component %s is missing/hidden" % wanted)
+		var torso_skin := _find_named(road_skin, "TorsoSkin") as MeshInstance3D
+		var torso_body: RigidBody3D
+		if proxy != null:
+			for body in proxy.articulated_bodies:
+				if body != null and String(body.name) == "PedestrianTorso":
+					torso_body = body
+					break
+		_expect(torso_skin != null and torso_body != null, "M16.2 pedestrian skin cannot resolve the live torso body")
+		if torso_skin != null and torso_body != null:
+			_expect(torso_skin.global_position.distance_to(torso_body.global_position) < 0.01, "M16.2 pedestrian torso skin is driven by a static joint anchor instead of the live body")
+			torso_body.global_position += Vector3(0.32, 0.17, -0.12)
+			road_skin.call("_update_skin")
+			_expect(torso_skin.global_position.distance_to(torso_body.global_position) < 0.01, "M16.2 pedestrian torso skin does not follow post-impact body motion")
 	if proxy != null:
 		_expect(_primitive_meshes_hidden(proxy), "Primitive articulated pedestrian blocks remain visible beneath the M16.2 skin")
 		for body in proxy.articulated_bodies:
