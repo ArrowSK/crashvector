@@ -391,17 +391,25 @@ func _m23_sync_capability_controls() -> void:
 
 func _m23_quick_target_button_nodes() -> Array[Button]:
 	var result: Array[Button] = []
-	# Runtime groups survive reparenting and do not depend on scene ownership.
-	# Filter to this editor instance in case more than one editor exists in tests.
-	if is_inside_tree():
-		for node in get_tree().get_nodes_in_group("m10_quick_target"):
-			if node is Button and is_instance_valid(node):
-				var grouped_button := node as Button
-				if m10_root == null or m10_root.is_ancestor_of(grouped_button):
-					result.append(grouped_button)
+	# M10 gives each dynamically-created quick target a stable node name. Resolve
+	# those exact runtime controls first; this is independent of scene ownership,
+	# release reparenting and native-class filtering.
+	if m10_root != null and is_instance_valid(m10_root):
+		for target_id in [
+			ScenarioConfig.TARGET_WALL,
+			ScenarioConfig.TARGET_PASSENGER_CAR,
+			ScenarioConfig.TARGET_TRUCK,
+			ScenarioConfig.TARGET_LORRY,
+			ScenarioConfig.TARGET_TANK,
+			ScenarioConfig.TARGET_PEDESTRIAN,
+			ScenarioConfig.TARGET_BICYCLE,
+		]:
+			var node := m10_root.find_child("QuickTarget_%s" % String(target_id), true, false)
+			if node is Button:
+				result.append(node as Button)
 	if result.size() >= 7:
 		return result
-	# Retained references cover older instances created before the group marker.
+	# Retained references are the second authoritative path for older layouts.
 	for target_id in m10_quick_target_buttons.keys():
 		var value: Variant = m10_quick_target_buttons[target_id]
 		if value is Button and is_instance_valid(value):
@@ -410,9 +418,17 @@ func _m23_quick_target_button_nodes() -> Array[Button]:
 				button.set_meta("target_id", StringName(target_id))
 			if button not in result:
 				result.append(button)
+	if result.size() >= 7:
+		return result
+	# Runtime groups survive reparenting and provide a final release-layout path.
+	if is_inside_tree():
+		for node in get_tree().get_nodes_in_group("m10_quick_target"):
+			if node is Button and is_instance_valid(node):
+				var grouped_button := node as Button
+				if (m10_root == null or m10_root.is_ancestor_of(grouped_button)) and grouped_button not in result:
+					result.append(grouped_button)
 	if not result.is_empty():
 		return result
-	# Last compatibility fallback for older UI instances without retained refs.
 	if m10_left_panel != null:
 		_m23_collect_quick_target_buttons(m10_left_panel, result)
 	return result
