@@ -75,6 +75,7 @@ var m10_target_mass_row: HBoxContainer
 var m10_target_speed_row: HBoxContainer
 var m10_target_paint_row: HBoxContainer
 var m10_quick_target_buttons: Dictionary = {}
+var m10_quick_target_grid: GridContainer
 var m10_camera_hint: Label
 var m10_metrics_summary: Label
 var m10_mode: StringName = MODE_SCENARIO
@@ -309,16 +310,17 @@ func _build_scenario_panel() -> void:
 	column.add_child(m10_target_option)
 
 	_add_small_label(column, "Quick targets")
-	var quick := GridContainer.new()
-	quick.columns = 2
-	column.add_child(quick)
-	_add_quick_target(quick, "Wall", ScenarioConfig.TARGET_WALL)
-	_add_quick_target(quick, "Car", ScenarioConfig.TARGET_PASSENGER_CAR)
-	_add_quick_target(quick, "Truck", ScenarioConfig.TARGET_TRUCK)
-	_add_quick_target(quick, "Lorry", ScenarioConfig.TARGET_LORRY)
-	_add_quick_target(quick, "Tank", ScenarioConfig.TARGET_TANK)
-	_add_quick_target(quick, "Pedestrian", ScenarioConfig.TARGET_PEDESTRIAN)
-	_add_quick_target(quick, "Bicycle", ScenarioConfig.TARGET_BICYCLE)
+	m10_quick_target_grid = GridContainer.new()
+	m10_quick_target_grid.name = "QuickTargetGrid"
+	m10_quick_target_grid.columns = 2
+	column.add_child(m10_quick_target_grid)
+	_add_quick_target(m10_quick_target_grid, "Wall", ScenarioConfig.TARGET_WALL)
+	_add_quick_target(m10_quick_target_grid, "Car", ScenarioConfig.TARGET_PASSENGER_CAR)
+	_add_quick_target(m10_quick_target_grid, "Truck", ScenarioConfig.TARGET_TRUCK)
+	_add_quick_target(m10_quick_target_grid, "Lorry", ScenarioConfig.TARGET_LORRY)
+	_add_quick_target(m10_quick_target_grid, "Tank", ScenarioConfig.TARGET_TANK)
+	_add_quick_target(m10_quick_target_grid, "Pedestrian", ScenarioConfig.TARGET_PEDESTRIAN)
+	_add_quick_target(m10_quick_target_grid, "Bicycle", ScenarioConfig.TARGET_BICYCLE)
 
 	var separator := HSeparator.new()
 	column.add_child(separator)
