@@ -552,31 +552,42 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 					target_option.is_item_disabled(target_index) == not expected_supported,
 					"M23 target selector capability disagrees with the production world for %s" % ScenarioConfig.target_display_name(target_id)
 				)
-	var quick_target_buttons := 0
-	var quick_pedestrian_disabled := false
-	var quick_bicycle_disabled := false
-	var quick_wall_enabled := false
 	var quick_target_value: Variant = editor.call("_m23_quick_target_button_nodes")
 	_expect(typeof(quick_target_value) == TYPE_ARRAY, "M23 quick-target resolver did not return an array")
 	if typeof(quick_target_value) == TYPE_ARRAY:
 		var resolved_quick_targets: Array = quick_target_value
-		for target_value in resolved_quick_targets:
-			var button := target_value as Button
-			if button == null:
-				continue
-			var target_id: StringName = editor.call("_m23_quick_target_id", button)
-			if target_id.is_empty():
-				continue
-			quick_target_buttons += 1
-			if target_id == ScenarioConfig.TARGET_PEDESTRIAN:
-				quick_pedestrian_disabled = button.disabled
-			elif target_id == ScenarioConfig.TARGET_BICYCLE:
-				quick_bicycle_disabled = button.disabled
-			elif target_id == ScenarioConfig.TARGET_WALL:
-				quick_wall_enabled = not button.disabled
-	_expect(quick_target_buttons >= 7, "M23 capability regression could not identify the quick-target controls")
-	_expect(quick_pedestrian_disabled and quick_bicycle_disabled, "M23 quick targets still offer unsupported vulnerable-road-user pairs for a truck primary")
-	_expect(quick_wall_enabled, "M23 quick targets incorrectly disable a supported fixed-fixture pair")
+		# The M16 production shell intentionally replaced the old M10 quick-target
+		# palette with the single target selector above. If a legacy/compatibility
+		# layout still exposes quick targets, keep their capability state covered;
+		# their absence in the M16 shell is expected and must not fail release CI.
+		if not resolved_quick_targets.is_empty():
+			var quick_target_buttons := 0
+			var quick_pedestrian_disabled := false
+			var quick_bicycle_disabled := false
+			var quick_wall_enabled := false
+			for target_value in resolved_quick_targets:
+				var button := target_value as Button
+				if button == null:
+					continue
+				var target_id: StringName = editor.call("_m23_quick_target_id", button)
+				if target_id.is_empty():
+					continue
+				quick_target_buttons += 1
+				if target_id == ScenarioConfig.TARGET_PEDESTRIAN:
+					quick_pedestrian_disabled = button.disabled
+				elif target_id == ScenarioConfig.TARGET_BICYCLE:
+					quick_bicycle_disabled = button.disabled
+				elif target_id == ScenarioConfig.TARGET_WALL:
+					quick_wall_enabled = not button.disabled
+			_expect(quick_target_buttons >= 7, "M23 compatibility layout exposes an incomplete quick-target control set")
+			_expect(quick_pedestrian_disabled and quick_bicycle_disabled, "M23 compatibility quick targets still offer unsupported vulnerable-road-user pairs for a truck primary")
+			_expect(quick_wall_enabled, "M23 compatibility quick targets incorrectly disable a supported fixed-fixture pair")
+		else:
+			var scenario_panel := editor.get("m10_left_panel") as PanelContainer
+			_expect(
+				scenario_panel != null and scenario_panel.name == &"M16ScenarioBuilder",
+				"M23 quick-target controls are missing outside the production M16 scenario shell"
+			)
 	var simulate_control := editor.get("m10_simulate_button") as Button
 	_expect(simulate_control != null and not simulate_control.disabled, "M23 Simulate control is disabled for a supported truck-versus-car pair")
 	var original_target := config.target_type
