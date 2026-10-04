@@ -82,6 +82,10 @@ func _check_world_capability_matrix() -> void:
 				await process_frame
 				_check_world_pair_contract(world, config)
 				world.begin()
+				# SceneTree.physics_frame is emitted immediately before Node._physics_process.
+				# Wait through one complete physics tick, then resume at the next signal so
+				# TwoVehicleWorld3D has actually executed its elapsed-time step.
+				await physics_frame
 				await physics_frame
 				_expect(world.running, "M23 production world did not start %s -> %s" % [ScenarioConfig.actor_display_name(primary_type), ScenarioConfig.target_display_name(target_type)])
 				_expect(world.elapsed_s > 0.0, "M23 production world did not advance %s -> %s" % [ScenarioConfig.actor_display_name(primary_type), ScenarioConfig.target_display_name(target_type)])
