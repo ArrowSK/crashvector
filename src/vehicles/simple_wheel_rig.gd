@@ -13,6 +13,10 @@ var wheel_instances: Array[MeshInstance3D] = []
 var rim_instances: Array[MeshInstance3D] = []
 var hub_instances: Array[MeshInstance3D] = []
 var suspension_compression_m := PackedFloat64Array()
+var released := PackedByteArray()
+var released_positions: Array[Vector3] = []
+var released_velocities: Array[Vector3] = []
+var released_spin_rad_s := PackedFloat64Array()
 var wheel_radius_m := 0.30
 var suspension_drop_m := 0.42
 var side_offset_m := 0.10
@@ -90,22 +94,125 @@ func _build_wheels() -> void:
 		add_child(hub)
 		hub_instances.append(hub)
 		suspension_compression_m.append(0.0)
+		released.append(0)
+		released_positions.append(Vector3.ZERO)
+		released_velocities.append(Vector3.ZERO)
+		released_spin_rad_s.append(0.0)
+
+func release_wheel(index: int, initial_velocity_ms: Vector3, rolling_forward_world: Vector3 = Vector3.RIGHT) -> void:
+	if index < 0 or index >= wheel_instances.size() or released[index] != 0:
+		return
+	released[index] = 1
+	released_positions[index] = wheel_instances[index].position
+	released_velocities[index] = initial_velocity_ms
+	var rolling_forward := rolling_forward_world.normalized()
+	if rolling_forward.is_zero_approx():
+		rolling_forward = Vector3.RIGHT
+	released_spin_rad_s[index] = initial_velocity_ms.dot(rolling_forward) / maxf(wheel_radius_m, 0.01)
+
+func reset_releases() -> void:
+	for index in range(released.size()):
+		released[index] = 0
+		released_positions[index] = Vector3.ZERO
+		released_velocities[index] = Vector3.ZERO
+		released_spin_rad_s[index] = 0.0
+
+func replay_visual_state() -> Dictionary:
+	var wheel_rotation_z_rad := PackedFloat64Array()
+	for wheel in wheel_instances:
+		wheel_rotation_z_rad.append(wheel.rotation.z)
+	return {
+		"released": released.duplicate(),
+		"released_positions": released_positions.duplicate(),
+		"released_velocities": released_velocities.duplicate(),
+		"released_spin_rad_s": released_spin_rad_s.duplicate(),
+		"wheel_rotation_z_rad": wheel_rotation_z_rad,
+	}
+
+func apply_replay_visual_state(state: Dictionary) -> void:
+	# A replay frame must own the detached/attached state. Otherwise scrubbing
+	# backward after a severe impact leaves the rig in its final released state,
+	# while scrubbing a newly loaded frame can incorrectly reattach the wheels.
+	reset_releases()
+	var replay_released_value: Variant = state.get("released", PackedByteArray())
+	var replay_positions_value: Variant = state.get("released_positions", [])
+	var replay_velocities_value: Variant = state.get("released_velocities", [])
+	var replay_spin_value: Variant = state.get("released_spin_rad_s", PackedFloat64Array())
+	var replay_rotation_value: Variant = state.get("wheel_rotation_z_rad", PackedFloat64Array())
+	var replay_released := PackedByteArray()
+	if replay_released_value is PackedByteArray:
+		replay_released = replay_released_value
+	var replay_positions: Array = []
+	if replay_positions_value is Array:
+		replay_positions = replay_positions_value
+	var replay_velocities: Array = []
+	if replay_velocities_value is Array:
+		replay_velocities = replay_velocities_value
+	var replay_spin := PackedFloat64Array()
+	if replay_spin_value is PackedFloat64Array:
+		replay_spin = replay_spin_value
+	var replay_rotation := PackedFloat64Array()
+	if replay_rotation_value is PackedFloat64Array:
+		replay_rotation = replay_rotation_value
+	for index in range(released.size()):
+		if index < replay_released.size():
+			released[index] = replay_released[index]
+		if index < replay_positions.size() and replay_positions[index] is Vector3:
+			released_positions[index] = replay_positions[index]
+		if index < replay_velocities.size() and replay_velocities[index] is Vector3:
+			released_velocities[index] = replay_velocities[index]
+		if index < replay_spin.size():
+			released_spin_rad_s[index] = replay_spin[index]
+		if index < replay_rotation.size():
+			wheel_instances[index].rotation.z = replay_rotation[index]
+			rim_instances[index].rotation.z = replay_rotation[index]
+			hub_instances[index].rotation.z = replay_rotation[index]
+	update_from_model(0.0)
 
 func update_from_model(delta_s: float) -> void:
 	if model == null:
 		return
+	var forward_world := Vector3.RIGHT
+	var lateral_world := Vector3.BACK
+	if get_parent() is CompactHatchback:
+		var reference := (get_parent() as CompactHatchback).global_reference_transform()
+		forward_world = reference.basis.x.normalized()
+		lateral_world = reference.basis.z.normalized()
+		if forward_world.is_zero_approx():
+			forward_world = Vector3.RIGHT
+		if lateral_world.is_zero_approx():
+			lateral_world = Vector3.BACK
 	for i in range(mini(anchor_indices.size(), wheel_instances.size())):
+		if released[i] != 0:
+			if delta_s > 0.0:
+				released_velocities[i].y -= 9.80665 * delta_s
+				released_positions[i] += released_velocities[i] * delta_s
+				if released_positions[i].y < wheel_radius_m:
+					released_positions[i].y = wheel_radius_m
+					if released_velocities[i].y < 0.0:
+						released_velocities[i].y *= -0.22
+					released_velocities[i].x *= 0.95
+					released_velocities[i].z *= 0.95
+					released_spin_rad_s[i] *= 0.985
+				var spin_delta := released_spin_rad_s[i] * delta_s
+				wheel_instances[i].rotation.z -= spin_delta
+				rim_instances[i].rotation.z -= spin_delta
+				hub_instances[i].rotation.z -= spin_delta
+			wheel_instances[i].position = released_positions[i]
+			rim_instances[i].position = released_positions[i]
+			hub_instances[i].position = released_positions[i]
+			continue
 		var node := model.nodes[anchor_indices[i]]
 		var center := _vehicle_center()
-		var side_sign := -1.0 if node.position_m.z < center.z else 1.0
-		var desired := node.position_m + Vector3(0.0, -suspension_drop_m, side_sign * side_offset_m)
+		var side_sign := -1.0 if (node.position_m - center).dot(lateral_world) < 0.0 else 1.0
+		var desired := node.position_m + Vector3.DOWN * suspension_drop_m + lateral_world * side_sign * side_offset_m
 		var visual_target := desired
 		if model != null and get_parent() is CompactHatchback:
 			var vehicle := get_parent() as CompactHatchback
 			if vehicle.rigid_chassis != null:
 				var support := vehicle.rigid_chassis.suspension_contact_point_world(i)
 				if is_finite(support.x) and is_finite(support.y) and is_finite(support.z):
-					visual_target = support + Vector3.UP * wheel_radius_m + Vector3.FORWARD * side_sign * side_offset_m
+					visual_target = support + Vector3.UP * wheel_radius_m + lateral_world * side_sign * side_offset_m
 		if visual_target.y < wheel_radius_m:
 			visual_target.y = wheel_radius_m
 		suspension_compression_m[i] = maxf(visual_target.y - desired.y, 0.0)
@@ -115,7 +222,7 @@ func update_from_model(delta_s: float) -> void:
 		rim_instances[i].position = new_position
 		hub_instances[i].position = new_position
 		if delta_s > 0.0:
-			var spin_speed := node.velocity_ms.x / maxf(wheel_radius_m, 0.01)
+			var spin_speed := node.velocity_ms.dot(forward_world) / maxf(wheel_radius_m, 0.01)
 			wheel_instances[i].rotation.z -= spin_speed * delta_s
 			rim_instances[i].rotation.z -= spin_speed * delta_s
 			hub_instances[i].rotation.z -= spin_speed * delta_s

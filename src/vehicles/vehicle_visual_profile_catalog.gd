@@ -107,3 +107,20 @@ static func visual_signature(preset_id: StringName) -> Dictionary:
 		"windscreen_offset_m": sample_station(profile, "upper_x_offset_m", 4.0),
 		"hood_raise_m": profile.get("hood_raise_m", 0.0),
 	}
+
+static func production_front_face_x_m(preset_id: StringName, structural_front_x_m: float) -> float:
+	# The M16.2 renderer preserves each Kenney body with a uniform source fit.
+	# Its real nose therefore is not, in general, the last structural-cage
+	# station. These neutral local X extents are measured from the exact shipped
+	# asset plus profile fit. M19 rebuilds every production skin and asserts this
+	# contract against the generated mesh, so a changed asset or fit cannot leave
+	# a collision volume ahead of the visible car.
+	const neutral_faces := {
+		PassengerCarCatalog.A_SEGMENT_CITY: 1.7649,
+		PassengerCarCatalog.B_SEGMENT_HATCHBACK: 1.5571,
+		PassengerCarCatalog.C_SEGMENT_COMPACT: 1.1397,
+		PassengerCarCatalog.D_SEGMENT_MIDSIZE: 0.9604,
+		PassengerCarCatalog.J_SEGMENT_SUV: 1.6757,
+		PassengerCarCatalog.M_SEGMENT_MPV: 1.8276,
+	}
+	return float(neutral_faces.get(preset_id, structural_front_x_m))

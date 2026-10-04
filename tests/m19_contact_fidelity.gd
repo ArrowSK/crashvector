@@ -16,6 +16,7 @@ func _run() -> void:
 	_check_validation_reference_catalog()
 	_check_contact_scenario_catalog()
 	await _check_front_probe_layout()
+	await _check_offset_crush_resistance_torque()
 	await _check_production_replay_diagnostics()
 	_finish()
 
@@ -74,8 +75,13 @@ func _check_front_probe_layout() -> void:
 	# M19 keeps the original centre-line crush ray as the compatibility handle and
 	# adds two symmetric lateral observation rays. They measure the same front
 	# crush zone and do not add collision shapes or impulses themselves.
+	for preset_id in PassengerCarCatalog.preset_ids():
+		await _check_production_front_contact_contract(preset_id)
+
+func _check_production_front_contact_contract(preset_id: StringName) -> void:
 	var vehicle := M17CompactHatchback.new()
-	vehicle.name = "M19ProbeLayoutCar"
+	vehicle.name = "M19ProbeLayoutCar_%s" % preset_id
+	vehicle.vehicle_preset_id = preset_id
 	vehicle.auto_step = false
 	root.add_child(vehicle)
 	for _frame in range(3):
@@ -83,17 +89,94 @@ func _check_front_probe_layout() -> void:
 	var chassis := vehicle.rigid_chassis
 	_expect(chassis != null, "M19 probe-layout check could not build the production rigid chassis")
 	if chassis != null:
-		_expect(chassis.front_crush_probe_count() == 3, "M19 passenger car must expose centre plus two lateral front-crush probes")
+		var production_visual := M162VehicleVisual.new()
+		vehicle.add_child(production_visual)
+		production_visual.configure(vehicle)
+		for _frame in range(3):
+			await process_frame
+		var packaged_body := production_visual.kenney_skin.body_instance if production_visual.kenney_skin != null else null
+		_expect(packaged_body != null and packaged_body.mesh != null, "M19 production passenger skin has no measurable packaged body geometry")
+		var expected_bumper_face := -INF
+		if packaged_body != null and packaged_body.mesh != null:
+			expected_bumper_face = (packaged_body.mesh as Mesh).get_aabb().end.x
+		var bumper_collision := chassis.get_node_or_null("FrontContactCollision") as CollisionShape3D
+		var outer_face := -INF
+		if bumper_collision != null and bumper_collision.shape is BoxShape3D:
+			outer_face = bumper_collision.position.x + (bumper_collision.shape as BoxShape3D).size.x * 0.5
+		print("M19 production nose %s: rendered=%.4f m configured=%.4f m collision=%.4f m" % [
+			preset_id,
+			expected_bumper_face,
+			chassis.front_contact_face_x_m,
+			outer_face,
+		])
+		_expect(absf(chassis.front_contact_face_x_m - expected_bumper_face) < 0.001, "M19 %s rigid contact face must match the rendered M16.2 nose face" % preset_id)
+		_expect(bumper_collision != null, "M19 %s passenger car is missing the outer bumper collision volume" % preset_id)
+		if bumper_collision != null and bumper_collision.shape is BoxShape3D:
+			_expect(absf(outer_face - expected_bumper_face) < 0.001, "M19 %s outer bumper collision volume must end at the rendered M16.2 nose face" % preset_id)
+		_expect(chassis.front_crush_probe_count() == 3, "M19 %s passenger car must expose centre plus two lateral front-crush probes" % preset_id)
+		_expect(chassis.configured_mass_distribution_size_m.x > 3.0, "M19 %s passenger car must use a neutral chassis mass envelope instead of collision-shape-derived inertia" % preset_id)
+		_expect(chassis.configured_center_of_mass_local_m.y > 0.45, "M19 %s passenger car must use its neutral centre of mass instead of a collision-shape-derived centre" % preset_id)
 		if chassis.front_crush_probes.size() == 3:
 			var centre := chassis.front_crush_probes[0]
 			var negative := chassis.front_crush_probes[1]
 			var positive := chassis.front_crush_probes[2]
-			_expect(centre != null and negative != null and positive != null, "M19 front-crush probe set contains a null ray")
+			_expect(centre != null and negative != null and positive != null, "M19 %s front-crush probe set contains a null ray" % preset_id)
 			if centre != null and negative != null and positive != null:
-				_expect(absf(centre.position.z) < 0.001, "M19 compatibility front-crush probe must remain on the centre line")
-				_expect(negative.position.z < -0.05 and positive.position.z > 0.05, "M19 lateral front-crush probes must straddle the centre line")
-				_expect(absf(negative.position.z + positive.position.z) < 0.001, "M19 lateral front-crush probes must be symmetric")
-				_expect(absf(centre.position.x - negative.position.x) < 0.001 and absf(centre.position.x - positive.position.x) < 0.001, "M19 front-crush probes must share one authoritative longitudinal mount")
+				_expect(absf(centre.position.z) < 0.001, "M19 %s compatibility front-crush probe must remain on the centre line" % preset_id)
+				_expect(negative.position.z < -0.05 and positive.position.z > 0.05, "M19 %s lateral front-crush probes must straddle the centre line" % preset_id)
+				_expect(absf(negative.position.z + positive.position.z) < 0.001, "M19 %s lateral front-crush probes must be symmetric" % preset_id)
+				_expect(absf(centre.position.x - negative.position.x) < 0.001 and absf(centre.position.x - positive.position.x) < 0.001, "M19 %s front-crush probes must share one authoritative longitudinal mount" % preset_id)
+	vehicle.queue_free()
+	await process_frame
+
+func _check_offset_crush_resistance_torque() -> void:
+	var vehicle := M17CompactHatchback.new()
+	vehicle.name = "M19OffsetResistanceCar"
+	vehicle.auto_step = false
+	vehicle.initial_speed_kmh = 0.0
+	vehicle.origin_offset_m = Vector3.ZERO
+	root.add_child(vehicle)
+	for _frame in range(3):
+		await process_frame
+	_expect(vehicle.rigid_chassis != null, "M19 offset-resistance regression could not build the passenger rigid chassis")
+	if vehicle.rigid_chassis == null:
+		vehicle.queue_free()
+		await process_frame
+		return
+
+	var fixture := StaticBody3D.new()
+	fixture.name = "M19OffsetResistanceFixture"
+	fixture.position = Vector3(8.0, 0.0, 0.0)
+	root.add_child(fixture)
+	vehicle.rigid_chassis.gravity_scale = 0.0
+	vehicle.rigid_chassis.freeze = false
+	vehicle.rigid_chassis.sleeping = false
+	vehicle.rigid_chassis.linear_velocity = Vector3(8.0, 0.0, 0.0)
+	vehicle.rigid_chassis.angular_velocity = Vector3.ZERO
+	var observed_contact_local := Vector3(vehicle.front_contact_neutral_face_x_m, 0.0, 0.55)
+	vehicle.call("_consume_front_contact_sample", {
+		"collider_name": fixture.name,
+		"collider": fixture,
+		"surface_region": &"front",
+		"position_local": observed_contact_local,
+		"impulse": Vector3.ZERO,
+		"pre_contact_linear_velocity_ms": Vector3(8.0, 0.0, 0.0),
+	})
+	vehicle.hybrid_target_front_crush_m = 0.25
+	_expect(vehicle.hybrid_primary_contact_position_valid, "Passenger crush resistance did not retain the observed manifold point")
+	var expected_contact_world := vehicle.rigid_chassis.to_global(observed_contact_local)
+	var resolved_contact_world: Vector3 = vehicle.call("_hybrid_resistance_contact_world")
+	_expect(resolved_contact_world.distance_to(expected_contact_world) < 0.000001, "Passenger crush resistance lost the observed off-centre contact point")
+	vehicle.call("_apply_hybrid_crush_resistance", 1.0 / 60.0)
+	# SceneTree.physics_frame is emitted before the physics step. Wait through the
+	# following step before reading RigidBody3D angular velocity so the assertion
+	# observes the force Godot actually integrated rather than the pre-step state.
+	await physics_frame
+	await physics_frame
+	_expect(absf(vehicle.rigid_chassis.angular_velocity.y) > 0.0001, "Off-centre passenger crush resistance still behaves like a centre-of-mass force with no yaw torque")
+
+	vehicle.rigid_chassis.freeze = true
+	fixture.queue_free()
 	vehicle.queue_free()
 	await process_frame
 
@@ -145,7 +228,8 @@ func _check_production_replay_diagnostics() -> void:
 		var diagnostics := car.rigid_chassis.contact_manifold_diagnostics()
 		_expect(String(diagnostics.get("scope", "")) == "diagnostic_only_no_solver_feedback", "M19 chassis diagnostic scope marker is missing")
 		_expect(int(diagnostics.get("maximum_contact_points", 0)) > 0, "M19 primary chassis reported no non-ground contact manifold")
-		_expect(float(diagnostics.get("peak_total_impulse_ns", 0.0)) > 0.0, "M19 primary chassis reported no contact impulse")
+		_expect(not (diagnostics.get("peak", {}) as Dictionary).is_empty(), "M19 primary chassis did not retain an observed contact manifold")
+		_expect(float(diagnostics.get("peak_total_impulse_ns", 0.0)) >= 0.0, "M19 primary chassis reported an invalid raw contact impulse")
 		var span_value: Variant = diagnostics.get("maximum_span_local_m", Vector3.ZERO)
 		var span := span_value as Vector3 if span_value is Vector3 else Vector3.ZERO
 		_expect(_finite_vector(span) and span.x >= 0.0 and span.z >= 0.0, "M19 primary manifold spread is non-finite")
@@ -174,7 +258,8 @@ func _check_production_replay_diagnostics() -> void:
 		if summary_value is Dictionary:
 			var analysis_summary: Dictionary = summary_value
 			_expect(int(analysis_summary.get("maximum_contact_points", 0)) > 0, "M19 analysis lost contact-point count")
-			_expect(float(analysis_summary.get("peak_total_impulse_ns", 0.0)) > 0.0, "M19 analysis lost peak contact impulse")
+			_expect(not (analysis_summary.get("peak", {}) as Dictionary).is_empty(), "M19 analysis lost the observed peak contact manifold")
+			_expect(float(analysis_summary.get("peak_total_impulse_ns", 0.0)) >= 0.0, "M19 analysis reported an invalid raw contact impulse")
 
 	editor.queue_free()
 	await process_frame

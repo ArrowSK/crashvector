@@ -17,6 +17,7 @@ const REQUIRED_SCRIPTS: Array[String] = [
 	"res://src/demo/crash_demo_m20.gd",
 	"res://src/demo/crash_demo_m21.gd",
 	"res://src/demo/crash_demo_m22.gd",
+	"res://src/demo/crash_demo_m23.gd",
 	"res://src/update/semantic_version.gd",
 	"res://src/update/update_service.gd",
 	"res://src/structural/structural_sled_builder.gd",

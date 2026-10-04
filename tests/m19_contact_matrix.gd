@@ -123,8 +123,11 @@ func _expect_finite_diagnostics(id: StringName, actor: String, diagnostics: Dict
 		failures.append("%s %s manifold span is invalid" % [String(id), actor])
 	if not is_finite(projected) or projected < 0.0:
 		failures.append("%s %s projected manifold spread is invalid" % [String(id), actor])
-	if not is_finite(impulse) or impulse <= 0.0:
-		failures.append("%s %s peak manifold impulse is invalid" % [String(id), actor])
+	if not is_finite(impulse) or impulse < 0.0:
+		failures.append("%s %s raw manifold impulse is invalid" % [String(id), actor])
+	var peak_value: Variant = diagnostics.get("peak", {})
+	if not peak_value is Dictionary or (peak_value as Dictionary).is_empty():
+		failures.append("%s %s did not retain an observed peak manifold" % [String(id), actor])
 
 func _serialize_diagnostics(value: Variant) -> Dictionary:
 	if not value is Dictionary:

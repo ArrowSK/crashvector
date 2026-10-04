@@ -32,6 +32,22 @@ var maximum_suspension_compression_m: float = 0.0
 var active_suspension_contacts: int = 0
 var initial_forward_world := Vector3.RIGHT
 var initial_linear_velocity_ms := Vector3.ZERO
+# One-step velocity history for deformation-energy estimation. Godot contact
+# callbacks expose the body's velocity after the current solver step; keeping the
+# immediately preceding integrated velocity avoids substituting the scenario's
+# t=0 speed when the vehicle has accelerated, braked or already exchanged
+# momentum before the contact being evaluated.
+var previous_integrated_linear_velocity_ms := Vector3.ZERO
+var last_integrated_linear_velocity_ms := Vector3.ZERO
+var last_integrated_physics_frame: int = -1
+# Most recent solver-state velocity observed while there was no non-ground
+# contact manifold. Contact data can arrive one callback after the solver has
+# already changed velocity; this preserves the last genuinely contact-free state
+# as the immediate collision-entry velocity without falling back to scenario t=0.
+var last_non_ground_contact_free_linear_velocity_ms := Vector3.ZERO
+var last_non_ground_contact_free_physics_frame: int = -1
+const CONTACT_ENTRY_HISTORY_SAMPLES: int = 6
+var recent_non_ground_contact_free_velocity_samples: Array[Dictionary] = []
 var stored_linear_velocity := Vector3.ZERO
 var stored_angular_velocity := Vector3.ZERO
 # Some light targets need the normal rigid-body contact to occur before the
@@ -48,6 +64,8 @@ var peak_non_ground_contact_impulse_ns: float = 0.0
 var maximum_non_ground_contact_points: int = 0
 var maximum_non_ground_contact_span_m := Vector3.ZERO
 var maximum_non_ground_projected_span_xz_m2: float = 0.0
+var configured_mass_distribution_size_m := Vector3.ZERO
+var configured_center_of_mass_local_m := Vector3.ZERO
 
 func configure(
 	body_mass_kg: float,
@@ -63,6 +81,16 @@ func configure(
 	initial_forward_world = Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
 	linear_velocity = initial_forward_world * PhysicsMetrics.kmh_to_ms(initial_speed_kmh)
 	initial_linear_velocity_ms = linear_velocity
+	previous_integrated_linear_velocity_ms = linear_velocity
+	last_integrated_linear_velocity_ms = linear_velocity
+	last_integrated_physics_frame = -1
+	last_non_ground_contact_free_linear_velocity_ms = linear_velocity
+	last_non_ground_contact_free_physics_frame = -1
+	recent_non_ground_contact_free_velocity_samples.clear()
+	# Do not seed the rolling history with the scenario start velocity. The first
+	# actual contact-free integration callback will populate it; until then the
+	# explicit pre-contact fallback above is sufficient. This prevents t=0 from
+	# becoming an artificial energy floor in direct/delayed-contact evaluation.
 	angular_velocity = Vector3.ZERO
 	continuous_cd = true
 	contact_monitor = true
@@ -85,6 +113,29 @@ func add_box_shape(node_name: String, size_m: Vector3, local_position_m: Vector3
 	collision.position = local_position_m
 	add_child(collision)
 	return collision
+
+func configure_box_mass_distribution(size_m: Vector3, center_of_mass_local_m: Vector3 = Vector3.ZERO) -> void:
+	# Production collision geometry may retreat or narrow as local crush develops.
+	# Godot's automatic inertia calculation includes the current collision shapes,
+	# so leaving inertia automatic would let those contact-shell edits redefine the
+	# vehicle's rotational response during the same crash. Define mass distribution
+	# from an undeformed neutral envelope instead. This rectangular-body
+	# approximation remains invariant while collision shells change for crush travel.
+	var size := Vector3(
+		maxf(size_m.x, 0.10),
+		maxf(size_m.y, 0.10),
+		maxf(size_m.z, 0.10)
+	)
+	configured_mass_distribution_size_m = size
+	configured_center_of_mass_local_m = center_of_mass_local_m
+	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+	center_of_mass = center_of_mass_local_m
+	var coefficient := mass / 12.0
+	inertia = Vector3(
+		coefficient * (size.y * size.y + size.z * size.z),
+		coefficient * (size.x * size.x + size.z * size.z),
+		coefficient * (size.x * size.x + size.y * size.y)
+	)
 
 func configure_front_contact_frame(front_face_x_m: float, tolerance_m: float = 0.08) -> void:
 	front_contact_face_x_m = front_face_x_m
@@ -202,6 +253,9 @@ func begin_motion(speed_kmh: float, heading_deg: float) -> void:
 	initial_forward_world = Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
 	linear_velocity = initial_forward_world * PhysicsMetrics.kmh_to_ms(speed_kmh)
 	initial_linear_velocity_ms = linear_velocity
+	previous_integrated_linear_velocity_ms = linear_velocity
+	last_integrated_linear_velocity_ms = linear_velocity
+	last_integrated_physics_frame = -1
 	angular_velocity = Vector3.ZERO
 	stored_linear_velocity = linear_velocity
 	stored_angular_velocity = Vector3.ZERO
@@ -244,6 +298,96 @@ func stop_motion() -> void:
 	stored_linear_velocity = linear_velocity
 	stored_angular_velocity = angular_velocity
 	freeze = true
+
+func pre_contact_linear_velocity_ms() -> Vector3:
+	# If this body's integration callback has already run in the current physics
+	# frame, the previous sample is the last completed-step velocity. If it has not
+	# run yet, the last sample already represents that same pre-contact step. This
+	# makes the result independent of callback order between two colliding bodies.
+	if last_integrated_physics_frame == Engine.get_physics_frames():
+		return previous_integrated_linear_velocity_ms
+	return last_integrated_linear_velocity_ms
+
+func contact_entry_linear_velocity_ms() -> Vector3:
+	if last_non_ground_contact_free_physics_frame >= 0:
+		return last_non_ground_contact_free_linear_velocity_ms
+	return pre_contact_linear_velocity_ms()
+
+func recent_relative_axis_speed_ms(
+	collider: Object,
+	axis_world: Vector3,
+	fallback_subject_velocity_ms: Vector3 = Vector3.INF,
+	absolute_value: bool = false
+) -> float:
+	var axis := axis_world.normalized()
+	if axis.is_zero_approx():
+		return 0.0
+	var subject_velocity := fallback_subject_velocity_ms
+	if not is_finite(subject_velocity.x) or not is_finite(subject_velocity.y) or not is_finite(subject_velocity.z):
+		subject_velocity = contact_entry_linear_velocity_ms()
+	var collider_velocity := Vector3.ZERO
+	if collider is VehicleRigidChassis:
+		collider_velocity = (collider as VehicleRigidChassis).contact_entry_linear_velocity_ms()
+	elif collider is RigidBody3D:
+		collider_velocity = (collider as RigidBody3D).linear_velocity
+	var projected := (subject_velocity - collider_velocity).dot(axis)
+	var maximum_speed := absf(projected) if absolute_value else maxf(projected, 0.0)
+	# Contact manifolds can be surfaced one callback after the solver has already
+	# changed velocity. Inspect only the short rolling window of contact-free
+	# states and align dynamic peers by physics frame. This recovers the immediate
+	# collision-entry relative speed without using the scenario's t=0 velocity.
+	for sample in recent_non_ground_contact_free_velocity_samples:
+		var frame := int(sample.get("physics_frame", -1))
+		var velocity_value: Variant = sample.get("linear_velocity_ms", Vector3.ZERO)
+		if not velocity_value is Vector3:
+			continue
+		var historical_subject: Vector3 = velocity_value
+		var historical_other := collider_velocity
+		if collider is VehicleRigidChassis:
+			historical_other = (collider as VehicleRigidChassis).contact_free_linear_velocity_at_or_before(frame, collider_velocity)
+		var historical_projected := (historical_subject - historical_other).dot(axis)
+		var historical_speed := absf(historical_projected) if absolute_value else maxf(historical_projected, 0.0)
+		maximum_speed = maxf(maximum_speed, historical_speed)
+	return maximum_speed
+
+func contact_free_linear_velocity_at_or_before(physics_frame: int, fallback: Vector3 = Vector3.ZERO) -> Vector3:
+	var best_frame := -1
+	var best_velocity := fallback
+	for sample in recent_non_ground_contact_free_velocity_samples:
+		var sample_frame := int(sample.get("physics_frame", -1))
+		if sample_frame > physics_frame or sample_frame < best_frame:
+			continue
+		var velocity_value: Variant = sample.get("linear_velocity_ms", fallback)
+		if velocity_value is Vector3:
+			best_frame = sample_frame
+			best_velocity = velocity_value
+	return best_velocity
+
+func _record_contact_free_linear_velocity(velocity_ms: Vector3) -> void:
+	var physics_frame := Engine.get_physics_frames()
+	last_non_ground_contact_free_linear_velocity_ms = velocity_ms
+	last_non_ground_contact_free_physics_frame = physics_frame
+	if not recent_non_ground_contact_free_velocity_samples.is_empty():
+		var last_sample := recent_non_ground_contact_free_velocity_samples[-1]
+		if int(last_sample.get("physics_frame", -1)) == physics_frame:
+			last_sample["linear_velocity_ms"] = velocity_ms
+			recent_non_ground_contact_free_velocity_samples[-1] = last_sample
+			return
+	recent_non_ground_contact_free_velocity_samples.append({
+		"physics_frame": physics_frame,
+		"linear_velocity_ms": velocity_ms,
+	})
+	while recent_non_ground_contact_free_velocity_samples.size() > CONTACT_ENTRY_HISTORY_SAMPLES:
+		recent_non_ground_contact_free_velocity_samples.pop_front()
+
+func _record_integrated_linear_velocity(velocity_ms: Vector3) -> void:
+	var physics_frame := Engine.get_physics_frames()
+	if last_integrated_physics_frame == physics_frame:
+		last_integrated_linear_velocity_ms = velocity_ms
+		return
+	previous_integrated_linear_velocity_ms = last_integrated_linear_velocity_ms
+	last_integrated_linear_velocity_ms = velocity_ms
+	last_integrated_physics_frame = physics_frame
 
 func drain_contact_samples() -> Array[Dictionary]:
 	var result: Array[Dictionary] = contact_samples.duplicate(true)
@@ -360,8 +504,10 @@ func _update_front_crush_probe() -> void:
 			front_probe_collider = collider
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
+	_record_integrated_linear_velocity(state.linear_velocity)
 	contact_samples.clear()
 	front_body_contact_active = false
+	var had_non_ground_contact := false
 	maximum_vertical_speed_ms = maxf(maximum_vertical_speed_ms, absf(state.linear_velocity.y))
 	var forward_speed := state.linear_velocity.dot(initial_forward_world)
 	maximum_reverse_speed_ms = maxf(maximum_reverse_speed_ms, maxf(-forward_speed, 0.0))
@@ -372,6 +518,11 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 			collider_name = (collider as Node).name
 		var impulse := state.get_contact_impulse(contact_index)
 		var local_position := state.get_contact_local_position(contact_index)
+		var collider_pre_contact_velocity := Vector3.ZERO
+		if collider is VehicleRigidChassis:
+			collider_pre_contact_velocity = (collider as VehicleRigidChassis).contact_entry_linear_velocity_ms()
+		elif collider is RigidBody3D:
+			collider_pre_contact_velocity = (collider as RigidBody3D).linear_velocity
 		var sample := {
 			# Keep the historical key for compatibility, but expose the correctly
 			# named local point and collider object as well. Later production layers
@@ -381,6 +532,8 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 			"position_local": local_position,
 			"normal": state.get_contact_local_normal(contact_index),
 			"impulse": impulse,
+			"pre_contact_linear_velocity_ms": contact_entry_linear_velocity_ms(),
+			"collider_pre_contact_linear_velocity_ms": collider_pre_contact_velocity,
 			"collider_name": collider_name,
 			"collider": collider,
 			"local_shape": state.get_contact_local_shape(contact_index),
@@ -388,12 +541,16 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 		}
 		contact_samples.append(sample)
 		if not _is_ground_contact(collider_name):
+			had_non_ground_contact = true
 			non_ground_contact_events += 1
 			cumulative_non_ground_impulse_ns += impulse.length()
 			if StringName(sample["surface_region"]) == &"front":
 				front_body_contact_active = true
 				front_body_contact_ever = true
 				front_body_contact_collider = collider
+
+	if not had_non_ground_contact:
+		_record_contact_free_linear_velocity(state.linear_velocity)
 
 	# Summarize after collecting the step's contacts and before any consumer drains
 	# contact_samples. The summary is observational only.
@@ -416,7 +573,11 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 			float(manifold.get("projected_span_xz_m2", 0.0))
 		)
 		var total_impulse := float(manifold.get("total_impulse_ns", 0.0))
-		if total_impulse > peak_non_ground_contact_impulse_ns:
+		# Godot may report a contact point after its solver impulse was resolved in
+		# an earlier integration step. Retain that real manifold even when this
+		# step's raw impulse is zero: contact geometry and reported solver impulse
+		# are separate observations. The scalar remains the unmodified raw value.
+		if peak_non_ground_contact_manifold.is_empty() or total_impulse > peak_non_ground_contact_impulse_ns:
 			peak_non_ground_contact_impulse_ns = total_impulse
 			peak_non_ground_contact_manifold = manifold.duplicate(true)
 

@@ -4,7 +4,7 @@ CrashVector's desktop distribution layer was introduced in M9 and remains separa
 
 The canonical application version is `application/config/version` in `project.godot`. Packaging scripts, native package metadata, the updater and the release workflow all derive their version from that one value. Native operating-system version fields that cannot contain Semantic Version prerelease text are generated deterministically from it; they are not independent release versions.
 
-The current verified public desktop release is `0.9.0-beta.5`. It packages the M23 runtime stability and presentation corrections after full regression validation, runtime visual/contact review and native package checks. Public download and update discovery therefore resolve to the current v0.9 beta.
+The current verified public desktop release is `0.9.0-beta.10`. It packages the M23 production-readiness hardening after full regression validation and native package checks. Public download and update discovery therefore resolve to the current v0.9 beta.
 
 ## Install on macOS
 
@@ -89,15 +89,15 @@ Generated package metadata and native icon containers are not maintained as comp
 
 Current validation and packaging are split into three workflows/jobs with different purposes:
 
-1. **Normal consolidated CI** — `.github/workflows/ci.yml` imports/parses the project once, performs the architecture audit and runs the unique M0-M22 regression stack on Ubuntu/Godot. Documentation-only changes do not trigger it.
+1. **Normal consolidated CI** — `.github/workflows/ci.yml` imports/parses the project once, performs the architecture audit and runs the unique M0-M23 regression stack on Ubuntu/Godot. Documentation-only changes do not trigger it.
 2. **Presentation visual review** — `.github/workflows/visual-review.yml` is manual. It renders the passenger-car acceptance views and representative crash frames and also produces the M19 contact-fidelity observation matrix. Generated images/data are evidence for human review; successful artifact generation by itself is not visual acceptance or external validation.
-3. **Package and release** — `.github/workflows/package-release.yml` is manual. It builds and validates the macOS Universal 2 DMG and Windows x64 installer. Optional signing/notarization paths are used when credentials exist.
+3. **Package and release** — `.github/workflows/package-release.yml` can be started manually, and a version change merged to `main` also runs the full publish gate automatically. It builds and validates the macOS Universal 2 DMG and Windows x64 installer. Optional signing/notarization paths are used when credentials exist.
 
 The package workflow accepts three validation levels:
 
 - `none` — package-only diagnostic build; no regression suite is run;
-- `smoke` — focused layout/presentation/runtime plus dedicated M18-M22 production gates;
-- `full` — consolidated historical/package regression coverage through M22.
+- `smoke` — focused layout/presentation/runtime plus dedicated M18-M23 production gates, including the M23 production matrix;
+- `full` — consolidated historical/package regression coverage through M23, including the M23 production matrix.
 
 A `validation=none` artifact is an unvalidated diagnostic package and cannot be published as a GitHub Release. A publishable run requires `smoke` or `full` validation plus both native package jobs to succeed. `full` is the preferred release-candidate validation when runner capacity is available.
 
@@ -111,15 +111,15 @@ A match fails the architecture audit before the regression suite is accepted.
 
 ## Current release-readiness sequence
 
-The current public package is `0.9.0-beta.5`. Future releases must not be created merely because a candidate version exists.
+The current public package is `0.9.0-beta.10`. Future releases must not be created merely because a candidate version exists.
 
 Once runner capacity is available, use this order:
 
-1. Run consolidated CI or the package workflow with `validation=full` and require the project import/parse plus M0-M22 regressions to succeed.
+1. Run consolidated CI or the package workflow with `validation=full` and require the project import/parse plus M0-M23 regressions to succeed.
 2. Run the manual presentation visual review and inspect the pristine A/B/C/D/J/M vehicle frames, representative crash frames and M19 contact matrix.
 3. Build and validate both native packages. Retain the Universal 2 architecture check, macOS signing verification, Windows install/uninstall verification and both checksum checks.
 4. Create matching versioned release notes for the candidate only after its source, documentation and package behaviour are ready to publish.
-5. Run `Package and release` with `publish_release=true` and `validation=smoke` or `full`; `full` is preferred.
+5. Either merge the prepared version bump to `main` (which runs the full release gate and publishes only after validation/packages succeed) or manually run `Package and release` with `publish_release=true` and `validation=smoke` or `full`; `full` is preferred.
 
 The publish job refuses to run with `validation=none`, requires successful validation/macOS/Windows jobs, re-verifies both package SHA-256 sidecars, builds `update-manifest.json`, requires matching release notes, and refuses to overwrite an existing `v<version>` release.
 

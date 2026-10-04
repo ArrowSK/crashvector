@@ -9,6 +9,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var failures: Array[String] = []
+	await _test_immediate_preimpact_energy(failures)
 	await _test_50_kmh_wall_settles(failures)
 	await _test_stationary_car_stays_on_road(failures)
 	await _test_90_kmh_car_vs_truck_stays_grounded(failures)
@@ -20,6 +21,71 @@ func _run() -> void:
 	for failure in failures:
 		push_error(failure)
 	quit(1)
+
+func _test_immediate_preimpact_energy(failures: Array[String]) -> void:
+	var car := CompactHatchback.new()
+	car.name = "PreImpactEnergyCar"
+	car.total_mass_kg = 1150.0
+	car.initial_speed_kmh = 100.0
+	car.origin_offset_m = Vector3.ZERO
+	car.auto_step = false
+	root.add_child(car)
+	await process_frame
+	if car.rigid_chassis == null:
+		failures.append("Pre-impact energy regression could not create the passenger rigid chassis")
+		car.queue_free()
+		await process_frame
+		return
+
+	var current_frame := Engine.get_physics_frames()
+	car.rigid_chassis.previous_integrated_linear_velocity_ms = Vector3(5.0, 0.0, 0.0)
+	car.rigid_chassis.last_integrated_linear_velocity_ms = Vector3(1.0, 0.0, 0.0)
+	car.rigid_chassis.last_integrated_physics_frame = current_frame
+	var cached_preimpact := car.rigid_chassis.pre_contact_linear_velocity_ms()
+	if cached_preimpact.distance_to(Vector3(5.0, 0.0, 0.0)) > 0.000001:
+		failures.append("Rigid chassis did not expose the immediately preceding physics-step velocity")
+
+	var wall := StaticBody3D.new()
+	wall.name = "PreImpactEnergyWall"
+	root.add_child(wall)
+	var measured_energy := float(car.call("_normal_collision_energy_j", wall, cached_preimpact))
+	var expected_energy := 0.5 * car.rigid_chassis.mass * 25.0
+	if absf(measured_energy - expected_energy) > 0.01:
+		failures.append("Passenger crush energy used scenario t=0 speed instead of immediate pre-impact speed: %.1f J vs %.1f J" % [measured_energy, expected_energy])
+	var initial_speed_ms := PhysicsMetrics.kmh_to_ms(car.initial_speed_kmh)
+	var t0_energy := 0.5 * car.rigid_chassis.mass * initial_speed_ms * initial_speed_ms
+	if measured_energy >= t0_energy * 0.20:
+		failures.append("Passenger crush energy still retains an excessive t=0-speed floor: %.1f J" % measured_energy)
+
+	# A real solver manifold can arrive after the callback velocity has already
+	# fallen. Its same-contact impulse must recover that missing demand without
+	# reintroducing the scenario's original speed as a floor.
+	var impulse_speed_equivalent := 8.0
+	var contact_impulse := Vector3(-car.rigid_chassis.mass * impulse_speed_equivalent, 0.0, 0.0)
+	var impulse_energy := float(car.call("_normal_collision_energy_j", wall, cached_preimpact, contact_impulse))
+	var expected_impulse_energy := 0.5 * car.rigid_chassis.mass * impulse_speed_equivalent * impulse_speed_equivalent
+	if absf(impulse_energy - expected_impulse_energy) > 0.01:
+		failures.append("Passenger crush energy did not recover same-contact impulse demand: %.1f J vs %.1f J" % [impulse_energy, expected_impulse_energy])
+	if impulse_energy >= t0_energy * 0.20:
+		failures.append("Passenger impulse-derived demand accidentally restored the scenario t=0 energy floor: %.1f J" % impulse_energy)
+
+	var peer := VehicleRigidChassis.new()
+	peer.name = "PreImpactEnergyPeer"
+	peer.configure(1150.0, Vector3.ZERO, 0.0, 80.0)
+	root.add_child(peer)
+	peer.previous_integrated_linear_velocity_ms = Vector3(2.0, 0.0, 0.0)
+	peer.last_integrated_linear_velocity_ms = Vector3(2.0, 0.0, 0.0)
+	peer.last_integrated_physics_frame = current_frame
+	var peer_energy := float(car.call("_normal_collision_energy_j", peer, cached_preimpact))
+	var reduced_mass := PhysicsMetrics.collision_effective_mass_kg(car.rigid_chassis.mass, peer)
+	var expected_peer_energy := 0.5 * reduced_mass * 9.0
+	if absf(peer_energy - expected_peer_energy) > 0.01:
+		failures.append("Passenger vehicle-pair energy did not use both actors' immediate pre-impact velocities: %.1f J vs %.1f J" % [peer_energy, expected_peer_energy])
+
+	peer.queue_free()
+	wall.queue_free()
+	car.queue_free()
+	await process_frame
 
 func _test_50_kmh_wall_settles(failures: Array[String]) -> void:
 	var road := _road_body()

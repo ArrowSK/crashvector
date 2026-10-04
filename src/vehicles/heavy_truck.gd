@@ -30,6 +30,12 @@ var cab_roof_visual: MeshInstance3D
 var fifth_wheel_visual: MeshInstance3D
 var wheel_visuals: Array[Node3D] = []
 
+# Neutral one-piece mass envelope from the undeformed production collision
+# geometry. M17/M20 shrink those contact shells during crush; inertia must remain
+# a property of the vehicle mass model rather than of the current shell sizes.
+const NEUTRAL_MASS_DISTRIBUTION_SIZE := Vector3(9.625, 3.165, 2.42)
+const NEUTRAL_CENTER_OF_MASS_LOCAL := Vector3(4.7125, 1.9425, 0.0)
+
 func _ready() -> void:
 	model = HeavyTruckBuilder.build(total_mass_kg, 0.0, origin_offset_m)
 	model.rotate_y_about(origin_offset_m, deg_to_rad(heading_deg), true)
@@ -133,6 +139,7 @@ func _build_rigid_chassis() -> void:
 	# Without this the passenger-car safety-cell box can climb the exposed low
 	# chassis rail, producing the visibly absurd upward kick reported in M11.
 	rigid_chassis.add_box_shape("RearUnderrideCollision", Vector3(0.24, 0.68, 2.20), Vector3(0.02, 0.70, 0.0))
+	rigid_chassis.configure_box_mass_distribution(NEUTRAL_MASS_DISTRIBUTION_SIZE, NEUTRAL_CENTER_OF_MASS_LOCAL)
 	# M12: road support is suspension force, not rigid tyre spheres. This avoids
 	# high-speed wheel/road impulses kicking the truck upward during an impact.
 	var mass_scale := maxf(total_mass_kg / 18000.0, 0.20)

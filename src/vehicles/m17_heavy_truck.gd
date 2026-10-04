@@ -99,13 +99,11 @@ func _m17_consume_contacts() -> void:
 		if collider is Node3D:
 			contact_side_x = rigid_chassis.to_local((collider as Node3D).global_position).x
 		var other_velocity := Vector3.ZERO
-		var other_mass := rigid_chassis.mass
 		if collider is RigidBody3D:
 			var other := collider as RigidBody3D
 			other_velocity = other.linear_velocity
-			other_mass = maxf(other.mass, 1.0)
 		var longitudinal_relative := absf((rigid_chassis.linear_velocity - other_velocity).dot(forward))
-		var reduced_mass := rigid_chassis.mass * other_mass / maxf(rigid_chassis.mass + other_mass, 1.0)
+		var reduced_mass := PhysicsMetrics.collision_effective_mass_kg(rigid_chassis.mass, collider)
 		var velocity_energy := 0.5 * reduced_mass * longitudinal_relative * longitudinal_relative
 		var impulse: Vector3 = sample.get("impulse", Vector3.ZERO)
 		# Contact callbacks expose post-solve velocities. Preserve the collision

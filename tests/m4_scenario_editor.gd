@@ -19,6 +19,8 @@ func _initialize() -> void:
 	_test_scenario_round_trip(failures)
 	_test_scenario_store(failures)
 	_test_preflight_rules(failures)
+	_test_vehicle_start_envelopes(failures)
+	_test_primary_vehicle_defaults(failures)
 	_test_heading_transform(failures)
 	_test_static_obstacle_impact(failures)
 	_test_car_vs_car_rear_impact(failures)
@@ -35,6 +37,7 @@ func _initialize() -> void:
 func _test_scenario_round_trip(failures: Array[String]) -> void:
 	var source := ScenarioConfig.new()
 	source.title = "M4 car versus car round trip"
+	source.primary_type = ScenarioConfig.TARGET_PASSENGER_CAR
 	source.target_type = ScenarioConfig.TARGET_PASSENGER_CAR
 	source.car_preset_id = PassengerCarCatalog.D_SEGMENT_MIDSIZE
 	source.target_car_preset_id = PassengerCarCatalog.C_SEGMENT_COMPACT
@@ -55,6 +58,8 @@ func _test_scenario_round_trip(failures: Array[String]) -> void:
 		return
 	if loaded.title != source.title or loaded.target_type != source.target_type:
 		failures.append("M4 scenario JSON lost identity fields")
+	if loaded.primary_type != source.primary_type:
+		failures.append("M4 scenario JSON lost the explicit primary actor type")
 	if loaded.car_preset_id != source.car_preset_id or loaded.target_car_preset_id != source.target_car_preset_id:
 		failures.append("M4 scenario JSON lost passenger-car class fields")
 	if absf(loaded.car_mass_kg - source.car_mass_kg) > 0.001 or absf(loaded.target_mass_kg - source.target_mass_kg) > 0.001:
@@ -65,6 +70,14 @@ func _test_scenario_round_trip(failures: Array[String]) -> void:
 		failures.append("M4 scenario JSON lost contact parameters")
 	if not loaded.validation_errors().is_empty():
 		failures.append("M4 valid car-vs-car round-trip scenario failed preflight")
+	var legacy_data := source.to_dictionary().duplicate(true)
+	legacy_data["format_version"] = 1
+	var legacy_car: Dictionary = legacy_data.get("car", {})
+	legacy_car.erase("actor_type")
+	legacy_data["car"] = legacy_car
+	var legacy_loaded := ScenarioConfig.from_dictionary(legacy_data)
+	if legacy_loaded == null or legacy_loaded.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR:
+		failures.append("M4 version-1 scenario migration did not default the primary actor to passenger car")
 
 func _test_scenario_store(failures: Array[String]) -> void:
 	var scenario := ScenarioConfig.new()
@@ -93,6 +106,55 @@ func _test_preflight_rules(failures: Array[String]) -> void:
 	scenario.target_heading_deg = 180.0
 	if not scenario.validation_errors().is_empty():
 		failures.append("M4 preflight rejected supported head-on car-vs-car layout")
+
+func _test_vehicle_start_envelopes(failures: Array[String]) -> void:
+	# The M23 role-neutral path used to accept this normal UI geometry because the
+	# actor origins are 8.5 m apart. The articulated truck itself extends more than
+	# 9 m forward from its origin, so it already intersects the target car.
+	var scenario := ScenarioConfig.new()
+	scenario.apply_primary_vehicle_defaults(ScenarioConfig.TARGET_TRUCK)
+	scenario.apply_target_defaults(ScenarioConfig.TARGET_PASSENGER_CAR)
+	scenario.car_position_m = Vector3(-6.0, 0.0, 0.0)
+	scenario.target_position_m = Vector3(2.5, 0.0, 0.0)
+	var overlap_errors := scenario.validation_errors()
+	var rejected_overlap := false
+	for error in overlap_errors:
+		if error.contains("Vehicle start envelopes overlap"):
+			rejected_overlap = true
+			break
+	if not rejected_overlap:
+		failures.append("M4/M23 preflight accepted an articulated truck already overlapping its passenger-car target")
+
+	# The envelope test must respect actor heading rather than treating every
+	# vehicle as an axis-aligned interval around its origin.
+	scenario.car_heading_deg = 90.0
+	var rotated_errors := scenario.validation_errors()
+	for error in rotated_errors:
+		if error.contains("Vehicle start envelopes overlap"):
+			failures.append("M4/M23 vehicle-envelope preflight ignored the primary truck heading")
+			break
+	scenario.car_heading_deg = 0.0
+
+	# Moving the same target clear of the truck must restore a valid scenario;
+	# this guards against replacing the old centre-distance rule with an
+	# over-conservative blanket rejection.
+	scenario.target_position_m = Vector3(6.0, 0.0, 0.0)
+	var clear_errors := scenario.validation_errors()
+	for error in clear_errors:
+		if error.contains("Vehicle start envelopes overlap"):
+			failures.append("M4/M23 vehicle-envelope preflight rejected a visibly separated truck/car pair")
+			break
+
+func _test_primary_vehicle_defaults(failures: Array[String]) -> void:
+	for actor_type in ScenarioConfig.vehicle_actor_ids():
+		var scenario := ScenarioConfig.new()
+		# This test is about actor mass/speed defaults, not spawn geometry. Keep the
+		# target far enough away that long actors such as M21 do not intentionally
+		# trip the independent start-envelope preflight regression above.
+		scenario.target_position_m = Vector3(16.0, 0.0, 0.0)
+		scenario.apply_primary_vehicle_defaults(actor_type)
+		if not scenario.validation_errors().is_empty():
+			failures.append("M4 primary %s defaults failed preflight: %s" % [ScenarioConfig.actor_display_name(actor_type), "; ".join(scenario.validation_errors())])
 
 func _test_heading_transform(failures: Array[String]) -> void:
 	var model := PassengerCarBuilder.build(PassengerCarCatalog.B_SEGMENT_HATCHBACK, 1150.0, 50.0, 5.0, Vector3.ZERO)
