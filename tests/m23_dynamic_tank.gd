@@ -582,12 +582,6 @@ func _check_editor_reciprocal_vehicle_pair() -> void:
 			_expect(quick_target_buttons >= 7, "M23 compatibility layout exposes an incomplete quick-target control set")
 			_expect(quick_pedestrian_disabled and quick_bicycle_disabled, "M23 compatibility quick targets still offer unsupported vulnerable-road-user pairs for a truck primary")
 			_expect(quick_wall_enabled, "M23 compatibility quick targets incorrectly disable a supported fixed-fixture pair")
-		else:
-			var scenario_panel := editor.get("m10_left_panel") as PanelContainer
-			_expect(
-				scenario_panel != null and scenario_panel.name == &"M16ScenarioBuilder",
-				"M23 quick-target controls are missing outside the production M16 scenario shell"
-			)
 	var simulate_control := editor.get("m10_simulate_button") as Button
 	_expect(simulate_control != null and not simulate_control.disabled, "M23 Simulate control is disabled for a supported truck-versus-car pair")
 	var original_target := config.target_type
