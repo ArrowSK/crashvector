@@ -57,6 +57,7 @@ var _root_com_local := Vector3.ZERO
 var _pedestrian_torso: RigidBody3D
 var _bicycle_wheels: Array[RigidBody3D] = []
 var _cleaning_up: bool = false
+var _external_rig_detached: bool = false
 
 func configure(
 	type_id: StringName,
@@ -94,25 +95,35 @@ func _exit_tree() -> void:
 	if _cleaning_up:
 		return
 	_cleaning_up = true
-	# Articulated parts/joints are siblings of the proxy so they do not inherit
-	# the moving root transform. queue_free() alone leaves those siblings inside
-	# the physics tree until the end of the frame. Production rebuilds the preview
-	# synchronously when Simulate is pressed, so the replacement rig could overlap
-	# the still-live old rig for one physics step and receive a huge solver impulse
-	# before the vehicle ever arrived. Detach the external rig synchronously first.
+	detach_external_rig()
+
+func detach_external_rig() -> void:
+	if _external_rig_detached:
+		return
+	_external_rig_detached = true
+	# Articulated parts and joints are siblings of this proxy. Production rebuilds
+	# the target synchronously on Simulate, so they must be removed from the scene
+	# tree before a replacement rig is created; queue_free() alone is too late.
+	# Unbind joints first so the physics server cannot keep solving references to
+	# bodies while the old rig is being dismantled.
 	for joint in articulated_joints:
 		if joint == null or not is_instance_valid(joint):
 			continue
-		var parent := joint.get_parent()
-		if parent != null:
-			parent.remove_child(joint)
+		joint.node_a = NodePath()
+		joint.node_b = NodePath()
+		var joint_parent := joint.get_parent()
+		if joint_parent != null:
+			joint_parent.remove_child(joint)
 		joint.queue_free()
 	for body in articulated_bodies:
 		if body == null or not is_instance_valid(body):
 			continue
-		var parent := body.get_parent()
-		if parent != null:
-			parent.remove_child(body)
+		body.freeze = true
+		body.linear_velocity = Vector3.ZERO
+		body.angular_velocity = Vector3.ZERO
+		var body_parent := body.get_parent()
+		if body_parent != null:
+			body_parent.remove_child(body)
 		body.queue_free()
 	articulated_joints.clear()
 	articulated_bodies.clear()
