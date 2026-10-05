@@ -218,44 +218,104 @@ func _build_tank(parent: Node3D) -> void:
 	# Purpose-built generic tracked vehicle. It is intentionally not a replica of
 	# any real military platform, and is original CrashVector geometry under the
 	# repository licence rather than a new third-party asset dependency.
-	var hull := _material(Color(0.16, 0.25, 0.14), 0.20, 0.72)
-	var hull_highlight := _material(Color(0.25, 0.36, 0.20), 0.16, 0.68)
-	var track := _material(Color(0.075, 0.085, 0.075), 0.60, 0.42)
-	var wheel_material := _material(Color(0.12, 0.14, 0.11), 0.38, 0.50)
-	var detail := _material(Color(0.31, 0.40, 0.23), 0.14, 0.68)
-	var dark_detail := _material(Color(0.055, 0.065, 0.055), 0.30, 0.48)
+	#
+	# M24 keeps the exact existing collision envelope but upgrades the presentation
+	# with layered armour, articulated-looking track detail, optics and stowage so
+	# the tank reads as a plausible generic vehicle rather than stacked boxes.
+	var hull := _material(Color(0.145, 0.225, 0.125), 0.24, 0.66)
+	var hull_highlight := _material(Color(0.225, 0.335, 0.18), 0.18, 0.62)
+	var hull_shadow := _material(Color(0.105, 0.165, 0.095), 0.20, 0.74)
+	var track := _material(Color(0.060, 0.068, 0.062), 0.66, 0.38)
+	var track_edge := _material(Color(0.115, 0.125, 0.115), 0.72, 0.32)
+	var wheel_material := _material(Color(0.115, 0.13, 0.105), 0.42, 0.48)
+	var detail := _material(Color(0.285, 0.38, 0.215), 0.16, 0.62)
+	var dark_detail := _material(Color(0.045, 0.052, 0.046), 0.34, 0.44)
+	var glass := _material(Color(0.035, 0.075, 0.055), 0.10, 0.14)
+	var lamp := _emissive_material(Color(0.86, 0.88, 0.70), Color(0.46, 0.48, 0.25), 0.22)
 
-	_add_box(parent, "TankLowerHull", Vector3(6.80, 0.52, 2.55), hull, Vector3(0.0, 0.58, 0.0))
+	_add_box(parent, "TankLowerHull", Vector3(6.80, 0.52, 2.55), hull_shadow, Vector3(0.0, 0.58, 0.0))
 	_add_box(parent, "TankHull", Vector3(5.65, 0.62, 2.28), hull_highlight, Vector3(-0.18, 1.08, 0.0))
 	var glacis := _add_box(parent, "TankGlacis", Vector3(1.25, 0.42, 2.26), hull_highlight, Vector3(2.58, 1.22, 0.0))
 	glacis.rotation_degrees.z = 17.0
+	_add_box(parent, "TankLowerGlacis", Vector3(0.72, 0.30, 2.46), hull, Vector3(3.03, 0.86, 0.0)).rotation_degrees.z = -12.0
 	_add_box(parent, "TankRearDeck", Vector3(1.35, 0.16, 2.18), dark_detail, Vector3(-2.48, 1.42, 0.0))
-	# Each side uses a continuous, visibly enclosing track band. The former
-	# separate slabs sat behind the road wheels, which made the model read as a
-	# row of loose wheels rather than a tracked vehicle.
+	_add_box(parent, "TankEngineDeck", Vector3(1.80, 0.10, 1.82), hull_shadow, Vector3(-1.78, 1.50, 0.0))
+	for vent_z in [-0.58, -0.29, 0.0, 0.29, 0.58]:
+		_add_box(parent, "TankEngineVent", Vector3(1.30, 0.025, 0.11), track_edge, Vector3(-1.82, 1.56, vent_z))
+	for side_value in [-1.0, 1.0]:
+		var side: float = float(side_value)
+		var cheek := _add_box(parent, "TankHullCheek_%d" % int(side), Vector3(4.90, 0.40, 0.12), hull, Vector3(-0.18, 1.17, side * 1.18))
+		cheek.rotation_degrees.x = -side * 11.0
+		_add_box(parent, "TankStowage_%d" % int(side), Vector3(1.30, 0.38, 0.34), hull_shadow, Vector3(-1.15, 1.35, side * 1.30))
+
+	# Each side uses a continuous track band plus individual tread plates, hubs and
+	# return rollers. These are visual only; the existing track collision boxes
+	# remain authoritative and unchanged.
 	for side_value in [-1.0, 1.0]:
 		var side: float = float(side_value)
 		var track_z := side * 1.43
 		_add_box(parent, "TankTrackBand_%d" % int(side), Vector3(6.46, 0.82, 0.64), track, Vector3(0.0, 0.42, track_z))
 		_add_box(parent, "TankTrackInner_%d" % int(side), Vector3(5.86, 0.52, 0.025), dark_detail, Vector3(0.0, 0.42, side * 1.765))
-		for wheel_index in range(5):
-			var road_wheel := _add_cylinder(parent, "TankRoadWheel_%d_%d" % [int(side), wheel_index], 0.33, 0.33, 0.10, wheel_material, Vector3(-2.20 + float(wheel_index) * 1.10, 0.40, side * 1.775))
+		for link_index in range(13):
+			var link_x := -2.88 + float(link_index) * 0.48
+			_add_box(parent, "TankTrackTopLink_%d_%d" % [int(side), link_index], Vector3(0.34, 0.075, 0.68), track_edge, Vector3(link_x, 0.84, track_z))
+			_add_box(parent, "TankTrackBottomLink_%d_%d" % [int(side), link_index], Vector3(0.34, 0.075, 0.68), track_edge, Vector3(link_x, 0.02, track_z))
+		for wheel_index in range(6):
+			var wheel_x := -2.30 + float(wheel_index) * 0.92
+			var road_wheel := _add_cylinder(parent, "TankRoadWheel_%d_%d" % [int(side), wheel_index], 0.32, 0.32, 0.105, wheel_material, Vector3(wheel_x, 0.40, side * 1.775))
 			road_wheel.rotation_degrees.x = 90.0
+			var hub := _add_cylinder(parent, "TankRoadWheelHub_%d_%d" % [int(side), wheel_index], 0.12, 0.12, 0.12, dark_detail, Vector3(wheel_x, 0.40, side * 1.842))
+			hub.rotation_degrees.x = 90.0
+		for roller_index in range(3):
+			var roller := _add_cylinder(parent, "TankReturnRoller_%d_%d" % [int(side), roller_index], 0.12, 0.12, 0.09, dark_detail, Vector3(-1.45 + float(roller_index) * 1.45, 0.74, side * 1.78))
+			roller.rotation_degrees.x = 90.0
 		var idler := _add_cylinder(parent, "TankIdler_%d" % int(side), 0.27, 0.27, 0.11, detail, Vector3(2.82, 0.42, side * 1.775))
 		idler.rotation_degrees.x = 90.0
 		var sprocket := _add_cylinder(parent, "TankSprocket_%d" % int(side), 0.29, 0.29, 0.11, detail, Vector3(-2.82, 0.42, side * 1.775))
 		sprocket.rotation_degrees.x = 90.0
+		for tooth_index in range(8):
+			var angle := TAU * float(tooth_index) / 8.0
+			var tooth := _add_box(parent, "TankSprocketTooth_%d_%d" % [int(side), tooth_index], Vector3(0.10, 0.12, 0.13), track_edge, Vector3(
+				-2.82 + cos(angle) * 0.31,
+				0.42 + sin(angle) * 0.31,
+				side * 1.84
+			))
+			tooth.rotation_degrees.z = rad_to_deg(angle)
 
 	var turret_ring := _add_cylinder(parent, "TankTurretRing", 1.10, 1.10, 0.16, dark_detail, Vector3(0.20, 1.47, 0.0))
 	var turret := _add_cylinder(parent, "TankTurret", 0.98, 0.88, 0.52, detail, Vector3(0.32, 1.78, 0.0))
+	var turret_mesh := turret.mesh as CylinderMesh
+	if turret_mesh != null:
+		turret_mesh.radial_segments = 12
+	var turret_roof := _add_cylinder(parent, "TankTurretRoof", 0.82, 0.82, 0.09, hull_highlight, Vector3(0.20, 2.07, 0.0))
+	var turret_roof_mesh := turret_roof.mesh as CylinderMesh
+	if turret_roof_mesh != null:
+		turret_roof_mesh.radial_segments = 12
 	_add_box(parent, "TankMantlet", Vector3(0.42, 0.38, 0.60), dark_detail, Vector3(1.22, 1.82, 0.0))
 	var gun := _add_cylinder(parent, "TankMainGun", 0.105, 0.135, 3.00, detail, Vector3(2.78, 1.84, 0.0))
 	gun.rotation_degrees.z = -90.0
 	var muzzle := _add_cylinder(parent, "TankMuzzle", 0.17, 0.14, 0.30, dark_detail, Vector3(4.26, 1.84, 0.0))
 	muzzle.rotation_degrees.z = -90.0
-	var hatch := _add_cylinder(parent, "TankCommanderHatch", 0.30, 0.30, 0.13, dark_detail, Vector3(-0.05, 2.10, 0.0))
+	_add_cylinder(parent, "TankCommanderHatch", 0.30, 0.30, 0.13, dark_detail, Vector3(-0.10, 2.16, -0.32))
+	_add_cylinder(parent, "TankLoaderHatch", 0.25, 0.25, 0.10, dark_detail, Vector3(-0.08, 2.14, 0.38))
+	_add_box(parent, "TankCommanderOptic", Vector3(0.22, 0.17, 0.20), glass, Vector3(0.42, 2.23, -0.38))
+	_add_box(parent, "TankGunnerSight", Vector3(0.18, 0.15, 0.16), glass, Vector3(0.78, 2.08, -0.48))
+	for side_value in [-1.0, 1.0]:
+		var side: float = float(side_value)
+		for launcher_index in range(3):
+			var launcher := _add_cylinder(parent, "TankSmokeLauncher_%d_%d" % [int(side), launcher_index], 0.055, 0.055, 0.30, dark_detail, Vector3(0.72 - float(launcher_index) * 0.18, 2.02, side * (0.82 + float(launcher_index) * 0.05)))
+			launcher.rotation_degrees = Vector3(0.0, 0.0, -65.0)
+
 	_add_box(parent, "TankSideSkirtPort", Vector3(4.75, 0.22, 0.10), hull_highlight, Vector3(-0.20, 0.78, -1.76))
 	_add_box(parent, "TankSideSkirtStarboard", Vector3(4.75, 0.22, 0.10), hull_highlight, Vector3(-0.20, 0.78, 1.76))
+	for side in [-1.0, 1.0]:
+		_add_box(parent, "TankHeadlamp", Vector3(0.18, 0.18, 0.18), lamp, Vector3(2.78, 1.26, side * 0.86))
+		_add_box(parent, "TankRearStorage", Vector3(0.58, 0.34, 0.42), hull_shadow, Vector3(-2.70, 1.24, side * 0.88))
+		_add_box(parent, "TankTowShackle", Vector3(0.20, 0.25, 0.12), track_edge, Vector3(3.18, 0.58, side * 0.78))
+	for exhaust_z in [-0.64, 0.64]:
+		var exhaust := _add_cylinder(parent, "TankExhaust", 0.085, 0.075, 0.75, dark_detail, Vector3(-2.62, 1.56, exhaust_z))
+		exhaust.rotation_degrees.z = -90.0
+
 
 func _build_pole(parent: Node3D) -> void:
 	var pole_material := _material(Color(0.38, 0.41, 0.44), 0.72, 0.34)
@@ -293,6 +353,13 @@ func _add_cylinder_collision(parent: CollisionObject3D, radius_m: float, height_
 	collision.shape = shape
 	collision.position = local_position_m
 	parent.add_child(collision)
+
+func _emissive_material(color: Color, emission: Color, energy: float) -> StandardMaterial3D:
+	var material := _material(color, 0.10, 0.24)
+	material.emission_enabled = true
+	material.emission = emission
+	material.emission_energy_multiplier = energy
+	return material
 
 func _material(color: Color, metallic: float, roughness: float) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
