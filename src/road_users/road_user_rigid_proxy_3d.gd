@@ -451,6 +451,10 @@ func begin_simulation() -> void:
 	simulation_active = true
 	initial_world_position = center_of_mass_position()
 
+	# SceneTree.physics_frame is emitted before node physics processing. The
+	# second signal guarantees one complete frozen physics tick has finished,
+	# giving the physics server a stable joint/body registration before release.
+	await get_tree().physics_frame
 	await get_tree().physics_frame
 	if (
 		start_token != _simulation_start_token
