@@ -221,8 +221,14 @@ func visual_collapse_m() -> float:
 	# visibly shortened relative to its neutral authored spans.
 	var tank_mesh := tank_visual.mesh as BoxMesh if tank_visual != null else null
 	var seat_mesh := seat_visual.mesh as BoxMesh if seat_visual != null else null
-	var tank_collapse := 0.0 if tank_mesh == null else maxf(TANK_BASE_SIZE.x - tank_mesh.size.x, 0.0)
-	var seat_collapse := 0.0 if seat_mesh == null else maxf(SEAT_BASE_SIZE.x - seat_mesh.size.x, 0.0)
+	var tank_collapse := 0.0 if tank_mesh == null else maxf(
+		maxf(TANK_BASE_SIZE.x - tank_mesh.size.x, 0.0),
+		maxf(TANK_BASE_SIZE.z - tank_mesh.size.z, 0.0)
+	)
+	var seat_collapse := 0.0 if seat_mesh == null else maxf(
+		maxf(SEAT_BASE_SIZE.x - seat_mesh.size.x, 0.0),
+		maxf(SEAT_BASE_SIZE.z - seat_mesh.size.z, 0.0)
+	)
 	var front_fork_collapse := 0.0
 	for side in range(mini(front_fork_visuals.size(), 2)):
 		var mesh := front_fork_visuals[side].mesh as BoxMesh
