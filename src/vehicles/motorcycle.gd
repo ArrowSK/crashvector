@@ -20,6 +20,11 @@ var tank_visual: MeshInstance3D
 var seat_visual: MeshInstance3D
 var handlebar_visual: MeshInstance3D
 var headlamp_visual: MeshInstance3D
+var engine_visual: MeshInstance3D
+var fairing_visual: MeshInstance3D
+var windscreen_visual: MeshInstance3D
+var exhaust_visual: MeshInstance3D
+var rear_light_visual: MeshInstance3D
 var front_fork_visuals: Array[MeshInstance3D] = []
 var rear_swingarm_visuals: Array[MeshInstance3D] = []
 var wheel_roots: Array[Node3D] = []
@@ -71,6 +76,11 @@ func _build_visuals() -> void:
 	seat_visual = _create_box("Seat", SEAT_BASE_SIZE, dark)
 	handlebar_visual = _create_box("Handlebar", HANDLEBAR_BASE_SIZE, metal)
 	headlamp_visual = _create_box("Headlamp", Vector3(0.13, 0.22, 0.27), _emissive_material())
+	engine_visual = _create_box("EngineBlock", Vector3(0.58, 0.48, 0.44), metal)
+	fairing_visual = _create_box("FrontFairing", Vector3(0.42, 0.48, 0.52), body_material)
+	windscreen_visual = _create_box("Windscreen", Vector3(0.08, 0.34, 0.44), _glass_material())
+	exhaust_visual = _create_cylinder("Exhaust", 0.055, 0.78, metal)
+	rear_light_visual = _create_box("RearLamp", Vector3(0.10, 0.14, 0.24), _rear_emissive_material())
 	for side in range(2):
 		var fork := _create_box("FrontFork", Vector3(0.58, 0.045, 0.045), metal)
 		fork.set_meta("side", side)
@@ -103,6 +113,18 @@ func _build_visuals() -> void:
 		rim.mesh = rim_mesh
 		rim.rotation_degrees.x = 90.0
 		root.add_child(rim)
+		var brake_disc := MeshInstance3D.new()
+		brake_disc.name = "BrakeDisc"
+		var disc_mesh := CylinderMesh.new()
+		disc_mesh.top_radius = 0.16
+		disc_mesh.bottom_radius = 0.16
+		disc_mesh.height = 0.018
+		disc_mesh.radial_segments = 24
+		disc_mesh.material = metal
+		brake_disc.mesh = disc_mesh
+		brake_disc.rotation_degrees.x = 90.0
+		brake_disc.position.z = 0.07
+		root.add_child(brake_disc)
 		wheel_roots.append(root)
 
 func _build_structure_debugger() -> void:
@@ -126,9 +148,34 @@ func _emissive_material() -> StandardMaterial3D:
 	material.emission_energy_multiplier = 0.18
 	return material
 
+func _rear_emissive_material() -> StandardMaterial3D:
+	var material := _material(Color(0.74, 0.045, 0.035), 0.06, 0.30)
+	material.emission_enabled = true
+	material.emission = Color(0.55, 0.015, 0.010)
+	material.emission_energy_multiplier = 0.24
+	return material
+
+func _glass_material() -> StandardMaterial3D:
+	var material := _material(Color(0.055, 0.11, 0.16, 0.78), 0.05, 0.10)
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	return material
+
 func _create_box(node_name: String, size: Vector3, material: Material) -> MeshInstance3D:
 	var mesh := BoxMesh.new()
 	mesh.size = size
+	mesh.material = material
+	var visual := MeshInstance3D.new()
+	visual.name = node_name
+	visual.mesh = mesh
+	add_child(visual)
+	return visual
+
+func _create_cylinder(node_name: String, radius: float, height: float, material: Material) -> MeshInstance3D:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	mesh.radial_segments = 20
 	mesh.material = material
 	var visual := MeshInstance3D.new()
 	visual.name = node_name
@@ -191,6 +238,20 @@ func update_from_model() -> void:
 	handlebar_visual.basis = front_basis
 	headlamp_visual.position = front + front_basis.x * 0.06 + front_basis.y * 0.27
 	headlamp_visual.basis = front_basis
+	engine_visual.position = (station1 + station2) * 0.5 - tank_basis.y * 0.16
+	engine_visual.basis = tank_basis
+	fairing_visual.position = station2 + front_basis.x * 0.23 + front_basis.y * 0.22
+	fairing_visual.basis = front_basis
+	windscreen_visual.position = front - front_basis.x * 0.20 + front_basis.y * 0.62
+	windscreen_visual.basis = front_basis
+	rear_light_visual.position = rear - rear_basis.x * 0.10 + rear_basis.y * 0.46
+	rear_light_visual.basis = rear_basis
+	_update_box_between_x(
+		exhaust_visual,
+		station1 - rear_basis.y * 0.26 + rear_basis.z * 0.22,
+		station2 - tank_basis.y * 0.22 + tank_basis.z * 0.22,
+		basis.y
+	)
 
 	# Independent left/right fork and swingarm members make shortening and folding
 	# visible instead of hiding M20 structural crush underneath rigid body boxes.
