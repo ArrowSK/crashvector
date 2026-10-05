@@ -23,10 +23,10 @@ Each CrashVector passenger-car class has its own pinned Kenney body asset instea
 | B-segment small hatchback | `sedan-sports.glb` |
 | C-segment compact car | `sedan.glb` |
 | D-segment midsize car | `taxi.glb` |
-| J-segment SUV / crossover | `suv-luxury.glb` |
+| J-segment SUV / crossover | `suv.glb` |
 | M-segment MPV / minivan | `van.glb` |
 
-The Car Kit has only one dedicated hatchback body and a limited set of ordinary passenger-car silhouettes. The D-segment therefore uses the additional Kenney passenger-sedan/taxi asset as a distinct presentation source rather than reusing the compact or sports-sedan body, while the J-segment uses the more detailed `suv-luxury.glb`. These asset choices are visual class proxies only; they do not imply manufacturer-specific geometry or physics.
+The Car Kit has only one dedicated hatchback body and a limited set of ordinary passenger-car silhouettes. The D-segment therefore uses the additional Kenney passenger-sedan/taxi asset as a distinct presentation source rather than reusing the compact or sports-sedan body. These asset choices are visual class proxies only; they do not imply manufacturer-specific geometry or physics.
 
 ## Generic rigid-lorry presentation
 
