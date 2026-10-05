@@ -13,6 +13,8 @@ func _run() -> void:
 		return
 	if not _verify_catalog_mapping():
 		return
+	if not await _verify_lorry_presentation():
+		return
 
 	var packed := load("res://app/main.tscn") as PackedScene
 	if packed == null:
@@ -108,7 +110,7 @@ func _verify_catalog_mapping() -> bool:
 		PassengerCarCatalog.B_SEGMENT_HATCHBACK: "sedan-sports.glb",
 		PassengerCarCatalog.C_SEGMENT_COMPACT: "sedan.glb",
 		PassengerCarCatalog.D_SEGMENT_MIDSIZE: "taxi.glb",
-		PassengerCarCatalog.J_SEGMENT_SUV: "suv.glb",
+		PassengerCarCatalog.J_SEGMENT_SUV: "suv-luxury.glb",
 		PassengerCarCatalog.M_SEGMENT_MPV: "van.glb",
 	}
 	var seen_paths := {}
@@ -130,6 +132,49 @@ func _verify_catalog_mapping() -> bool:
 	if not ResourceLoader.exists(KenneyVehicleAssetCatalog.WHEEL_DEFAULT):
 		_fail("Kenney passenger-car wheel asset is missing")
 		return false
+	for path in KenneyVehicleAssetCatalog.extended_vehicle_paths():
+		if not ResourceLoader.exists(path):
+			_fail("Extended Kenney vehicle presentation asset is missing: %s" % path)
+			return false
+	return true
+
+func _verify_lorry_presentation() -> bool:
+	var lorry := M20RigidLorry.new()
+	lorry.name = "KenneyLorryRegression"
+	lorry.total_mass_kg = 12000.0
+	lorry.origin_offset_m = Vector3.ZERO
+	lorry.auto_step = false
+	root.add_child(lorry)
+	for _frame in range(4):
+		await process_frame
+	var skin := lorry.kenney_body_skin
+	if skin == null or not skin.active:
+		lorry.queue_free()
+		await process_frame
+		_fail("Rigid lorry did not activate the fitted CC0 Kenney delivery body")
+		return false
+	if String(skin.get_meta("presentation_asset_source", "")) != "Kenney Car Kit 3.1":
+		lorry.queue_free()
+		await process_frame
+		_fail("Rigid lorry Kenney provenance metadata is missing")
+		return false
+	if skin.source_asset_path != KenneyVehicleAssetCatalog.rigid_lorry_body_path():
+		lorry.queue_free()
+		await process_frame
+		_fail("Rigid lorry used the wrong Kenney presentation asset")
+		return false
+	if lorry.cargo_visual.visible or lorry.cab_visual.visible or lorry.chassis_visual.visible:
+		lorry.queue_free()
+		await process_frame
+		_fail("Procedural lorry body remained visible below the fitted Kenney replacement")
+		return false
+	if skin.source_aabb.size.x <= 0.01 or skin.source_aabb.size.y <= 0.01 or skin.source_aabb.size.z <= 0.01:
+		lorry.queue_free()
+		await process_frame
+		_fail("Rigid lorry Kenney body has invalid fitted source bounds")
+		return false
+	lorry.queue_free()
+	await process_frame
 	return true
 
 func _verify_pristine_baseline(skin: KenneyVehicleSkin3D) -> bool:
@@ -238,8 +283,8 @@ func _verify_class_rebuild(instance: Node) -> bool:
 	if visual == null or visual.kenney_skin == null or not visual.kenney_skin.active:
 		_fail("Kenney skin did not survive class-specific preview rebuild")
 		return false
-	if not visual.kenney_skin.body_asset_path.ends_with("suv.glb"):
-		_fail("SUV class did not rebuild with the Kenney SUV body")
+	if not visual.kenney_skin.body_asset_path.ends_with("suv-luxury.glb"):
+		_fail("SUV class did not rebuild with the Kenney luxury SUV body")
 		return false
 	return true
 
