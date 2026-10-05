@@ -53,6 +53,7 @@ var _joint_local_anchors: Dictionary = {}
 var _initial_relative_bases: Dictionary = {}
 var _paused_body_states: Dictionary = {}
 var _initial_part_y: Dictionary = {}
+var _simulation_start_token: int = 0
 var _root_com_local := Vector3.ZERO
 var _pedestrian_torso: RigidBody3D
 var _bicycle_wheels: Array[RigidBody3D] = []
@@ -437,26 +438,45 @@ func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
 	maximum_preimpact_center_height_m = initial_world_position.y
 
 func begin_simulation() -> void:
+	# Production rebuilds the road-user rig synchronously when Simulate is
+	# pressed. Generic6DOF joints must be allowed one physics-tree synchronization
+	# point after their final pose/rebind before any connected body is unfrozen.
+	# Unfreezing in the same frame can make Godot solve stale joint-local anchors
+	# as a large positional error, injecting enough energy to launch a pedestrian
+	# before the approaching vehicle ever reaches it.
+	_simulation_start_token += 1
+	var start_token := _simulation_start_token
 	set_preview_pose(origin_offset_m, heading_deg)
+	_preimpact_stance_active = _uses_preimpact_stance()
+	simulation_active = true
+	initial_world_position = center_of_mass_position()
+
+	await get_tree().physics_frame
+	if (
+		start_token != _simulation_start_token
+		or not simulation_active
+		or not is_inside_tree()
+	):
+		return
+
 	var forward := Vector3.RIGHT.rotated(Vector3.UP, deg_to_rad(heading_deg)).normalized()
 	var initial_velocity := forward * PhysicsMetrics.kmh_to_ms(initial_speed_kmh)
-	_preimpact_stance_active = _uses_preimpact_stance()
 	freeze = false
 	sleeping = false
 	linear_velocity = initial_velocity
+	angular_velocity = Vector3.ZERO
 	gravity_scale = _preimpact_gravity_scale_for_body(self)
 	for body in articulated_bodies:
-		if body == null or not is_instance_valid(body):
+		if body == null or not is_instance_valid(body) or not body.is_inside_tree():
 			continue
 		body.freeze = false
 		body.sleeping = false
 		body.linear_velocity = initial_velocity
 		body.angular_velocity = Vector3.ZERO
 		body.gravity_scale = _preimpact_gravity_scale_for_body(body)
-	simulation_active = true
-	initial_world_position = center_of_mass_position()
 
 func end_simulation() -> void:
+	_simulation_start_token += 1
 	simulation_active = false
 	_preimpact_stance_active = false
 	freeze = true
