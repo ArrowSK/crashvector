@@ -106,14 +106,29 @@ func _check_production_pedestrian_contact_stability() -> void:
 	_expect(String(editor.get_script().resource_path).ends_with("crash_demo_m23.gd"), "Production pedestrian case does not route through M23")
 	var preview_proxy := editor.get("road_user_proxy") as RoadUserRigidProxy3D
 	_expect(preview_proxy != null and preview_proxy.target_type == ScenarioConfig.TARGET_PEDESTRIAN, "Production pedestrian preview did not instantiate the articulated pedestrian")
+	var preview_external_bodies: Array = []
+	var preview_external_joints: Array = []
 	if preview_proxy != null:
 		var exposed_vehicle_bodies := 1 if preview_proxy.is_vehicle_contact_body(preview_proxy) else 0
 		for body in preview_proxy.articulated_bodies:
-			if body != null and is_instance_valid(body) and preview_proxy.is_vehicle_contact_body(body):
-				exposed_vehicle_bodies += 1
+			if body != null and is_instance_valid(body):
+				preview_external_bodies.append(body)
+				if preview_proxy.is_vehicle_contact_body(body):
+					exposed_vehicle_bodies += 1
+		for joint in preview_proxy.articulated_joints:
+			if joint != null and is_instance_valid(joint):
+				preview_external_joints.append(joint)
 		_expect(exposed_vehicle_bodies == 2, "Production pedestrian must expose only pelvis/root and torso to vehicle contact, got %d bodies" % exposed_vehicle_bodies)
 
 	editor.call("_on_simulate_pressed")
+	# Simulate rebuilds the preview synchronously. The old articulated siblings
+	# must already be detached before the replacement rig can enter physics.
+	for body in preview_external_bodies:
+		if body != null and is_instance_valid(body):
+			_expect(not body.is_inside_tree(), "Production rebuild left stale pedestrian body in the physics tree: %s" % body.name)
+	for joint in preview_external_joints:
+		if joint != null and is_instance_valid(joint):
+			_expect(not joint.is_inside_tree(), "Production rebuild left stale pedestrian joint in the physics tree: %s" % joint.name)
 	await physics_frame
 	var completed := false
 	for _frame in range(1200):
