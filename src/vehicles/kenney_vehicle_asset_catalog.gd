@@ -11,6 +11,8 @@ extends RefCounted
 # production structural/rigid-body models.
 const ROOT := "res://third_party/kenney_car_kit/Models/GLB format/"
 const WHEEL_DEFAULT := ROOT + "wheel-default.glb"
+const WHEEL_TRUCK := ROOT + "wheel-truck.glb"
+const RIGID_LORRY_BODY := ROOT + "delivery.glb"
 
 static func passenger_car_body_path(preset_id: StringName) -> String:
 	match preset_id:
@@ -23,11 +25,17 @@ static func passenger_car_body_path(preset_id: StringName) -> String:
 		PassengerCarCatalog.D_SEGMENT_MIDSIZE:
 			return ROOT + "taxi.glb"
 		PassengerCarCatalog.J_SEGMENT_SUV:
-			return ROOT + "suv.glb"
+			return ROOT + "suv-luxury.glb"
 		PassengerCarCatalog.M_SEGMENT_MPV:
 			return ROOT + "van.glb"
 		_:
 			return ROOT + "hatchback-sports.glb"
+
+static func rigid_lorry_body_path() -> String:
+	return RIGID_LORRY_BODY
+
+static func extended_vehicle_paths() -> PackedStringArray:
+	return PackedStringArray([RIGID_LORRY_BODY, WHEEL_TRUCK])
 
 static func passenger_car_mapping() -> Dictionary:
 	var result := {}
