@@ -31,6 +31,8 @@ var maximum_vertical_speed_ms: float = 0.0
 var maximum_speed_ms: float = 0.0
 var maximum_travel_m: float = 0.0
 var maximum_center_height_m: float = 0.0
+var maximum_part_vertical_speed_ms: float = 0.0
+var maximum_part_height_rise_m: float = 0.0
 var minimum_preimpact_center_height_m: float = 0.0
 var maximum_preimpact_center_height_m: float = 0.0
 var maximum_articulation_angle_deg: float = 0.0
@@ -50,6 +52,7 @@ var _body_local_offsets: Dictionary = {}
 var _joint_local_anchors: Dictionary = {}
 var _initial_relative_bases: Dictionary = {}
 var _paused_body_states: Dictionary = {}
+var _initial_part_y: Dictionary = {}
 var _root_com_local := Vector3.ZERO
 var _pedestrian_torso: RigidBody3D
 var _bicycle_wheels: Array[RigidBody3D] = []
@@ -109,6 +112,12 @@ func _physics_process(_delta: float) -> void:
 	var center := center_of_mass_position()
 	maximum_travel_m = maxf(maximum_travel_m, center.distance_to(initial_world_position))
 	maximum_center_height_m = maxf(maximum_center_height_m, center.y)
+	for body in articulated_bodies:
+		if body == null or not is_instance_valid(body):
+			continue
+		maximum_part_vertical_speed_ms = maxf(maximum_part_vertical_speed_ms, absf(body.linear_velocity.y))
+		var initial_y := float(_initial_part_y.get(body.name, body.global_position.y))
+		maximum_part_height_rise_m = maxf(maximum_part_height_rise_m, body.global_position.y - initial_y)
 	if not impact_received:
 		minimum_preimpact_center_height_m = minf(minimum_preimpact_center_height_m, center.y)
 		maximum_preimpact_center_height_m = maxf(maximum_preimpact_center_height_m, center.y)
@@ -412,12 +421,16 @@ func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
 	maximum_speed_ms = 0.0
 	maximum_travel_m = 0.0
 	maximum_center_height_m = center_of_mass_position().y
+	maximum_part_vertical_speed_ms = 0.0
+	maximum_part_height_rise_m = 0.0
 	maximum_articulation_angle_deg = 0.0
 	maximum_wheel_spin_rad_s = 0.0
 	_initial_relative_bases.clear()
+	_initial_part_y.clear()
 	for body in articulated_bodies:
 		if body != null and is_instance_valid(body):
 			_initial_relative_bases[body.name] = global_transform.basis.inverse() * body.global_transform.basis
+			_initial_part_y[body.name] = body.global_position.y
 	initial_world_position = center_of_mass_position()
 	maximum_center_height_m = initial_world_position.y
 	minimum_preimpact_center_height_m = initial_world_position.y
