@@ -87,19 +87,21 @@ func _hide_mesh_descendants(node: Node) -> void:
 			_hide_mesh_descendants(child)
 
 func _build_pedestrian_skin() -> void:
-	_visuals["pelvis"] = _cylinder("PelvisSkin", 0.17 * _scale, _cloth_dark_material)
-	_visuals["torso"] = _cylinder("TorsoSkin", 0.20 * _scale, _cloth_material)
+	# Rounded presentation capsules read as a connected person under motion while
+	# leaving the underlying rigid capsules/boxes and all contact physics intact.
+	_visuals["pelvis"] = _capsule("PelvisSkin", 0.17 * _scale, _cloth_dark_material)
+	_visuals["torso"] = _capsule("TorsoSkin", 0.20 * _scale, _cloth_material)
 	_visuals["head"] = _sphere("HeadSkin", 0.15 * _scale, _skin_material)
-	_visuals["left_upper_arm"] = _cylinder("LeftUpperArmSkin", 0.072 * _scale, _cloth_material)
-	_visuals["right_upper_arm"] = _cylinder("RightUpperArmSkin", 0.072 * _scale, _cloth_material)
-	_visuals["left_lower_arm"] = _cylinder("LeftLowerArmSkin", 0.060 * _scale, _skin_material)
-	_visuals["right_lower_arm"] = _cylinder("RightLowerArmSkin", 0.060 * _scale, _skin_material)
-	_visuals["left_upper_leg"] = _cylinder("LeftUpperLegSkin", 0.098 * _scale, _cloth_dark_material)
-	_visuals["right_upper_leg"] = _cylinder("RightUpperLegSkin", 0.098 * _scale, _cloth_dark_material)
-	_visuals["left_lower_leg"] = _cylinder("LeftLowerLegSkin", 0.078 * _scale, _cloth_dark_material)
-	_visuals["right_lower_leg"] = _cylinder("RightLowerLegSkin", 0.078 * _scale, _cloth_dark_material)
-	_visuals["left_foot"] = _cylinder("LeftFootSkin", 0.072 * _scale, _shoe_material)
-	_visuals["right_foot"] = _cylinder("RightFootSkin", 0.072 * _scale, _shoe_material)
+	_visuals["left_upper_arm"] = _capsule("LeftUpperArmSkin", 0.072 * _scale, _cloth_material)
+	_visuals["right_upper_arm"] = _capsule("RightUpperArmSkin", 0.072 * _scale, _cloth_material)
+	_visuals["left_lower_arm"] = _capsule("LeftLowerArmSkin", 0.060 * _scale, _skin_material)
+	_visuals["right_lower_arm"] = _capsule("RightLowerArmSkin", 0.060 * _scale, _skin_material)
+	_visuals["left_upper_leg"] = _capsule("LeftUpperLegSkin", 0.098 * _scale, _cloth_dark_material)
+	_visuals["right_upper_leg"] = _capsule("RightUpperLegSkin", 0.098 * _scale, _cloth_dark_material)
+	_visuals["left_lower_leg"] = _capsule("LeftLowerLegSkin", 0.078 * _scale, _cloth_dark_material)
+	_visuals["right_lower_leg"] = _capsule("RightLowerLegSkin", 0.078 * _scale, _cloth_dark_material)
+	_visuals["left_foot"] = _capsule("LeftFootSkin", 0.072 * _scale, _shoe_material)
+	_visuals["right_foot"] = _capsule("RightFootSkin", 0.072 * _scale, _shoe_material)
 
 func _update_pedestrian_skin() -> void:
 	# Joints retain their construction anchors in world space. They are not a
@@ -163,6 +165,27 @@ func _build_bicycle_skin() -> void:
 		rim.mesh = rim_mesh
 		rim.rotation_degrees.x = 90.0
 		group.add_child(rim)
+
+		var hub := MeshInstance3D.new()
+		hub.name = "Hub"
+		var hub_mesh := CylinderMesh.new()
+		hub_mesh.top_radius = 0.035
+		hub_mesh.bottom_radius = 0.035
+		hub_mesh.height = 0.10
+		hub_mesh.radial_segments = 14
+		hub_mesh.material = _metal_material
+		hub.mesh = hub_mesh
+		hub.rotation_degrees.x = 90.0
+		group.add_child(hub)
+		for spoke_index in range(8):
+			var spoke := MeshInstance3D.new()
+			spoke.name = "Spoke"
+			var spoke_mesh := BoxMesh.new()
+			spoke_mesh.size = Vector3(0.56, 0.010, 0.010)
+			spoke_mesh.material = _metal_material
+			spoke.mesh = spoke_mesh
+			spoke.rotation_degrees.z = float(spoke_index) * 22.5
+			group.add_child(spoke)
 		_bicycle_wheel_groups.append(group)
 
 func _update_bicycle_skin() -> void:
@@ -227,6 +250,19 @@ func _body_forward(body_name: String) -> Vector3:
 	var forward := body.global_transform.basis.x.normalized()
 	return forward if not forward.is_zero_approx() else Vector3.RIGHT
 
+func _capsule(node_name: String, radius: float, material: Material) -> MeshInstance3D:
+	var capsule := CapsuleMesh.new()
+	capsule.radius = radius
+	capsule.height = maxf(radius * 2.0 + 0.01, 0.40)
+	capsule.radial_segments = 16
+	capsule.rings = 5
+	capsule.material = material
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.mesh = capsule
+	add_child(instance)
+	return instance
+
 func _cylinder(node_name: String, radius: float, material: Material) -> MeshInstance3D:
 	var cylinder := CylinderMesh.new()
 	cylinder.top_radius = radius
@@ -267,6 +303,9 @@ func _set_segment(instance_value: Variant, start: Vector3, finish: Vector3) -> v
 	var cylinder := instance.mesh as CylinderMesh
 	if cylinder != null:
 		cylinder.height = length
+	var capsule := instance.mesh as CapsuleMesh
+	if capsule != null:
+		capsule.height = maxf(length, capsule.radius * 2.0 + 0.01)
 	instance.global_position = (start + finish) * 0.5
 	instance.global_basis = _basis_y_along(delta / length)
 
