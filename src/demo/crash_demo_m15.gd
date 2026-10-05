@@ -9,11 +9,12 @@ extends "res://src/demo/crash_demo_m14.gd"
 # lightweight articulated rigid-body chains with bounded generic joints and
 # bicycles have independently simulated wheel bodies joined to the rigid frame.
 #
-# Road-user rigid segments use a dedicated collision channel. They collide
-# physically with the road but not the passenger-car protected-cell collider;
-# car/road-user impact remains coupled through the existing front-crush probe.
-# This prevents a limb or wheel joint from becoming an unintended rigid ramp
-# under the car while still allowing the articulated target to tumble on-road.
+# Road-user rigid segments use dedicated collision channels. All articulated
+# parts retain road contact, while only the target's intended vehicle-contact
+# envelope is exposed to the passenger-car chassis. For pedestrians that means
+# pelvis/root plus torso; limb capsules remain road-only so they cannot become
+# high-speed numerical ramps under the car. Godot rigid contact remains the
+# sole source of impact momentum.
 
 const ROAD_USER_LAYER: int = 2
 const ROAD_USER_GROUND_LAYER: int = 4
@@ -86,7 +87,10 @@ func _configure_articulated_collision_channels() -> void:
 				probe.collision_mask = ROAD_USER_LAYER
 
 func _set_road_user_body_channels(body: PhysicsBody3D) -> void:
-	if road_user_proxy != null and road_user_proxy.is_ground_support_body(body):
+	if road_user_proxy != null and (
+		road_user_proxy.is_ground_support_body(body)
+		or not road_user_proxy.is_vehicle_contact_body(body)
+	):
 		body.collision_layer = ROAD_USER_GROUND_LAYER
 		body.collision_mask = ROAD_USER_GROUND_LAYER
 		return
