@@ -50,7 +50,9 @@ func _run() -> void:
 		_expect(motorcycle.rigid_chassis.non_ground_contact_events > 0, "50 km/h motorcycle run bypassed the motorcycle physical contact")
 		_expect(motorcycle.rider_rig != null and motorcycle.rider_rig.rider_body_count() == 2, "Motorcycle must provide the physical rider rig")
 		_expect(motorcycle.rider_released_after_contact(), "Motorcycle rider must release only after the real contact")
-		_expect(motorcycle.rear_impact_deformation_m() > 0.01 or motorcycle.front_crush_deformation_m() > 0.01 or motorcycle.side_impact_deformation_m() > 0.01, "50 km/h motorcycle impact produced no visible local deformation")
+		_expect(motorcycle.rear_impact_deformation_m() > 0.01 or motorcycle.front_crush_deformation_m() > 0.01 or motorcycle.side_impact_deformation_m() > 0.01, "50 km/h motorcycle impact produced no local structural deformation")
+		_expect(motorcycle.visual_collapse_m() > 0.005, "50 km/h motorcycle structural deformation is still hidden by an effectively rigid presentation shell")
+		_expect(motorcycle.front_fork_visuals.size() == 2 and motorcycle.rear_swingarm_visuals.size() == 2, "Motorcycle presentation must expose deformable fork and swingarm members")
 		_expect(motorcycle.rear_impact_deformation_m() <= 0.241 and motorcycle.front_crush_deformation_m() <= 0.341 and motorcycle.side_impact_deformation_m() <= 0.201, "Motorcycle deformation exceeded its bounded envelope")
 	editor.queue_free()
 	await process_frame
