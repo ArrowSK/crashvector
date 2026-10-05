@@ -23,10 +23,16 @@ Each CrashVector passenger-car class has its own pinned Kenney body asset instea
 | B-segment small hatchback | `sedan-sports.glb` |
 | C-segment compact car | `sedan.glb` |
 | D-segment midsize car | `taxi.glb` |
-| J-segment SUV / crossover | `suv.glb` |
+| J-segment SUV / crossover | `suv-luxury.glb` |
 | M-segment MPV / minivan | `van.glb` |
 
-The Car Kit has only one dedicated hatchback body and a limited set of ordinary passenger-car silhouettes. The D-segment therefore uses the additional Kenney passenger-sedan/taxi asset as a distinct presentation source rather than reusing the compact or sports-sedan body. These asset choices are visual class proxies only; they do not imply manufacturer-specific geometry or physics.
+The Car Kit has only one dedicated hatchback body and a limited set of ordinary passenger-car silhouettes. The D-segment therefore uses the additional Kenney passenger-sedan/taxi asset as a distinct presentation source rather than reusing the compact or sports-sedan body, while the J-segment uses the more detailed `suv-luxury.glb`. These asset choices are visual class proxies only; they do not imply manufacturer-specific geometry or physics.
+
+## Generic rigid-lorry presentation
+
+M24 also uses the pinned CC0 `delivery.glb` as the decorative body for the generic rigid-lorry / box-truck target. `KenneyFittedAsset3D` measures the imported scene at runtime, converts Kenney's +Z-forward coordinate system to CrashVector's +X-forward system, and fits the mesh to the current structural envelope. The fit follows the live/replayed M20 structure, so front/rear/side deformation remains visible while the imported scene never supplies collision, mass, suspension or contact state.
+
+The legacy procedural lorry shell remains the fallback when the pinned submodule is absent. The production release path requires the pinned asset to be present.
 
 Passenger cars use CrashVector's established wheel meshes and rolling rig. `KenneyVehiclePresentation3D` reads the four named wheel centres from the selected CC0 body asset and maps the wheel roots through the same pristine/deformation transform as that body. The wheels therefore follow the displayed body's wheelbase, track and ride height without importing the separate wheel scene's incompatible internal transform.
 
@@ -51,7 +57,7 @@ If the Car Kit assets are absent in an ordinary developer checkout, the establis
 
 ## Scope limits
 
-Kenney Car Kit does not contain a semantically appropriate articulated heavy tractor-trailer, motorcycle, bicycle or pedestrian model matching CrashVector's current simulated classes. Those objects retain their existing purpose-built presentation rather than being replaced by a visually convenient but physically misleading Car Kit asset.
+Kenney Car Kit does not contain a semantically appropriate articulated heavy tractor-trailer, motorcycle, bicycle/pedestrian or generic tracked-vehicle model matching CrashVector's current simulated classes. Those objects retain purpose-built CrashVector presentation geometry rather than being replaced by a visually convenient but physically misleading Car Kit asset. M24 improves that geometry directly: the articulated truck gains cab/trailer detail, the motorcycle gains deforming fork/swingarm/body detail, road users use smoother connected skins, and the tank receives layered armour/track/optic detail without changing any collision envelope.
 
 Static targets retain their existing simulation/collision geometry. The production presentation layer may mute materials or hide engineering reference overlays such as the rigid-wall impact stripe during the normal scenario view; those changes do not alter target physics.
 
@@ -63,6 +69,7 @@ This is a presentation limitation only; the corresponding M14-M18 simulation pat
 
 - six distinct passenger-car class mappings;
 - availability of the pinned Kenney bodies and wheel model;
+- availability and activation of the fitted CC0 rigid-lorry delivery body;
 - production-scene activation of the Kenney skin;
 - preservation of a uniformly scaled pristine source body before structural deformation;
 - replacement of the generated passenger-car body and four presentation wheels;
