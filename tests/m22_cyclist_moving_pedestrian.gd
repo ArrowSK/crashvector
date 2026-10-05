@@ -104,7 +104,7 @@ func _check_production_pedestrian_contact_stability() -> void:
 	await physics_frame
 
 	_expect(String(editor.get_script().resource_path).ends_with("crash_demo_m23.gd"), "Production pedestrian case does not route through M23")
-	var preview_proxy := editor.get("road_user_proxy") as M22RoadUserProxy3D
+	var preview_proxy := editor.get("road_user_proxy") as RoadUserRigidProxy3D
 	_expect(preview_proxy != null and preview_proxy.target_type == ScenarioConfig.TARGET_PEDESTRIAN, "Production pedestrian preview did not instantiate the articulated pedestrian")
 	if preview_proxy != null:
 		var exposed_vehicle_bodies := 1 if preview_proxy.is_vehicle_contact_body(preview_proxy) else 0
@@ -125,7 +125,7 @@ func _check_production_pedestrian_contact_stability() -> void:
 	for _frame in range(5):
 		await process_frame
 
-	var pedestrian := editor.get("road_user_proxy") as M22RoadUserProxy3D
+	var pedestrian := editor.get("road_user_proxy") as RoadUserRigidProxy3D
 	_expect(pedestrian != null, "Production pedestrian target disappeared during the run")
 	if pedestrian != null:
 		var height_rise := maxf(pedestrian.maximum_center_height_m - pedestrian.initial_world_position.y, 0.0)
