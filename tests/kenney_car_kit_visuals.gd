@@ -110,7 +110,7 @@ func _verify_catalog_mapping() -> bool:
 		PassengerCarCatalog.B_SEGMENT_HATCHBACK: "sedan-sports.glb",
 		PassengerCarCatalog.C_SEGMENT_COMPACT: "sedan.glb",
 		PassengerCarCatalog.D_SEGMENT_MIDSIZE: "taxi.glb",
-		PassengerCarCatalog.J_SEGMENT_SUV: "suv-luxury.glb",
+		PassengerCarCatalog.J_SEGMENT_SUV: "suv.glb",
 		PassengerCarCatalog.M_SEGMENT_MPV: "van.glb",
 	}
 	var seen_paths := {}
@@ -283,8 +283,8 @@ func _verify_class_rebuild(instance: Node) -> bool:
 	if visual == null or visual.kenney_skin == null or not visual.kenney_skin.active:
 		_fail("Kenney skin did not survive class-specific preview rebuild")
 		return false
-	if not visual.kenney_skin.body_asset_path.ends_with("suv-luxury.glb"):
-		_fail("SUV class did not rebuild with the Kenney luxury SUV body")
+	if not visual.kenney_skin.body_asset_path.ends_with("suv.glb"):
+		_fail("SUV class did not rebuild with the Kenney SUV body")
 		return false
 	return true
 
