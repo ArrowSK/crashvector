@@ -22,7 +22,7 @@ CrashVector uses generic presentation meshes from **Kenney Car Kit 3.1**, create
 - Attribution: not required by the licence; CrashVector credits Kenney voluntarily.
 - Purpose in CrashVector: presentation geometry only. CrashVector's own structural graph, vehicle dimensions, mass, collision geometry, deformation calculations and evidence boundaries remain authoritative.
 - Repository source: `third_party/kenney_car_kit`, pinned as a Git submodule to commit `153591d606970058a4d0e44aeadf435c2d3f89ed` of the public Car Kit mirror used by this repository.
-- Passenger-car mapping: Kenney `hatchback-sports`, `sedan`, `sedan-sports`, `taxi`, `suv-luxury` and `van`, plus `wheel-default`.
+- Passenger-car mapping: Kenney `hatchback-sports`, `sedan`, `sedan-sports`, `taxi`, `suv` and `van`, plus `wheel-default`.
 - Rigid-lorry presentation: Kenney `delivery.glb` is fitted to CrashVector's generic lorry structural envelope. The imported body is presentation-only; CrashVector's M17/M20 rigid chassis, collision boxes, mass, suspension and deformation remain authoritative.
 - Additional pinned heavy-vehicle presentation resource: `wheel-truck.glb` is retained in the approved CC0 catalog for compatible presentation use.
 

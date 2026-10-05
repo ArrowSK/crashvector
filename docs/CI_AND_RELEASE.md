@@ -37,12 +37,12 @@ It also asks whether to publish a versioned GitHub release. Publishing requires 
 
 A package produced with `validation=none` is an **unvalidated diagnostic artifact**. It may be useful for local visual inspection when regression capacity is constrained, but it must not be described as having passed CrashVector's regression suite.
 
-## Current M23 release state
+## Current beta.11 release state
 
-The current `main` source is implemented through M23 and versioned as the published **`0.9.0-beta.10` desktop beta**. The full regression gate and macOS/Windows package checks succeeded before release. Therefore:
+The current production architecture remains implemented through M23, with the M24 corrective/presentation work versioned as the **`0.9.0-beta.11` desktop beta**. The release candidate must pass the same full regression gate plus the dedicated production pedestrian stability and motorcycle deformation checks before publication. Therefore:
 
-- source routing, tests and package gates are wired through M23;
-- public installers and the updater manifest resolve to `0.9.0-beta.10`;
+- source routing, tests and package gates remain wired through M23 with the M24 corrective/presentation regressions included;
+- public installers and the updater manifest resolve to `0.9.0-beta.11`;
 - package checksums use portable LF-terminated sidecars;
 - future releases must still complete the same gates before publication.
 
