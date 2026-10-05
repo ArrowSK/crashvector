@@ -24,6 +24,7 @@ var grille_visual: MeshInstance3D
 var bumper_visual: MeshInstance3D
 var roof_visual: MeshInstance3D
 var wheel_visuals: Array[Node3D] = []
+var kenney_body_skin: KenneyFittedAsset3D
 
 func _ready() -> void:
 	model = RigidLorryBuilder.build(total_mass_kg, initial_speed_kmh, origin_offset_m)
@@ -67,6 +68,40 @@ func _build_visuals() -> void:
 	bumper_visual = _create_box("CabBumper", Vector3(0.15, 0.22, 1.92), metal)
 	roof_visual = _create_box("CabRoof", Vector3(1.98, 0.11, 2.04), cab_material)
 	_build_wheels()
+	_build_kenney_body_skin()
+
+func _build_kenney_body_skin() -> void:
+	kenney_body_skin = KenneyFittedAsset3D.new()
+	kenney_body_skin.name = "KenneyRigidLorryPresentation"
+	add_child(kenney_body_skin)
+	# The pinned Kenney delivery truck is CC0 and presentation-only. Keep its
+	# source wheels because the base lorry wheel visuals are themselves only
+	# presentation anchors; collision/suspension remain the invisible M17 chassis.
+	kenney_body_skin.configure(KenneyVehicleAssetCatalog.rigid_lorry_body_path(), false)
+	if not kenney_body_skin.active:
+		return
+	_set_procedural_lorry_visible(false)
+	kenney_body_skin.set_meta("presentation_role", "generic_rigid_lorry")
+
+func _set_procedural_lorry_visible(value: bool) -> void:
+	for visual in [
+		cargo_visual,
+		cab_visual,
+		chassis_visual,
+		windshield_visual,
+		grille_visual,
+		bumper_visual,
+		roof_visual,
+	]:
+		if visual != null:
+			visual.visible = value
+	for wheel in wheel_visuals:
+		if wheel != null:
+			wheel.visible = value
+	# Keep the underride/rear guard visible: it is a collision-relevant target
+	# reference and remains useful even when the decorative body comes from CC0.
+	if rear_guard_visual != null:
+		rear_guard_visual.visible = true
 
 func _build_wheels() -> void:
 	var tyre_material := _material(Color(0.015, 0.017, 0.020), 0.0, 0.93)
@@ -154,8 +189,42 @@ func update_from_model() -> void:
 		if index >= 0 and index < model.nodes.size():
 			wheel.position = model.nodes[index].position_m - up * 0.27
 			wheel.basis = basis
+	_update_kenney_body_fit(basis)
 	if debug_renderer != null:
 		debug_renderer.update_from_model()
+
+func _update_kenney_body_fit(basis: Basis) -> void:
+	if kenney_body_skin == null or not kenney_body_skin.active or model == null:
+		return
+	var forward := basis.x.normalized()
+	var up := basis.y.normalized()
+	var right := basis.z.normalized()
+	var minimum := Vector3(INF, INF, INF)
+	var maximum := Vector3(-INF, -INF, -INF)
+	for node in model.nodes:
+		var local := Vector3(
+			node.position_m.dot(forward),
+			node.position_m.dot(up),
+			node.position_m.dot(right)
+		)
+		minimum = minimum.min(local)
+		maximum = maximum.max(local)
+	# Structural nodes start at chassis height. Extend down to the rolling tyre
+	# plane so the imported CC0 truck sits on the same road as the production
+	# chassis, then add only a small cosmetic margin around the structural shell.
+	minimum.x -= 0.08
+	maximum.x += 0.10
+	minimum.y -= 0.50
+	maximum.y += 0.05
+	minimum.z -= 0.04
+	maximum.z += 0.04
+	var center_local := (minimum + maximum) * 0.5
+	var center_world := (
+		forward * center_local.x
+		+ up * center_local.y
+		+ right * center_local.z
+	)
+	kenney_body_skin.fit_to_world_box(basis, center_world, maximum - minimum)
 
 func _visual_basis() -> Basis:
 	var rear := _station_center(1)
