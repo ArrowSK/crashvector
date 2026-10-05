@@ -95,9 +95,12 @@ func _exit_tree() -> void:
 	if _cleaning_up:
 		return
 	_cleaning_up = true
-	detach_external_rig()
+	# During the exit notification the parent is already mutating its child list,
+	# so only schedule sibling disposal here. Production replacement calls the
+	# same helper explicitly before removal with immediate detachment enabled.
+	detach_external_rig(false)
 
-func detach_external_rig() -> void:
+func detach_external_rig(immediate_remove: bool = true) -> void:
 	if _external_rig_detached:
 		return
 	_external_rig_detached = true
@@ -112,7 +115,7 @@ func detach_external_rig() -> void:
 		joint.node_a = NodePath()
 		joint.node_b = NodePath()
 		var joint_parent := joint.get_parent()
-		if joint_parent != null:
+		if immediate_remove and joint_parent != null:
 			joint_parent.remove_child(joint)
 		joint.queue_free()
 	for body in articulated_bodies:
@@ -122,7 +125,7 @@ func detach_external_rig() -> void:
 		body.linear_velocity = Vector3.ZERO
 		body.angular_velocity = Vector3.ZERO
 		var body_parent := body.get_parent()
-		if body_parent != null:
+		if immediate_remove and body_parent != null:
 			body_parent.remove_child(body)
 		body.queue_free()
 	articulated_joints.clear()
