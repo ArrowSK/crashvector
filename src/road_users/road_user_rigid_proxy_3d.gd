@@ -499,6 +499,18 @@ func is_ground_support_body(body: PhysicsBody3D) -> bool:
 	# The frame is the vehicle-impact envelope; wheels collide with the road only.
 	return body in _bicycle_wheels
 
+func is_vehicle_contact_body(body: PhysicsBody3D) -> bool:
+	# The articulated pedestrian remains a multi-body road-contact model, but the
+	# vehicle impact envelope is deliberately limited to the pelvis/root and torso.
+	# Thin limb capsules are poor high-speed car contact surfaces: a tyre/nose
+	# manifold can catch one at an oblique angle and turn the limb into a numerical
+	# ramp, injecting vertical energy into the whole joint chain. Keeping limbs
+	# road-only preserves articulation while letting Godot resolve the actual car
+	# impulse through the two central mass-bearing body volumes.
+	if target_type == ScenarioConfig.TARGET_PEDESTRIAN:
+		return body == self or body == _pedestrian_torso
+	return not is_ground_support_body(body)
+
 func record_physical_contact(source: VehicleRigidChassis) -> void:
 	# All momentum transfer belongs to Godot's rigid-body solver.  This method
 	# records an already-observed physical contact for replay/analysis only; it
