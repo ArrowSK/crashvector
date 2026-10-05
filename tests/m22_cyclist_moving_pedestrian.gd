@@ -8,12 +8,13 @@ var failures: Array[String] = []
 var finished := false
 
 func _initialize() -> void:
-	create_timer(120.0).timeout.connect(_on_watchdog_timeout)
+	create_timer(180.0).timeout.connect(_on_watchdog_timeout)
 	call_deferred("_run")
 
 func _run() -> void:
 	_check_preflight_scope()
 	await _check_moving_pedestrian_initial_motion()
+	await _check_production_pedestrian_contact_stability()
 	await _check_cyclist_proxy_topology_and_release()
 	await _check_production_cyclist_routing()
 	_finish()
@@ -69,6 +70,97 @@ func _check_moving_pedestrian_initial_motion() -> void:
 	_expect(absf(proxy.center_of_mass_position().y - starting_center.y) < 0.05, "M22 moving pedestrian drifted vertically before any vehicle contact")
 	proxy.end_simulation()
 	proxy.queue_free()
+	await process_frame
+
+func _check_production_pedestrian_contact_stability() -> void:
+	var packed := load("res://app/main.tscn") as PackedScene
+	_expect(packed != null, "M22 production pedestrian scene must load")
+	if packed == null:
+		return
+
+	var editor := packed.instantiate()
+	editor.set("m10_first_run_applied", true)
+	var config := ScenarioConfig.new()
+	config.title = "M24 production pedestrian contact stability regression"
+	config.car_preset_id = PassengerCarCatalog.B_SEGMENT_HATCHBACK
+	config.car_mass_kg = PassengerCarCatalog.default_mass_kg(config.car_preset_id)
+	config.car_position_m = Vector3(-6.0, 0.0, 0.0)
+	config.car_heading_deg = 0.0
+	config.car_speed_kmh = 50.0
+	config.apply_target_defaults(ScenarioConfig.TARGET_PEDESTRIAN)
+	config.target_preset_id = RoadUserCatalog.PEDESTRIAN_ADULT
+	config.target_mass_kg = 75.0
+	config.target_position_m = Vector3(2.5, 0.0, 0.0)
+	config.target_heading_deg = -90.0
+	config.target_speed_kmh = 0.0
+	config.duration_s = 2.5
+	config.solver_substeps = 10
+	_expect(config.validation_errors().is_empty(), "Production pedestrian stability case failed preflight: %s" % "; ".join(config.validation_errors()))
+
+	editor.set("scenario", config)
+	root.add_child(editor)
+	for _frame in range(10):
+		await process_frame
+	await physics_frame
+
+	_expect(String(editor.get_script().resource_path).ends_with("crash_demo_m23.gd"), "Production pedestrian case does not route through M23")
+	var preview_proxy := editor.get("road_user_proxy") as RoadUserRigidProxy3D
+	_expect(preview_proxy != null and preview_proxy.target_type == ScenarioConfig.TARGET_PEDESTRIAN, "Production pedestrian preview did not instantiate the articulated pedestrian")
+	var preview_external_bodies: Array = []
+	var preview_external_joints: Array = []
+	if preview_proxy != null:
+		var exposed_vehicle_bodies := 1 if preview_proxy.is_vehicle_contact_body(preview_proxy) else 0
+		for body in preview_proxy.articulated_bodies:
+			if body != null and is_instance_valid(body):
+				preview_external_bodies.append(body)
+				if preview_proxy.is_vehicle_contact_body(body):
+					exposed_vehicle_bodies += 1
+		for joint in preview_proxy.articulated_joints:
+			if joint != null and is_instance_valid(joint):
+				preview_external_joints.append(joint)
+		_expect(exposed_vehicle_bodies == 2, "Production pedestrian must expose only pelvis/root and torso to vehicle contact, got %d bodies" % exposed_vehicle_bodies)
+
+	editor.call("_on_simulate_pressed")
+	# Simulate rebuilds the preview synchronously. The old articulated siblings
+	# must already be detached before the replacement rig can enter physics.
+	for body in preview_external_bodies:
+		if body != null and is_instance_valid(body):
+			_expect(not body.is_inside_tree(), "Production rebuild left stale pedestrian body in the physics tree: %s" % body.name)
+	for joint in preview_external_joints:
+		if joint != null and is_instance_valid(joint):
+			_expect(not joint.is_inside_tree(), "Production rebuild left stale pedestrian joint in the physics tree: %s" % joint.name)
+	await physics_frame
+	var completed := false
+	for _frame in range(1200):
+		if not bool(editor.get("simulation_running")):
+			completed = true
+			break
+		await physics_frame
+	_expect(completed, "Production pedestrian stability run did not complete")
+	for _frame in range(5):
+		await process_frame
+
+	var pedestrian := editor.get("road_user_proxy") as RoadUserRigidProxy3D
+	_expect(pedestrian != null, "Production pedestrian target disappeared during the run")
+	if pedestrian != null:
+		var height_rise := maxf(pedestrian.maximum_center_height_m - pedestrian.initial_world_position.y, 0.0)
+		print("Production pedestrian stability: impact=%s com_vertical=%.2f m/s height_rise=%.2f m part_vertical=%.2f m/s part_rise=%.2f m travel=%.2f m" % [
+			str(pedestrian.impact_received),
+			pedestrian.maximum_vertical_speed_ms,
+			height_rise,
+			pedestrian.maximum_part_vertical_speed_ms,
+			pedestrian.maximum_part_height_rise_m,
+			pedestrian.maximum_travel_m,
+		])
+		_expect(pedestrian.impact_received, "Production pedestrian stability case recorded no physical vehicle contact")
+		_expect(pedestrian.maximum_travel_m > 0.35, "Production pedestrian did not acquire a material post-impact trajectory")
+		_expect(pedestrian.maximum_vertical_speed_ms < 5.0, "Production pedestrian centre of mass still launches vertically: %.2f m/s" % pedestrian.maximum_vertical_speed_ms)
+		_expect(height_rise < 1.25, "Production pedestrian centre of mass still gains excessive height: %.2f m" % height_rise)
+		_expect(pedestrian.maximum_part_vertical_speed_ms < 8.0, "Production pedestrian articulated part still receives an excessive vertical launch: %.2f m/s" % pedestrian.maximum_part_vertical_speed_ms)
+		_expect(pedestrian.maximum_part_height_rise_m < 2.0, "Production pedestrian articulated part still rises excessively: %.2f m" % pedestrian.maximum_part_height_rise_m)
+		_expect(_finite_vector(pedestrian.center_of_mass_position()), "Production pedestrian position became non-finite")
+
+	editor.queue_free()
 	await process_frame
 
 func _check_cyclist_proxy_topology_and_release() -> void:
@@ -203,7 +295,7 @@ func _finite_vector(value: Vector3) -> bool:
 func _on_watchdog_timeout() -> void:
 	if finished:
 		return
-	push_error("M22 cyclist/moving-pedestrian regression exceeded 120 seconds")
+	push_error("M22 cyclist/moving-pedestrian regression exceeded 180 seconds")
 	quit(1)
 
 func _expect(condition: bool, message: String) -> void:

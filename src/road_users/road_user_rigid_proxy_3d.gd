@@ -31,6 +31,8 @@ var maximum_vertical_speed_ms: float = 0.0
 var maximum_speed_ms: float = 0.0
 var maximum_travel_m: float = 0.0
 var maximum_center_height_m: float = 0.0
+var maximum_part_vertical_speed_ms: float = 0.0
+var maximum_part_height_rise_m: float = 0.0
 var minimum_preimpact_center_height_m: float = 0.0
 var maximum_preimpact_center_height_m: float = 0.0
 var maximum_articulation_angle_deg: float = 0.0
@@ -50,10 +52,12 @@ var _body_local_offsets: Dictionary = {}
 var _joint_local_anchors: Dictionary = {}
 var _initial_relative_bases: Dictionary = {}
 var _paused_body_states: Dictionary = {}
+var _initial_part_y: Dictionary = {}
 var _root_com_local := Vector3.ZERO
 var _pedestrian_torso: RigidBody3D
 var _bicycle_wheels: Array[RigidBody3D] = []
 var _cleaning_up: bool = false
+var _external_rig_detached: bool = false
 
 func configure(
 	type_id: StringName,
@@ -91,12 +95,39 @@ func _exit_tree() -> void:
 	if _cleaning_up:
 		return
 	_cleaning_up = true
+	# During the exit notification the parent is already mutating its child list,
+	# so only schedule sibling disposal here. Production replacement calls the
+	# same helper explicitly before removal with immediate detachment enabled.
+	detach_external_rig(false)
+
+func detach_external_rig(immediate_remove: bool = true) -> void:
+	if _external_rig_detached:
+		return
+	_external_rig_detached = true
+	# Articulated parts and joints are siblings of this proxy. Production rebuilds
+	# the target synchronously on Simulate, so they must be removed from the scene
+	# tree before a replacement rig is created; queue_free() alone is too late.
+	# Unbind joints first so the physics server cannot keep solving references to
+	# bodies while the old rig is being dismantled.
 	for joint in articulated_joints:
-		if joint != null and is_instance_valid(joint):
-			joint.queue_free()
+		if joint == null or not is_instance_valid(joint):
+			continue
+		joint.node_a = NodePath()
+		joint.node_b = NodePath()
+		var joint_parent := joint.get_parent()
+		if immediate_remove and joint_parent != null:
+			joint_parent.remove_child(joint)
+		joint.queue_free()
 	for body in articulated_bodies:
-		if body != null and is_instance_valid(body):
-			body.queue_free()
+		if body == null or not is_instance_valid(body):
+			continue
+		body.freeze = true
+		body.linear_velocity = Vector3.ZERO
+		body.angular_velocity = Vector3.ZERO
+		var body_parent := body.get_parent()
+		if immediate_remove and body_parent != null:
+			body_parent.remove_child(body)
+		body.queue_free()
 	articulated_joints.clear()
 	articulated_bodies.clear()
 
@@ -109,6 +140,12 @@ func _physics_process(_delta: float) -> void:
 	var center := center_of_mass_position()
 	maximum_travel_m = maxf(maximum_travel_m, center.distance_to(initial_world_position))
 	maximum_center_height_m = maxf(maximum_center_height_m, center.y)
+	for body in articulated_bodies:
+		if body == null or not is_instance_valid(body):
+			continue
+		maximum_part_vertical_speed_ms = maxf(maximum_part_vertical_speed_ms, absf(body.linear_velocity.y))
+		var initial_y := float(_initial_part_y.get(body.name, body.global_position.y))
+		maximum_part_height_rise_m = maxf(maximum_part_height_rise_m, body.global_position.y - initial_y)
 	if not impact_received:
 		minimum_preimpact_center_height_m = minf(minimum_preimpact_center_height_m, center.y)
 		maximum_preimpact_center_height_m = maxf(maximum_preimpact_center_height_m, center.y)
@@ -412,12 +449,16 @@ func set_preview_pose(position_m: Vector3, yaw_deg: float) -> void:
 	maximum_speed_ms = 0.0
 	maximum_travel_m = 0.0
 	maximum_center_height_m = center_of_mass_position().y
+	maximum_part_vertical_speed_ms = 0.0
+	maximum_part_height_rise_m = 0.0
 	maximum_articulation_angle_deg = 0.0
 	maximum_wheel_spin_rad_s = 0.0
 	_initial_relative_bases.clear()
+	_initial_part_y.clear()
 	for body in articulated_bodies:
 		if body != null and is_instance_valid(body):
 			_initial_relative_bases[body.name] = global_transform.basis.inverse() * body.global_transform.basis
+			_initial_part_y[body.name] = body.global_position.y
 	initial_world_position = center_of_mass_position()
 	maximum_center_height_m = initial_world_position.y
 	minimum_preimpact_center_height_m = initial_world_position.y
@@ -442,7 +483,6 @@ func begin_simulation() -> void:
 		body.gravity_scale = _preimpact_gravity_scale_for_body(body)
 	simulation_active = true
 	initial_world_position = center_of_mass_position()
-
 func end_simulation() -> void:
 	simulation_active = false
 	_preimpact_stance_active = false
@@ -498,6 +538,18 @@ func is_ground_support_body(body: PhysicsBody3D) -> bool:
 	# their circular collision volumes first creates a ramp and launches the car.
 	# The frame is the vehicle-impact envelope; wheels collide with the road only.
 	return body in _bicycle_wheels
+
+func is_vehicle_contact_body(body: PhysicsBody3D) -> bool:
+	# The articulated pedestrian remains a multi-body road-contact model, but the
+	# vehicle impact envelope is deliberately limited to the pelvis/root and torso.
+	# Thin limb capsules are poor high-speed car contact surfaces: a tyre/nose
+	# manifold can catch one at an oblique angle and turn the limb into a numerical
+	# ramp, injecting vertical energy into the whole joint chain. Keeping limbs
+	# road-only preserves articulation while letting Godot resolve the actual car
+	# impulse through the two central mass-bearing body volumes.
+	if target_type == ScenarioConfig.TARGET_PEDESTRIAN:
+		return body == self or body == _pedestrian_torso
+	return not is_ground_support_body(body)
 
 func record_physical_contact(source: VehicleRigidChassis) -> void:
 	# All momentum transfer belongs to Godot's rigid-body solver.  This method

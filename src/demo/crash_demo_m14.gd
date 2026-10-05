@@ -97,6 +97,10 @@ func _dispose_road_user_proxy() -> void:
 		bicycle = null
 	if pedestrian != null and pedestrian.get_parent() == road_user_proxy:
 		pedestrian = null
+	# The articulated bodies/joints are siblings of the proxy. Remove them now,
+	# while we still own the live proxy, rather than waiting for _exit_tree after
+	# the replacement preview has already started to be constructed.
+	road_user_proxy.detach_external_rig()
 	if road_user_proxy.get_parent() == self:
 		remove_child(road_user_proxy)
 	road_user_proxy.queue_free()

@@ -147,7 +147,7 @@ func _configure_road_user_channels(target: RoadUserRigidProxy3D, car: CompactHat
 	target.collision_mask = ROAD_USER_LAYER | ROAD_USER_GROUND_LAYER
 	for body in target.articulated_bodies:
 		if body != null and is_instance_valid(body):
-			if target.is_ground_support_body(body):
+			if target.is_ground_support_body(body) or not target.is_vehicle_contact_body(body):
 				body.collision_layer = ROAD_USER_GROUND_LAYER
 				body.collision_mask = ROAD_USER_GROUND_LAYER
 			else:

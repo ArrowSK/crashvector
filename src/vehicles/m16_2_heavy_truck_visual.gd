@@ -27,6 +27,8 @@ var _trailer_material := StandardMaterial3D.new()
 var _dark_material := StandardMaterial3D.new()
 var _glass_material := StandardMaterial3D.new()
 var _metal_material := StandardMaterial3D.new()
+var _lamp_material := StandardMaterial3D.new()
+var _marker_material := StandardMaterial3D.new()
 
 func configure(target: HeavyTruck) -> void:
 	truck = target
@@ -63,6 +65,16 @@ func _build_materials() -> void:
 	_metal_material.albedo_color = Color(0.33, 0.37, 0.42)
 	_metal_material.metallic = 0.78
 	_metal_material.roughness = 0.28
+	_lamp_material.albedo_color = Color(0.86, 0.91, 0.98)
+	_lamp_material.roughness = 0.18
+	_lamp_material.emission_enabled = true
+	_lamp_material.emission = Color(0.72, 0.80, 0.95)
+	_lamp_material.emission_energy_multiplier = 0.30
+	_marker_material.albedo_color = Color(0.92, 0.24, 0.06)
+	_marker_material.roughness = 0.34
+	_marker_material.emission_enabled = true
+	_marker_material.emission = Color(0.65, 0.10, 0.02)
+	_marker_material.emission_energy_multiplier = 0.22
 
 func _hide_legacy_body_visuals() -> void:
 	for visual in [
@@ -107,10 +119,37 @@ func _build_visuals() -> void:
 	bumper_instance = _box("TractorBumper", Vector3(0.18, 0.24, 2.10), _metal_material)
 	bumper_instance.position = Vector3(9.48, 0.72, 0.0)
 
-	# Side under-run bars visually separate the trailer from the tractor frame.
+	# Presentation-only cab detailing. These children inherit the cab's M17/M20
+	# longitudinal/lateral deformation scale and therefore never become a second
+	# geometry model.
+	for side in [-1.0, 1.0]:
+		var headlamp := _child_box(cab_instance, "TractorHeadlamp", Vector3(0.08, 0.24, 0.34), _lamp_material)
+		headlamp.position = Vector3(9.51, 1.05, side * 0.70)
+		var mirror_arm := _child_box(cab_instance, "TractorMirrorArm", Vector3(0.18, 0.035, 0.035), _metal_material)
+		mirror_arm.position = Vector3(9.02, 2.45, side * 1.20)
+		var mirror := _child_box(cab_instance, "TractorMirror", Vector3(0.10, 0.34, 0.22), _dark_material)
+		mirror.position = Vector3(9.05, 2.45, side * 1.31)
+		var step := _child_box(cab_instance, "TractorStep", Vector3(0.62, 0.10, 0.22), _metal_material)
+		step.position = Vector3(8.20, 0.56, side * 1.03)
+		var exhaust := _child_cylinder(cab_instance, "TractorExhaust", 0.065, 1.25, _metal_material)
+		exhaust.position = Vector3(7.40, 2.04, side * 0.97)
+		var stack_cap := _child_cylinder(cab_instance, "TractorExhaustCap", 0.085, 0.12, _dark_material)
+		stack_cap.position = Vector3(7.40, 2.69, side * 0.97)
+	for marker_z in [-0.78, 0.0, 0.78]:
+		var roof_marker := _child_box(cab_instance, "TractorRoofMarker", Vector3(0.09, 0.07, 0.12), _marker_material)
+		roof_marker.position = Vector3(8.48, 3.20, marker_z)
+
+	# Trailer ribs, lamps and under-run bars add readable scale without changing
+	# the authoritative trailer box or articulated fifth-wheel physics.
+	for rib_x in [1.15, 2.05, 2.95, 3.85, 4.75, 5.65]:
+		for side in [-1.0, 1.0]:
+			var rib := _box("TrailerSideRib", Vector3(0.055, 2.56, 0.045), _metal_material)
+			rib.position = Vector3(rib_x, 2.13, side * 1.225)
 	for side in [-1.0, 1.0]:
 		var guard := _box("TrailerSideGuard", Vector3(3.05, 0.12, 0.08), _metal_material)
 		guard.position = Vector3(3.55, 0.70, side * 1.18)
+		var tail_lamp := _box("TrailerTailLamp", Vector3(0.08, 0.20, 0.22), _marker_material)
+		tail_lamp.position = Vector3(0.56, 0.82, side * 0.92)
 
 func _build_cab_mesh() -> void:
 	cab_mesh.clear_surfaces()
@@ -176,6 +215,29 @@ func _box(node_name: String, size: Vector3, material: Material) -> MeshInstance3
 	instance.name = node_name
 	instance.mesh = mesh
 	add_child(instance)
+	return instance
+
+func _child_box(parent: Node3D, node_name: String, size: Vector3, material: Material) -> MeshInstance3D:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh.material = material
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.mesh = mesh
+	parent.add_child(instance)
+	return instance
+
+func _child_cylinder(parent: Node3D, node_name: String, radius: float, height: float, material: Material) -> MeshInstance3D:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	mesh.radial_segments = 16
+	mesh.material = material
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.mesh = mesh
+	parent.add_child(instance)
 	return instance
 
 func _quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:

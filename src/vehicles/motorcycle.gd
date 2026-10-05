@@ -20,7 +20,18 @@ var tank_visual: MeshInstance3D
 var seat_visual: MeshInstance3D
 var handlebar_visual: MeshInstance3D
 var headlamp_visual: MeshInstance3D
+var engine_visual: MeshInstance3D
+var fairing_visual: MeshInstance3D
+var windscreen_visual: MeshInstance3D
+var exhaust_visual: MeshInstance3D
+var rear_light_visual: MeshInstance3D
+var front_fork_visuals: Array[MeshInstance3D] = []
+var rear_swingarm_visuals: Array[MeshInstance3D] = []
 var wheel_roots: Array[Node3D] = []
+
+const TANK_BASE_SIZE := Vector3(0.76, 0.42, 0.48)
+const SEAT_BASE_SIZE := Vector3(0.72, 0.13, 0.42)
+const HANDLEBAR_BASE_SIZE := Vector3(0.06, 0.06, 0.78)
 
 func _ready() -> void:
 	model = MotorcycleBuilder.build(total_mass_kg, initial_speed_kmh, origin_offset_m)
@@ -59,10 +70,24 @@ func _build_visuals() -> void:
 		segment.set_meta("a", pair[0])
 		segment.set_meta("b", pair[1])
 		frame_visuals.append(segment)
-	tank_visual = _create_box("FuelTank", Vector3(0.76, 0.42, 0.48), body_material)
-	seat_visual = _create_box("Seat", Vector3(0.72, 0.13, 0.42), dark)
-	handlebar_visual = _create_box("Handlebar", Vector3(0.06, 0.06, 0.78), metal)
+	# The major body pieces are presentation-only, but unlike the original rigid
+	# boxes they now follow local structural spans so M20 crush is visibly legible.
+	tank_visual = _create_box("FuelTank", TANK_BASE_SIZE, body_material)
+	seat_visual = _create_box("Seat", SEAT_BASE_SIZE, dark)
+	handlebar_visual = _create_box("Handlebar", HANDLEBAR_BASE_SIZE, metal)
 	headlamp_visual = _create_box("Headlamp", Vector3(0.13, 0.22, 0.27), _emissive_material())
+	engine_visual = _create_box("EngineBlock", Vector3(0.58, 0.48, 0.44), metal)
+	fairing_visual = _create_box("FrontFairing", Vector3(0.42, 0.48, 0.52), body_material)
+	windscreen_visual = _create_box("Windscreen", Vector3(0.08, 0.34, 0.44), _glass_material())
+	exhaust_visual = _create_cylinder("Exhaust", 0.055, 0.78, metal)
+	rear_light_visual = _create_box("RearLamp", Vector3(0.10, 0.14, 0.24), _rear_emissive_material())
+	for side in range(2):
+		var fork := _create_box("FrontFork", Vector3(0.58, 0.045, 0.045), metal)
+		fork.set_meta("side", side)
+		front_fork_visuals.append(fork)
+		var swingarm := _create_box("RearSwingarm", Vector3(0.56, 0.055, 0.055), frame_material)
+		swingarm.set_meta("side", side)
+		rear_swingarm_visuals.append(swingarm)
 	for station in [MotorcycleBuilder.REAR_STATION, MotorcycleBuilder.FRONT_STATION]:
 		var root := Node3D.new()
 		root.name = "MotorcycleWheel"
@@ -88,6 +113,18 @@ func _build_visuals() -> void:
 		rim.mesh = rim_mesh
 		rim.rotation_degrees.x = 90.0
 		root.add_child(rim)
+		var brake_disc := MeshInstance3D.new()
+		brake_disc.name = "BrakeDisc"
+		var disc_mesh := CylinderMesh.new()
+		disc_mesh.top_radius = 0.16
+		disc_mesh.bottom_radius = 0.16
+		disc_mesh.height = 0.018
+		disc_mesh.radial_segments = 24
+		disc_mesh.material = metal
+		brake_disc.mesh = disc_mesh
+		brake_disc.rotation_degrees.x = 90.0
+		brake_disc.position.z = 0.07
+		root.add_child(brake_disc)
 		wheel_roots.append(root)
 
 func _build_structure_debugger() -> void:
@@ -111,9 +148,34 @@ func _emissive_material() -> StandardMaterial3D:
 	material.emission_energy_multiplier = 0.18
 	return material
 
+func _rear_emissive_material() -> StandardMaterial3D:
+	var material := _material(Color(0.74, 0.045, 0.035), 0.06, 0.30)
+	material.emission_enabled = true
+	material.emission = Color(0.55, 0.015, 0.010)
+	material.emission_energy_multiplier = 0.24
+	return material
+
+func _glass_material() -> StandardMaterial3D:
+	var material := _material(Color(0.055, 0.11, 0.16, 0.78), 0.05, 0.10)
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	return material
+
 func _create_box(node_name: String, size: Vector3, material: Material) -> MeshInstance3D:
 	var mesh := BoxMesh.new()
 	mesh.size = size
+	mesh.material = material
+	var visual := MeshInstance3D.new()
+	visual.name = node_name
+	visual.mesh = mesh
+	add_child(visual)
+	return visual
+
+func _create_cylinder(node_name: String, radius: float, height: float, material: Material) -> MeshInstance3D:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	mesh.radial_segments = 20
 	mesh.material = material
 	var visual := MeshInstance3D.new()
 	visual.name = node_name
@@ -125,27 +187,198 @@ func update_from_model() -> void:
 	if model == null:
 		return
 	var basis := _visual_basis()
-	var forward := basis.x.normalized()
-	var up := basis.y.normalized()
 	for segment in frame_visuals:
 		_update_segment(segment, int(segment.get_meta("a")), int(segment.get_meta("b")))
+
 	var station1 := _station_center(1)
 	var station2 := _station_center(2)
+	var rear := _station_center(MotorcycleBuilder.REAR_STATION)
 	var front := _station_center(MotorcycleBuilder.FRONT_STATION)
-	tank_visual.position = (station1 + station2) * 0.5 + up * 0.18
-	tank_visual.basis = basis
-	seat_visual.position = station1 - forward * 0.14 + up * 0.43
-	seat_visual.basis = basis
-	handlebar_visual.position = front - forward * 0.18 + up * 0.56
-	handlebar_visual.basis = basis
-	headlamp_visual.position = front + forward * 0.06 + up * 0.27
-	headlamp_visual.basis = basis
+	var tank_basis := _basis_x_along(station2 - station1, basis.y)
+	var rear_basis := _basis_x_along(station1 - rear, basis.y)
+	var front_basis := _basis_x_along(front - station2, basis.y)
+
+	var tank_span_ratio := _span_ratio(1, 2)
+	var rear_span_ratio := _span_ratio(MotorcycleBuilder.REAR_STATION, 1)
+	var body_width_ratio := clampf(
+		(_station_width_m(1) + _station_width_m(2))
+		/ maxf(_neutral_station_width_m(1) + _neutral_station_width_m(2), 0.001),
+		0.50,
+		1.05
+	)
+	var front_width_ratio := clampf(
+		_station_width_m(MotorcycleBuilder.FRONT_STATION)
+		/ maxf(_neutral_station_width_m(MotorcycleBuilder.FRONT_STATION), 0.001),
+		0.55,
+		1.05
+	)
+
+	_set_box_size(tank_visual, Vector3(
+		clampf(TANK_BASE_SIZE.x * tank_span_ratio, 0.38, TANK_BASE_SIZE.x),
+		TANK_BASE_SIZE.y,
+		clampf(TANK_BASE_SIZE.z * body_width_ratio, 0.24, TANK_BASE_SIZE.z)
+	))
+	tank_visual.position = (station1 + station2) * 0.5 + tank_basis.y * 0.18
+	tank_visual.basis = tank_basis
+
+	_set_box_size(seat_visual, Vector3(
+		clampf(SEAT_BASE_SIZE.x * rear_span_ratio, 0.36, SEAT_BASE_SIZE.x),
+		SEAT_BASE_SIZE.y,
+		clampf(SEAT_BASE_SIZE.z * body_width_ratio, 0.22, SEAT_BASE_SIZE.z)
+	))
+	seat_visual.position = station1 - rear_basis.x * 0.14 + rear_basis.y * 0.43
+	seat_visual.basis = rear_basis
+
+	_set_box_size(handlebar_visual, Vector3(
+		HANDLEBAR_BASE_SIZE.x,
+		HANDLEBAR_BASE_SIZE.y,
+		clampf(HANDLEBAR_BASE_SIZE.z * front_width_ratio, 0.42, HANDLEBAR_BASE_SIZE.z)
+	))
+	handlebar_visual.position = front - front_basis.x * 0.18 + front_basis.y * 0.56
+	handlebar_visual.basis = front_basis
+	headlamp_visual.position = front + front_basis.x * 0.06 + front_basis.y * 0.27
+	headlamp_visual.basis = front_basis
+	engine_visual.position = (station1 + station2) * 0.5 - tank_basis.y * 0.16
+	engine_visual.basis = tank_basis
+	fairing_visual.position = station2 + front_basis.x * 0.23 + front_basis.y * 0.22
+	fairing_visual.basis = front_basis
+	windscreen_visual.position = front - front_basis.x * 0.20 + front_basis.y * 0.62
+	windscreen_visual.basis = front_basis
+	rear_light_visual.position = rear - rear_basis.x * 0.10 + rear_basis.y * 0.46
+	rear_light_visual.basis = rear_basis
+	_update_box_between_x(
+		exhaust_visual,
+		station1 - rear_basis.y * 0.26 + rear_basis.z * 0.22,
+		station2 - tank_basis.y * 0.22 + tank_basis.z * 0.22,
+		basis.y
+	)
+
+	# Independent left/right fork and swingarm members make shortening and folding
+	# visible instead of hiding M20 structural crush underneath rigid body boxes.
+	for side in range(mini(front_fork_visuals.size(), 2)):
+		_update_box_between_x(
+			front_fork_visuals[side],
+			_node_position(2, 2 + side),
+			_node_position(MotorcycleBuilder.FRONT_STATION, side),
+			basis.y
+		)
+	for side in range(mini(rear_swingarm_visuals.size(), 2)):
+		_update_box_between_x(
+			rear_swingarm_visuals[side],
+			_node_position(MotorcycleBuilder.REAR_STATION, side),
+			_node_position(1, side),
+			basis.y
+		)
+
 	for root in wheel_roots:
 		var station := int(root.get_meta("station"))
 		root.position = _station_center(station)
-		root.basis = basis
+		root.basis = rear_basis if station == MotorcycleBuilder.REAR_STATION else front_basis
 	if debug_renderer != null:
 		debug_renderer.update_from_model()
+
+func visual_collapse_m() -> float:
+	# Presentation regression metric only: report how far the deformable shell has
+	# visibly shortened relative to its neutral authored spans.
+	var tank_mesh := tank_visual.mesh as BoxMesh if tank_visual != null else null
+	var seat_mesh := seat_visual.mesh as BoxMesh if seat_visual != null else null
+	var tank_collapse := 0.0 if tank_mesh == null else maxf(
+		maxf(TANK_BASE_SIZE.x - tank_mesh.size.x, 0.0),
+		maxf(TANK_BASE_SIZE.z - tank_mesh.size.z, 0.0)
+	)
+	var seat_collapse := 0.0 if seat_mesh == null else maxf(
+		maxf(SEAT_BASE_SIZE.x - seat_mesh.size.x, 0.0),
+		maxf(SEAT_BASE_SIZE.z - seat_mesh.size.z, 0.0)
+	)
+	var front_fork_collapse := 0.0
+	for side in range(mini(front_fork_visuals.size(), 2)):
+		var mesh := front_fork_visuals[side].mesh as BoxMesh
+		if mesh == null:
+			continue
+		var neutral := _neutral_node_position(2, 2 + side).distance_to(
+			_neutral_node_position(MotorcycleBuilder.FRONT_STATION, side)
+		)
+		front_fork_collapse = maxf(front_fork_collapse, neutral - mesh.size.x)
+	var rear_swingarm_collapse := 0.0
+	for side in range(mini(rear_swingarm_visuals.size(), 2)):
+		var mesh := rear_swingarm_visuals[side].mesh as BoxMesh
+		if mesh == null:
+			continue
+		var neutral := _neutral_node_position(MotorcycleBuilder.REAR_STATION, side).distance_to(
+			_neutral_node_position(1, side)
+		)
+		rear_swingarm_collapse = maxf(rear_swingarm_collapse, neutral - mesh.size.x)
+	return maxf(maxf(tank_collapse, seat_collapse), maxf(front_fork_collapse, rear_swingarm_collapse))
+
+func _set_box_size(visual: MeshInstance3D, size: Vector3) -> void:
+	if visual == null:
+		return
+	var mesh := visual.mesh as BoxMesh
+	if mesh != null:
+		mesh.size = size
+
+func _update_box_between_x(visual: MeshInstance3D, a: Vector3, b: Vector3, up_hint: Vector3) -> void:
+	if visual == null:
+		return
+	var delta := b - a
+	var length := delta.length()
+	if length <= 0.001:
+		visual.visible = false
+		return
+	visual.visible = true
+	var mesh := visual.mesh as BoxMesh
+	if mesh != null:
+		mesh.size.x = length
+	visual.position = (a + b) * 0.5
+	visual.basis = _basis_x_along(delta, up_hint)
+
+func _basis_x_along(direction: Vector3, up_hint: Vector3) -> Basis:
+	var forward := direction.normalized()
+	if forward.is_zero_approx():
+		return Basis.IDENTITY
+	var up := up_hint.normalized()
+	if up.is_zero_approx() or absf(forward.dot(up)) > 0.96:
+		up = Vector3.UP if absf(forward.dot(Vector3.UP)) <= 0.96 else Vector3.FORWARD
+	var lateral := forward.cross(up).normalized()
+	if lateral.is_zero_approx():
+		lateral = Vector3.FORWARD
+	up = lateral.cross(forward).normalized()
+	return Basis(forward, up, lateral).orthonormalized()
+
+func _span_ratio(station_a: int, station_b: int) -> float:
+	var neutral := _neutral_station_center(station_a).distance_to(_neutral_station_center(station_b))
+	var current := _station_center(station_a).distance_to(_station_center(station_b))
+	return clampf(current / maxf(neutral, 0.001), 0.45, 1.05)
+
+func _station_width_m(station: int) -> float:
+	var lower := _node_position(station, 0).distance_to(_node_position(station, 1))
+	var upper := _node_position(station, 2).distance_to(_node_position(station, 3))
+	return (lower + upper) * 0.5
+
+func _neutral_station_width_m(station: int) -> float:
+	return MotorcycleBuilder.HALF_WIDTH_Z[station] * 2.0
+
+func _node_position(station: int, corner: int) -> Vector3:
+	var index := MotorcycleBuilder.node_index(station, corner)
+	if index < 0 or index >= model.nodes.size():
+		return Vector3.ZERO
+	return model.nodes[index].position_m
+
+func _neutral_node_position(station: int, corner: int) -> Vector3:
+	var y := MotorcycleBuilder.LOWER_Y[station] if corner < 2 else MotorcycleBuilder.UPPER_Y[station]
+	var z_sign := -1.0 if corner in [0, 2] else 1.0
+	return Vector3(
+		MotorcycleBuilder.STATION_X[station],
+		y,
+		MotorcycleBuilder.HALF_WIDTH_Z[station] * z_sign
+	)
+
+func _neutral_station_center(station: int) -> Vector3:
+	return Vector3(
+		MotorcycleBuilder.STATION_X[station],
+		(MotorcycleBuilder.LOWER_Y[station] + MotorcycleBuilder.UPPER_Y[station]) * 0.5,
+		0.0
+	)
 
 func _station_center(station: int) -> Vector3:
 	var indices := PackedInt32Array([
