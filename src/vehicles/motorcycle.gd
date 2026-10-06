@@ -411,56 +411,55 @@ func update_from_model() -> void:
 		debug_renderer.update_from_model()
 
 func visual_collapse_m() -> float:
-	# Presentation regression metric only. Derive visible shortening from the
-	# structural spans that drive the rounded/tubular presentation instead of
-	# depending on a particular primitive mesh type.
-	var neutral_tank_span := _neutral_station_center(1).distance_to(_neutral_station_center(2))
-	var current_tank_span := _station_center(1).distance_to(_station_center(2))
-	var tank_collapse := maxf(
-		(neutral_tank_span - current_tank_span)
-		* (TANK_BASE_SIZE.x / maxf(neutral_tank_span, 0.001)),
-		0.0
-	)
+	# Presentation regression metric only: measure the rendered geometry itself.
+	# The structural model already has separate deformation regressions. Keeping
+	# this metric visual-derived ensures the test fails if the skin ever stops
+	# following an otherwise-correct structural collapse.
+	var tank_collapse := 0.0
+	if tank_visual != null and tank_visual.mesh is SphereMesh:
+		# FuelTank uses a unit-diameter/unit-height SphereMesh, so the lengths of
+		# its transformed basis axes are the actual rendered ellipsoid dimensions.
+		var tank_size := Vector3(
+			tank_visual.basis.x.length(),
+			tank_visual.basis.y.length(),
+			tank_visual.basis.z.length()
+		)
+		tank_collapse = maxf(
+			maxf(TANK_BASE_SIZE.x - tank_size.x, 0.0),
+			maxf(TANK_BASE_SIZE.z - tank_size.z, 0.0)
+		)
 
-	var neutral_seat_span := _neutral_station_center(MotorcycleBuilder.REAR_STATION).distance_to(_neutral_station_center(1))
-	var current_seat_span := _station_center(MotorcycleBuilder.REAR_STATION).distance_to(_station_center(1))
-	var seat_collapse := maxf(
-		(neutral_seat_span - current_seat_span)
-		* (SEAT_BASE_SIZE.x / maxf(neutral_seat_span, 0.001)),
-		0.0
-	)
-
-	var neutral_body_width := (
-		_neutral_station_width_m(1) + _neutral_station_width_m(2)
-	) * 0.5
-	var current_body_width := (
-		_station_width_m(1) + _station_width_m(2)
-	) * 0.5
-	var side_collapse := maxf(neutral_body_width - current_body_width, 0.0)
+	var seat_collapse := 0.0
+	var seat_mesh := seat_visual.mesh as BoxMesh if seat_visual != null else null
+	if seat_mesh != null:
+		seat_collapse = maxf(
+			maxf(SEAT_BASE_SIZE.x - seat_mesh.size.x, 0.0),
+			maxf(SEAT_BASE_SIZE.z - seat_mesh.size.z, 0.0)
+		)
 
 	var front_fork_collapse := 0.0
-	for side in range(2):
+	for side in range(mini(front_fork_visuals.size(), 2)):
+		var mesh := front_fork_visuals[side].mesh as CylinderMesh
+		if mesh == null:
+			continue
 		var neutral := _neutral_node_position(2, 2 + side).distance_to(
 			_neutral_node_position(MotorcycleBuilder.FRONT_STATION, side)
 		)
-		var current := _node_position(2, 2 + side).distance_to(
-			_node_position(MotorcycleBuilder.FRONT_STATION, side)
-		)
-		front_fork_collapse = maxf(front_fork_collapse, neutral - current)
+		front_fork_collapse = maxf(front_fork_collapse, neutral - mesh.height)
 
 	var rear_swingarm_collapse := 0.0
-	for side in range(2):
+	for side in range(mini(rear_swingarm_visuals.size(), 2)):
+		var mesh := rear_swingarm_visuals[side].mesh as CylinderMesh
+		if mesh == null:
+			continue
 		var neutral := _neutral_node_position(MotorcycleBuilder.REAR_STATION, side).distance_to(
 			_neutral_node_position(1, side)
 		)
-		var current := _node_position(MotorcycleBuilder.REAR_STATION, side).distance_to(
-			_node_position(1, side)
-		)
-		rear_swingarm_collapse = maxf(rear_swingarm_collapse, neutral - current)
+		rear_swingarm_collapse = maxf(rear_swingarm_collapse, neutral - mesh.height)
 
 	return maxf(
 		maxf(tank_collapse, seat_collapse),
-		maxf(side_collapse, maxf(front_fork_collapse, rear_swingarm_collapse))
+		maxf(front_fork_collapse, rear_swingarm_collapse)
 	)
 
 func _set_box_size(visual: MeshInstance3D, size: Vector3) -> void:
