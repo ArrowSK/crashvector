@@ -67,6 +67,7 @@ func _check_preimpact_energy_source() -> void:
 	root.add_child(motorcycle)
 	await process_frame
 	_check_motorcycle_presentation(motorcycle)
+	_check_rider_presentation(motorcycle)
 	_expect(motorcycle.rigid_chassis != null, "Motorcycle pre-impact energy regression could not create the rigid chassis")
 	if motorcycle.rigid_chassis == null:
 		motorcycle.queue_free()
@@ -97,6 +98,46 @@ func _check_preimpact_energy_source() -> void:
 	fixture.queue_free()
 	motorcycle.queue_free()
 	await process_frame
+
+func _check_rider_presentation(motorcycle: M20Motorcycle) -> void:
+	_expect(motorcycle != null, "Motorcycle rider presentation target is missing")
+	if motorcycle == null or motorcycle.rigid_chassis == null:
+		return
+	var rig := motorcycle.rider_rig
+	var chassis := motorcycle.rigid_chassis
+	_expect(rig != null, "Motorcycle rider presentation rig is missing")
+	if rig == null:
+		return
+	_expect(rig.rider_body_count() == 2, "Motorcycle rider visual upgrade changed the authoritative two-body physics topology")
+	_expect(rig.presentation_segment_count() == 13, "Motorcycle rider presentation must expose articulated pelvis/arms/legs/boots/gloves")
+	_expect(rig.rider_presentation_root != null, "Motorcycle rider articulated presentation root is missing")
+	if rig.rider_presentation_root != null:
+		_expect(
+			String(rig.rider_presentation_root.get_meta("presentation_role", "")) == "motorcycle_rider_articulated_skin",
+			"Motorcycle rider presentation role metadata is missing"
+		)
+	_expect(rig.torso != null and rig.torso.get_node_or_null("RiderArms") == null, "Motorcycle rider still contains the old rectangular arm block")
+	_expect(rig.torso != null and rig.torso.get_node_or_null("RiderLegs") == null, "Motorcycle rider still contains the old rectangular leg block")
+
+	var pelvis_world := rig.presentation_point(&"pelvis")
+	var left_hand_world := rig.presentation_point(&"left_glove")
+	var right_hand_world := rig.presentation_point(&"right_glove")
+	var pelvis_local := chassis.to_local(pelvis_world)
+	var left_hand_local := chassis.to_local(left_hand_world)
+	var right_hand_local := chassis.to_local(right_hand_world)
+	_expect(pelvis_local.x > 0.25 and pelvis_local.x < 0.65, "Motorcycle rider pelvis is not seated over the bike: %s" % pelvis_local)
+	_expect(pelvis_local.y > 0.85 and pelvis_local.y < 1.25, "Motorcycle rider pelvis height is implausible: %s" % pelvis_local)
+	_expect(left_hand_local.x > 1.35 and right_hand_local.x > 1.35, "Motorcycle rider hands do not reach forward toward the controls")
+	_expect(absf(left_hand_local.y - right_hand_local.y) < 0.05, "Motorcycle rider hands are vertically asymmetric in the seated pose")
+	_expect(absf(left_hand_local.z - right_hand_local.z) > 0.45, "Motorcycle rider hands are not separated across the handlebar")
+
+	# Integration guard with the motorcycle skin: the rider must reach the actual
+	# grip meshes, not merely point generally forward. This catches future drift
+	# between the independent motorcycle and rider presentation layers.
+	_expect(motorcycle.handlebar_grips.size() == 2, "Motorcycle rider integration requires two handlebar grips")
+	if motorcycle.handlebar_grips.size() == 2:
+		_expect(left_hand_world.distance_to(motorcycle.handlebar_grips[0].global_position) < 0.08, "Motorcycle rider left hand is detached from the left handlebar grip")
+		_expect(right_hand_world.distance_to(motorcycle.handlebar_grips[1].global_position) < 0.08, "Motorcycle rider right hand is detached from the right handlebar grip")
 
 func _check_motorcycle_presentation(motorcycle: M20Motorcycle) -> void:
 	_expect(motorcycle != null, "Motorcycle presentation regression could not create the target")
