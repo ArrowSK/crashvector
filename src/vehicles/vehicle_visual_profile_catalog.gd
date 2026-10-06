@@ -108,11 +108,17 @@ static func visual_signature(preset_id: StringName) -> Dictionary:
 		"hood_raise_m": profile.get("hood_raise_m", 0.0),
 	}
 
-static func production_front_face_x_m(_preset_id: StringName, structural_front_x_m: float) -> float:
-	# M25 dimension-fits the neutral Kenney body to the same M16.2 envelope that
-	# is generated from the production structural stations. Longitudinal body
-	# mounting is no longer allowed to drift to source wheel centres, so the
-	# rendered neutral nose and authoritative front structural station coincide.
-	# Keep this derived contract instead of asset-specific measured constants:
-	# changing source proportions can no longer silently move the collision face.
-	return structural_front_x_m
+static func production_front_face_x_m(preset_id: StringName, structural_front_x_m: float) -> float:
+	# The neutral Kenney body is centred on the authoritative structural lower
+	# envelope and fitted to PassengerCarCatalog.representative_length_m. Derive
+	# the visible nose from those same inputs instead of asset-specific measured
+	# constants, so changing source proportions cannot silently move collision.
+	var catalog := PassengerCarCatalog.data(preset_id)
+	var intended_length_m := float(catalog.get("representative_length_m", 0.0))
+	var base_front_x := CompactHatchbackBuilder.STATION_X[CompactHatchbackBuilder.FRONT_STATION]
+	var scale_x := structural_front_x_m / maxf(base_front_x, 0.001)
+	var structural_rear_x := CompactHatchbackBuilder.STATION_X[CompactHatchbackBuilder.REAR_STATION] * scale_x
+	var structural_center_x := (structural_rear_x + structural_front_x_m) * 0.5
+	if intended_length_m <= 0.001:
+		return structural_front_x_m
+	return structural_center_x + intended_length_m * 0.5
