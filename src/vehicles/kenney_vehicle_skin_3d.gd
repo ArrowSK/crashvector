@@ -7,11 +7,11 @@ extends Node3D
 
 # Kenney supplies presentation geometry only. CrashVector's M12-M18 structural
 # graph, rigid-body motion, collision shapes and replay remain authoritative.
-# The undeformed body is dimension-fitted to the authoritative neutral M16.2
-# presentation envelope on each host axis. This keeps A/B/C/D/J/M rendered size
-# consistent with the class catalogue instead of letting differing source-asset
-# aspect ratios decide which class looks largest. Structural deformation is then
-# added only as displacement from the captured neutral cross-section cage.
+# The undeformed body is dimension-fitted to the public passenger-car class
+# length/width while retaining the existing production front contact face and
+# M16.2 height envelope. This keeps A/B/C/D/J/M rendered size sensible without
+# moving collision/probe geometry. Structural deformation is then added only as
+# displacement from the captured neutral cross-section cage.
 
 const NEUTRAL_SECTION_SAMPLE_COUNT := 65
 const SECTION_KEYS := [
@@ -214,18 +214,20 @@ func _capture_neutral_presentation_state() -> bool:
 	# Preserve the old scalar as a read-only compatibility value representing
 	# longitudinal (host-X/source-Z) scale.
 	pristine_scale = pristine_scale_host.x
-	var rear_section: Dictionary = neutral_sections_local[0]
 	var front_section: Dictionary = neutral_sections_local[neutral_sections_local.size() - 1]
-	var rear_lower_center := (
-		_section_point(rear_section, "lower_left")
-		+ _section_point(rear_section, "lower_right")
-	) * 0.5
 	var front_lower_center := (
 		_section_point(front_section, "lower_left")
 		+ _section_point(front_section, "lower_right")
 	) * 0.5
+	# Keep the established production contact face authoritative. Correct class
+	# length by extending the presentation rearward from that face rather than
+	# moving collision/probe geometry to follow the new visual size.
+	var preserved_front_face_x := VehicleVisualProfileCatalog.production_front_face_x_m(
+		vehicle.vehicle_preset_id,
+		front_lower_center.x
+	)
 	pristine_target_center_local = Vector3(
-		(rear_lower_center.x + front_lower_center.x) * 0.5,
+		preserved_front_face_x - intended_length_m * 0.5,
 		(minimum.y + maximum.y) * 0.5,
 		(minimum.z + maximum.z) * 0.5
 	)
