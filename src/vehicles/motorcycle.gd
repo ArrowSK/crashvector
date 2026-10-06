@@ -283,61 +283,124 @@ func update_from_model() -> void:
 		1.05
 	)
 
-	_set_box_size(tank_visual, Vector3(
+	var tank_size := Vector3(
 		clampf(TANK_BASE_SIZE.x * tank_span_ratio, 0.38, TANK_BASE_SIZE.x),
 		TANK_BASE_SIZE.y,
 		clampf(TANK_BASE_SIZE.z * body_width_ratio, 0.24, TANK_BASE_SIZE.z)
-	))
-	tank_visual.position = (station1 + station2) * 0.5 + tank_basis.y * 0.18
-	tank_visual.basis = tank_basis
+	)
+	_set_ellipsoid_transform(
+		tank_visual,
+		(station1 + station2) * 0.5 + tank_basis.y * 0.18,
+		tank_basis,
+		tank_size
+	)
 
 	_set_box_size(seat_visual, Vector3(
 		clampf(SEAT_BASE_SIZE.x * rear_span_ratio, 0.36, SEAT_BASE_SIZE.x),
 		SEAT_BASE_SIZE.y,
 		clampf(SEAT_BASE_SIZE.z * body_width_ratio, 0.22, SEAT_BASE_SIZE.z)
 	))
-	seat_visual.position = station1 - rear_basis.x * 0.14 + rear_basis.y * 0.43
+	seat_visual.position = station1 - rear_basis.x * 0.16 + rear_basis.y * 0.43
 	seat_visual.basis = rear_basis
 
-	_set_box_size(handlebar_visual, Vector3(
-		HANDLEBAR_BASE_SIZE.x,
-		HANDLEBAR_BASE_SIZE.y,
-		clampf(HANDLEBAR_BASE_SIZE.z * front_width_ratio, 0.42, HANDLEBAR_BASE_SIZE.z)
-	))
-	handlebar_visual.position = front - front_basis.x * 0.18 + front_basis.y * 0.56
-	handlebar_visual.basis = front_basis
-	headlamp_visual.position = front + front_basis.x * 0.06 + front_basis.y * 0.27
-	headlamp_visual.basis = front_basis
-	engine_visual.position = (station1 + station2) * 0.5 - tank_basis.y * 0.16
+	var handlebar_center := front - front_basis.x * 0.18 + front_basis.y * 0.58
+	var handlebar_length := clampf(HANDLEBAR_BASE_SIZE.z * front_width_ratio, 0.48, HANDLEBAR_BASE_SIZE.z)
+	_update_cylinder_between_y(
+		handlebar_visual,
+		handlebar_center - front_basis.z * handlebar_length * 0.5,
+		handlebar_center + front_basis.z * handlebar_length * 0.5,
+		front_basis.x
+	)
+	for side in range(mini(handlebar_grips.size(), 2)):
+		var side_sign := -1.0 if side == 0 else 1.0
+		var grip_outer := handlebar_center + front_basis.z * side_sign * handlebar_length * 0.54
+		var grip_inner := handlebar_center + front_basis.z * side_sign * maxf(handlebar_length * 0.36, handlebar_length * 0.54 - 0.13)
+		_update_cylinder_between_y(handlebar_grips[side], grip_inner, grip_outer, front_basis.x)
+
+	var headlamp_center := front + front_basis.x * 0.055 + front_basis.y * 0.30
+	_update_cylinder_between_y(
+		headlamp_visual,
+		headlamp_center - front_basis.x * 0.043,
+		headlamp_center + front_basis.x * 0.043,
+		front_basis.y
+	)
+
+	var engine_center := (station1 + station2) * 0.5 - tank_basis.y * 0.17
+	engine_visual.position = engine_center
 	engine_visual.basis = tank_basis
-	fairing_visual.position = station2 + front_basis.x * 0.23 + front_basis.y * 0.22
-	fairing_visual.basis = front_basis
-	windscreen_visual.position = front - front_basis.x * 0.20 + front_basis.y * 0.62
-	windscreen_visual.basis = front_basis
-	rear_light_visual.position = rear - rear_basis.x * 0.10 + rear_basis.y * 0.46
+	_update_cylinder_between_y(
+		engine_crankcase_visual,
+		engine_center - tank_basis.z * 0.20,
+		engine_center + tank_basis.z * 0.20,
+		tank_basis.y
+	)
+
+	_set_ellipsoid_transform(
+		fairing_visual,
+		station2 + front_basis.x * 0.20 + front_basis.y * 0.22,
+		front_basis,
+		Vector3(
+			0.40,
+			0.46,
+			clampf(0.48 * front_width_ratio, 0.30, 0.50)
+		)
+	)
+	windscreen_visual.position = front - front_basis.x * 0.18 + front_basis.y * 0.63
+	windscreen_visual.basis = front_basis.rotated(front_basis.z.normalized(), deg_to_rad(-10.0))
+	rear_light_visual.position = rear - rear_basis.x * 0.08 + rear_basis.y * 0.48
 	rear_light_visual.basis = rear_basis
-	_update_box_between_x(
-		exhaust_visual,
-		station1 - rear_basis.y * 0.26 + rear_basis.z * 0.22,
-		station2 - tank_basis.y * 0.22 + tank_basis.z * 0.22,
+
+	var exhaust_start := rear + rear_basis.x * 0.23 - rear_basis.y * 0.18 + rear_basis.z * 0.24
+	var exhaust_end := station2 - tank_basis.x * 0.08 - tank_basis.y * 0.22 + tank_basis.z * 0.24
+	_update_cylinder_between_y(exhaust_visual, exhaust_start, exhaust_end, basis.y)
+	_update_cylinder_between_y(
+		exhaust_tip_visual,
+		exhaust_start - rear_basis.x * 0.11,
+		exhaust_start,
 		basis.y
 	)
 
-	# Independent left/right fork and swingarm members make shortening and folding
-	# visible instead of hiding M20 structural crush underneath rigid body boxes.
+	var footpeg_center := station1 + rear_basis.y * 0.04
+	_update_cylinder_between_y(
+		footpeg_visual,
+		footpeg_center - rear_basis.z * 0.29,
+		footpeg_center + rear_basis.z * 0.29,
+		rear_basis.x
+	)
+	_update_box_between_x(
+		chain_guard_visual,
+		rear + rear_basis.y * 0.01 - rear_basis.z * 0.18,
+		station1 + rear_basis.y * 0.02 - rear_basis.z * 0.20,
+		rear_basis.y
+	)
+
+	for side in range(mini(side_panel_visuals.size(), 2)):
+		var side_sign := -1.0 if side == 0 else 1.0
+		var panel := side_panel_visuals[side]
+		_set_box_size(panel, Vector3(
+			clampf(0.46 * tank_span_ratio, 0.28, 0.46),
+			0.24,
+			0.045
+		))
+		panel.position = (station1 + station2) * 0.5 - tank_basis.y * 0.02 + tank_basis.z * side_sign * maxf(tank_size.z * 0.48, 0.13)
+		panel.basis = tank_basis
+
+	# Independent left/right fork and swingarm tubes follow their authoritative
+	# structural endpoints. Cylinder height is along local Y, so use the matching
+	# helper rather than the old box/X-axis helper that mis-oriented cylinders.
 	for side in range(mini(front_fork_visuals.size(), 2)):
-		_update_box_between_x(
+		_update_cylinder_between_y(
 			front_fork_visuals[side],
 			_node_position(2, 2 + side),
 			_node_position(MotorcycleBuilder.FRONT_STATION, side),
-			basis.y
+			basis.x
 		)
 	for side in range(mini(rear_swingarm_visuals.size(), 2)):
-		_update_box_between_x(
+		_update_cylinder_between_y(
 			rear_swingarm_visuals[side],
 			_node_position(MotorcycleBuilder.REAR_STATION, side),
 			_node_position(1, side),
-			basis.y
+			basis.x
 		)
 
 	for root in wheel_roots:
@@ -348,37 +411,57 @@ func update_from_model() -> void:
 		debug_renderer.update_from_model()
 
 func visual_collapse_m() -> float:
-	# Presentation regression metric only: report how far the deformable shell has
-	# visibly shortened relative to its neutral authored spans.
-	var tank_mesh := tank_visual.mesh as BoxMesh if tank_visual != null else null
-	var seat_mesh := seat_visual.mesh as BoxMesh if seat_visual != null else null
-	var tank_collapse := 0.0 if tank_mesh == null else maxf(
-		maxf(TANK_BASE_SIZE.x - tank_mesh.size.x, 0.0),
-		maxf(TANK_BASE_SIZE.z - tank_mesh.size.z, 0.0)
+	# Presentation regression metric only. Derive visible shortening from the
+	# structural spans that drive the rounded/tubular presentation instead of
+	# depending on a particular primitive mesh type.
+	var neutral_tank_span := _neutral_station_center(1).distance_to(_neutral_station_center(2))
+	var current_tank_span := _station_center(1).distance_to(_station_center(2))
+	var tank_collapse := maxf(
+		(neutral_tank_span - current_tank_span)
+		* (TANK_BASE_SIZE.x / maxf(neutral_tank_span, 0.001)),
+		0.0
 	)
-	var seat_collapse := 0.0 if seat_mesh == null else maxf(
-		maxf(SEAT_BASE_SIZE.x - seat_mesh.size.x, 0.0),
-		maxf(SEAT_BASE_SIZE.z - seat_mesh.size.z, 0.0)
+
+	var neutral_seat_span := _neutral_station_center(MotorcycleBuilder.REAR_STATION).distance_to(_neutral_station_center(1))
+	var current_seat_span := _station_center(MotorcycleBuilder.REAR_STATION).distance_to(_station_center(1))
+	var seat_collapse := maxf(
+		(neutral_seat_span - current_seat_span)
+		* (SEAT_BASE_SIZE.x / maxf(neutral_seat_span, 0.001)),
+		0.0
 	)
+
+	var neutral_body_width := (
+		_neutral_station_width_m(1) + _neutral_station_width_m(2)
+	) * 0.5
+	var current_body_width := (
+		_station_width_m(1) + _station_width_m(2)
+	) * 0.5
+	var side_collapse := maxf(neutral_body_width - current_body_width, 0.0)
+
 	var front_fork_collapse := 0.0
-	for side in range(mini(front_fork_visuals.size(), 2)):
-		var mesh := front_fork_visuals[side].mesh as BoxMesh
-		if mesh == null:
-			continue
+	for side in range(2):
 		var neutral := _neutral_node_position(2, 2 + side).distance_to(
 			_neutral_node_position(MotorcycleBuilder.FRONT_STATION, side)
 		)
-		front_fork_collapse = maxf(front_fork_collapse, neutral - mesh.size.x)
+		var current := _node_position(2, 2 + side).distance_to(
+			_node_position(MotorcycleBuilder.FRONT_STATION, side)
+		)
+		front_fork_collapse = maxf(front_fork_collapse, neutral - current)
+
 	var rear_swingarm_collapse := 0.0
-	for side in range(mini(rear_swingarm_visuals.size(), 2)):
-		var mesh := rear_swingarm_visuals[side].mesh as BoxMesh
-		if mesh == null:
-			continue
+	for side in range(2):
 		var neutral := _neutral_node_position(MotorcycleBuilder.REAR_STATION, side).distance_to(
 			_neutral_node_position(1, side)
 		)
-		rear_swingarm_collapse = maxf(rear_swingarm_collapse, neutral - mesh.size.x)
-	return maxf(maxf(tank_collapse, seat_collapse), maxf(front_fork_collapse, rear_swingarm_collapse))
+		var current := _node_position(MotorcycleBuilder.REAR_STATION, side).distance_to(
+			_node_position(1, side)
+		)
+		rear_swingarm_collapse = maxf(rear_swingarm_collapse, neutral - current)
+
+	return maxf(
+		maxf(tank_collapse, seat_collapse),
+		maxf(side_collapse, maxf(front_fork_collapse, rear_swingarm_collapse))
+	)
 
 func _set_box_size(visual: MeshInstance3D, size: Vector3) -> void:
 	if visual == null:
@@ -386,6 +469,35 @@ func _set_box_size(visual: MeshInstance3D, size: Vector3) -> void:
 	var mesh := visual.mesh as BoxMesh
 	if mesh != null:
 		mesh.size = size
+
+func _set_ellipsoid_transform(visual: MeshInstance3D, position_value: Vector3, orientation: Basis, size: Vector3) -> void:
+	if visual == null or not visual.mesh is SphereMesh:
+		return
+	visual.position = position_value
+	visual.basis = orientation.orthonormalized() * Basis.from_scale(Vector3(
+		maxf(size.x, 0.02),
+		maxf(size.y, 0.02),
+		maxf(size.z, 0.02)
+	))
+	visual.set_meta("presentation_size_m", size)
+
+func _update_cylinder_between_y(visual: MeshInstance3D, a: Vector3, b: Vector3, forward_hint: Vector3) -> void:
+	if visual == null:
+		return
+	var delta := b - a
+	var length := delta.length()
+	if length <= 0.001:
+		visual.visible = false
+		return
+	visual.visible = true
+	var mesh := visual.mesh as CylinderMesh
+	if mesh != null:
+		mesh.height = length
+	visual.position = (a + b) * 0.5
+	visual.basis = _basis_y_along(delta, forward_hint)
+	visual.set_meta("presentation_span_start", a)
+	visual.set_meta("presentation_span_end", b)
+	visual.set_meta("presentation_length_m", length)
 
 func _update_box_between_x(visual: MeshInstance3D, a: Vector3, b: Vector3, up_hint: Vector3) -> void:
 	if visual == null:
@@ -414,6 +526,22 @@ func _basis_x_along(direction: Vector3, up_hint: Vector3) -> Basis:
 		lateral = Vector3.FORWARD
 	up = lateral.cross(forward).normalized()
 	return Basis(forward, up, lateral).orthonormalized()
+
+func _basis_y_along(direction: Vector3, forward_hint: Vector3) -> Basis:
+	var local_y := direction.normalized()
+	if local_y.is_zero_approx():
+		return Basis.IDENTITY
+	var local_x := forward_hint - local_y * forward_hint.dot(local_y)
+	if local_x.length_squared() <= 0.0001:
+		local_x = Vector3.RIGHT - local_y * Vector3.RIGHT.dot(local_y)
+	if local_x.length_squared() <= 0.0001:
+		local_x = Vector3.FORWARD - local_y * Vector3.FORWARD.dot(local_y)
+	local_x = local_x.normalized()
+	var local_z := local_x.cross(local_y).normalized()
+	if local_z.is_zero_approx():
+		local_z = Vector3.FORWARD
+	local_x = local_y.cross(local_z).normalized()
+	return Basis(local_x, local_y, local_z).orthonormalized()
 
 func _span_ratio(station_a: int, station_b: int) -> float:
 	var neutral := _neutral_station_center(station_a).distance_to(_neutral_station_center(station_b))
@@ -471,12 +599,4 @@ func _visual_basis() -> Basis:
 func _update_segment(visual: MeshInstance3D, station_a: int, station_b: int) -> void:
 	var a := _station_center(station_a)
 	var b := _station_center(station_b)
-	var delta := b - a
-	var length := delta.length()
-	if length <= 0.001:
-		return
-	var mesh := visual.mesh as BoxMesh
-	mesh.size.z = length
-	visual.position = (a + b) * 0.5
-	var up := _visual_basis().y
-	visual.look_at(b, up)
+	_update_cylinder_between_y(visual, a, b, _visual_basis().y)
