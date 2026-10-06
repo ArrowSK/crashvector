@@ -192,15 +192,18 @@ func _capture_neutral_presentation_state() -> bool:
 	if source_oriented_size.x <= 0.001 or source_oriented_size.y <= 0.001 or source_oriented_size.z <= 0.001:
 		return false
 
-	# Fit the selected source body to the class envelope per host axis. The
-	# previous uniform "smallest ratio wins" fit made source proportions override
-	# CrashVector's class dimensions (for example an A car could render longer
-	# than C/D). The structural/presentation envelope already carries the intended
-	# class length, height and width, so it is the neutral visual contract.
+	# Fit the selected source body to the public class dimensions. The previous
+	# uniform "smallest ratio wins" fit made source proportions override the
+	# catalog (for example an A car could render longer than C/D). Length and
+	# width are therefore explicit PassengerCarCatalog contracts; height continues
+	# to come from the class-specific M16.2 presentation envelope.
+	var catalog := PassengerCarCatalog.data(vehicle.vehicle_preset_id)
+	var intended_length_m := float(catalog.get("representative_length_m", target_size.x))
+	var intended_width_m := float(catalog.get("representative_width_m", target_size.z))
 	pristine_scale_host = Vector3(
-		target_size.x / source_oriented_size.x,
+		intended_length_m / source_oriented_size.x,
 		target_size.y / source_oriented_size.y,
-		target_size.z / source_oriented_size.z
+		intended_width_m / source_oriented_size.z
 	)
 	if (
 		pristine_scale_host.x <= 0.001
@@ -211,7 +214,21 @@ func _capture_neutral_presentation_state() -> bool:
 	# Preserve the old scalar as a read-only compatibility value representing
 	# longitudinal (host-X/source-Z) scale.
 	pristine_scale = pristine_scale_host.x
-	pristine_target_center_local = (minimum + maximum) * 0.5
+	var rear_section: Dictionary = neutral_sections_local[0]
+	var front_section: Dictionary = neutral_sections_local[neutral_sections_local.size() - 1]
+	var rear_lower_center := (
+		_section_point(rear_section, "lower_left")
+		+ _section_point(rear_section, "lower_right")
+	) * 0.5
+	var front_lower_center := (
+		_section_point(front_section, "lower_left")
+		+ _section_point(front_section, "lower_right")
+	) * 0.5
+	pristine_target_center_local = Vector3(
+		(rear_lower_center.x + front_lower_center.x) * 0.5,
+		(minimum.y + maximum.y) * 0.5,
+		(minimum.z + maximum.z) * 0.5
+	)
 	pristine_target_min_y = minimum.y
 	return true
 
