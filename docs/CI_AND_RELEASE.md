@@ -28,8 +28,8 @@ This review is intentionally not a per-push workload because rendered acceptance
 The workflow asks for a validation level:
 
 - `none` — package-only diagnostic build; no regression suite is run;
-- `smoke` — focused layout, Kenney presentation, runtime-stability, M18 passenger-car side impact, dedicated M19 contact diagnostics, M20 heavy/lorry/motorcycle impact, M21 fifth-wheel articulation, M22 cyclist/moving-pedestrian gates and the M23 dynamic-tank/production-matrix gates;
-- `full` — the consolidated historical/package regression set through M23, including the dedicated M19-M23 production checks.
+- `smoke` — focused layout, Kenney/passenger-material presentation, strict cross-target visual-presentation QA, runtime-stability, M18 passenger-car side impact, dedicated M19 contact diagnostics, M20 heavy/lorry/motorcycle impact, M21 fifth-wheel articulation, M22 cyclist/moving-pedestrian gates and the M23 dynamic-tank/production-matrix gates;
+- `full` — the consolidated historical/package regression set through M23, including passenger-material and cross-target visual-presentation QA plus the dedicated M19-M23 production checks.
 
 The expensive four-case M19 observation matrix remains in the manual visual-review workflow because it is intended for evidence inspection rather than pass/fail external correlation. M20-M23 add production capabilities, so their dedicated regressions are part of both `smoke` and `full`: a publishable release cannot gain heavy/other-vehicle deformation, articulated fifth-wheel dynamics, cyclist/moving-pedestrian scope or the M23 role-neutral vehicle matrix while omitting the corresponding production gate.
 
@@ -37,12 +37,12 @@ It also asks whether to publish a versioned GitHub release. Publishing requires 
 
 A package produced with `validation=none` is an **unvalidated diagnostic artifact**. It may be useful for local visual inspection when regression capacity is constrained, but it must not be described as having passed CrashVector's regression suite.
 
-## Current beta.11 release state
+## Current beta.12 release state
 
-The current production architecture remains implemented through M23, with the M24 corrective/presentation work versioned as the **`0.9.0-beta.11` desktop beta**. The release candidate must pass the same full regression gate plus the dedicated production pedestrian stability and motorcycle deformation checks before publication. Therefore:
+The current production architecture remains implemented through M23 with the M24 corrective baseline; the presentation-hardening work is versioned as the **`0.9.0-beta.12` desktop beta**. The release candidate must pass the full regression gate plus the passenger-material, strict cross-target presentation, motorcycle/rider/cyclist and articulated-truck checks before publication. Therefore:
 
-- source routing, tests and package gates remain wired through M23 with the M24 corrective/presentation regressions included;
-- public installers and the updater manifest resolve to `0.9.0-beta.11`;
+- source routing, tests and package gates remain wired through M23/M24 with the passenger-material and strict visual-presentation regressions included;
+- public installers and the updater manifest resolve to `0.9.0-beta.12`;
 - package checksums use portable LF-terminated sidecars;
 - future releases must still complete the same gates before publication.
 

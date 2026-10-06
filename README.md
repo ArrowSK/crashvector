@@ -18,12 +18,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.11/CrashVector-0.9.0-beta.11-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
-  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.11/CrashVector-0.9.0-beta.11-Windows-x64-Setup.exe"><img alt="Download Windows x64" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.12/CrashVector-0.9.0-beta.12-macOS-universal.dmg"><img alt="Download CrashVector for macOS" src="https://img.shields.io/badge/Download-macOS%20Universal%202-111111?style=for-the-badge&logo=apple"></a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.12/CrashVector-0.9.0-beta.12-Windows-x64-Setup.exe"><img alt="Download Windows x64" src="https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=for-the-badge&logo=windows11"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.11">Release notes & checksums</a>
+  <a href="https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.12">Release notes & checksums</a>
   ·
   <a href="docs/DISTRIBUTION.md">Installation & updates</a>
 </p>
@@ -39,9 +39,9 @@ CrashVector is an open-source desktop crash-simulation sandbox for people who wa
 
 The current M12–M23 source architecture separates whole-object world motion, permanent structural deformation and presentation. Godot `RigidBody3D` owns supported vehicle/target world motion; CrashVector's structural graphs remain local deformation/presentation state. M13 extends severe passenger-car failure beyond the nose, M14 adds vulnerable-target trajectories and yielding pole/tree targets, M15 adds articulated pedestrian and bicycle dynamics, M16 reorganises the desktop workflow, M17 restores Comparison on the production rigid-body scene, M18 adds passenger-car broadside deformation, M19 adds real-contact diagnostics and offset/oblique front-probe coverage, M20 adds bounded heavy-truck/lorry/motorcycle deformation for broadside/oblique layouts, M21 splits the heavy truck into tractor and trailer rigid bodies connected by a constrained fifth wheel, M22 adds a generic cyclist plus configurable initial pedestrian translation, and M23 adds a role-neutral production world for non-passenger primary vehicles, geometry-aware framing/preflight and production-readiness hardening across contact, replay, analysis and UI capability boundaries.
 
-> **Current source state:** **`0.9.0-beta.11`** keeps the M23 role-neutral production architecture and adds the M24 corrective/presentation work: production pedestrian stale-rig teardown and launch bounds, visible motorcycle collapse, CC0 rigid-lorry presentation fitting, and additional generic vehicle/road-user/tank visual detail without changing the established collision authority.
+> **Current source state:** **`0.9.0-beta.12`** keeps the M23/M24 production physics architecture and hardens the presentation layer: class-correct passenger-car dimensions and materials, recognisable articulated-truck geometry, rebuilt motorcycle wheels/body detail, articulated motorcycle-rider/cyclist skins, and strict cross-target visual regression contracts. The established collision, mass, deformation and coupling authority is unchanged.
 
-> **Packaged release:** **`0.9.0-beta.11`** is the current verified public desktop beta, with macOS Universal 2 and Windows x64 packages.
+> **Packaged release:** **`0.9.0-beta.12`** is the current verified public desktop beta, with macOS Universal 2 and Windows x64 packages.
 
 > **Important boundaries:** M23 allows truck, lorry, motorcycle and tank primaries only against the supported vehicle/fixed-fixture matrix; vulnerable-road-user targets remain on the established passenger-car-primary path. M20/M21 heavy-vehicle and motorcycle deformation/articulation are generic educational models. Pedestrian, riderless-bicycle, cyclist and rider behaviour remains trajectory/contact-only and does not add biomechanics, injury prediction, gait, steering, tyre-force or forensic-reconstruction validity.
 
@@ -53,10 +53,10 @@ No Git, Godot, Python, Terminal or PowerShell is required for the packaged deskt
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.10/CrashVector-0.9.0-beta.10-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
-| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.10/CrashVector-0.9.0-beta.10-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
+| macOS — Apple Silicon + Intel | **[Download macOS Universal 2 DMG](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.12/CrashVector-0.9.0-beta.12-macOS-universal.dmg)** | Open the DMG, then drag **CrashVector.app** onto the **Applications** shortcut. Launch it from Applications. |
+| Windows 10/11 x64 | **[Download Windows x64 Setup](https://github.com/ArrowSK/crashvector/releases/download/v0.9.0-beta.12/CrashVector-0.9.0-beta.12-Windows-x64-Setup.exe)** | Run Setup and follow the graphical installer. CrashVector installs under Program Files and appears in the Start menu and Installed apps. |
 
-The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.9.0-beta.11 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.11)**.
+The matching SHA-256 checksum files and `update-manifest.json` are on the **[0.9.0-beta.12 release page](https://github.com/ArrowSK/crashvector/releases/tag/v0.9.0-beta.12)**.
 
 This beta is ad-hoc signed on macOS and unsigned on Windows when paid signing credentials are not configured, so Gatekeeper or SmartScreen may warn about an unknown developer/publisher. Use only the files attached to the official `ArrowSK/crashvector` release.
 
@@ -97,7 +97,7 @@ Defaults exist for normal scenarios, so mass and solver parameters are not manda
 | --- | --- |
 | Scenario editor | Task-focused M16/M16.1 desktop workflow with contextual Properties and Advanced setup |
 | Passenger cars | Generic A / B / C / D / J / M classes with representative default masses and a refined 44-node local structural model |
-| Vehicle presentation | Six distinct Kenney Car Kit 3.1 passenger-car bodies. At zero deformation the source Kenney body keeps its proportions through axis conversion, uniform scale, placement and paint; structural deformation is added as displacement from the captured neutral cage rather than globally warping the pristine mesh at load time |
+| Vehicle presentation | Six distinct Kenney Car Kit 3.1 passenger-car bodies. At zero deformation each body is fitted axis-by-axis to the public class length/width and the existing class-specific height envelope while preserving the production front contact face; structural deformation is added as displacement from the captured neutral cage rather than globally warping the pristine mesh at load time |
 | Whole-vehicle dynamics | Godot `RigidBody3D`, gravity, CCD and raycast suspension for the supported production path |
 | Progressive structural failure | Front crush followed, when demand is sufficient, by firewall/cowl intrusion, floor/rocker and A-pillar/roof deformation, passenger-cell shortening and rear-body buckling |
 | Reciprocal longitudinal impacts | Supported dynamic actors may strike from ahead or behind; passenger cars have bounded direct rear deformation and heavy/other targets use their current target-specific deformation paths |
@@ -115,7 +115,7 @@ Defaults exist for normal scenarios, so mass and solver parameters are not manda
 | Comparison | Visual Compare and Comparison Lab execute each variant through the current production scene in an isolated `SubViewport` / `World3D` and replay the resulting production recordings |
 | Video export | 1080p / 1440p / 4K offline replay rendering at 30/60 fps with external FFmpeg H.264 encoding; the settings dialog is an input-blocking root modal above the desktop shell |
 | Calibration | Historical M8 evidence labels/reference check retained separately; it does not validate the M12–M23 production source architecture |
-| Desktop distribution | Current verified public package is `0.9.0-beta.11` (M23 architecture + M24 corrective/presentation work), with macOS Universal 2 DMG and Windows x64 Setup installer, portable checksums and update manifest |
+| Desktop distribution | Current verified public package is `0.9.0-beta.12` (M23/M24 architecture + visual-presentation hardening), with macOS Universal 2 DMG and Windows x64 Setup installer, portable checksums and update manifest |
 
 ## Passenger-car classes
 
@@ -132,7 +132,7 @@ CrashVector uses **generic classes rather than production models**. There are no
 
 The default mass is only a starting point. You can override it directly in the scenario.
 
-M16 introduced class-specific presentation profiles and M16.1 strengthened their silhouettes. The current source uses six distinct generic Kenney Car Kit 3.1 bodies. The pristine source body is preserved at neutral state with one uniform scale; the structural presentation adapter then applies only the displacement between the live and captured neutral deformation cages. The underlying physics remains the generic class-based CrashVector model.
+M16 introduced class-specific presentation profiles and M16.1 strengthened their silhouettes. The current source uses six distinct generic Kenney Car Kit 3.1 bodies. The pristine source body is fitted independently on length, height and width to the selected generic class, while the structural presentation adapter applies only the displacement between the live and captured neutral deformation cages. The underlying physics remains the generic class-based CrashVector model.
 
 ## M12 — rigid-body correction
 
@@ -314,6 +314,7 @@ Or open `project.godot` directly in Godot and run the project.
 | [Roadmap](docs/ROADMAP.md) | Implementation history, current validation state and future physics work |
 | [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, distribution and presentation layers |
 | [CI and release flow](docs/CI_AND_RELEASE.md) | Consolidated regression, visual review, package validation and Actions-quota behaviour |
+| [0.9.0-beta.12 release notes](docs/releases/0.9.0-beta.12.md) | Passenger/truck/motorcycle/rider/cyclist presentation hardening and strict visual QA |
 | [0.9.0-beta.11 release notes](docs/releases/0.9.0-beta.11.md) | M24 pedestrian-contact correction, motorcycle visual collapse and licensing-safe presentation upgrade |
 | [0.9.0-beta.10 release notes](docs/releases/0.9.0-beta.10.md) | M23 production-readiness hardening for role-neutral vehicle physics, replay, analysis and capability UI |
 | [0.9.0-beta.9 release notes](docs/releases/0.9.0-beta.9.md) | Corrective beta for stable pre-impact road users and lorry aftermath framing |
@@ -345,9 +346,9 @@ Or open `project.godot` directly in Godot and run the project.
 
 ## Development status
 
-**M23 remains the current production architecture; beta.11 carries the M24 corrective/presentation package.** `project.godot` is now **`0.9.0-beta.11`**. Its release gate includes the full M0–M23 regression stack, the dedicated production pedestrian stability and motorcycle deformation checks, the M23 production matrix, macOS Universal 2 packaging, Windows x64 packaging, installer checks and release-side checksum verification.
+**M23 remains the current production architecture and M24 remains the corrective physics/presentation baseline; beta.12 hardens the visual layer without changing those physics contracts.** `project.godot` is now **`0.9.0-beta.12`**. Its release gate includes the full M0–M23 regression stack, dedicated passenger-material and cross-target visual-presentation contracts, production motorcycle/rider/cyclist/truck checks, the M23 production matrix, macOS Universal 2 packaging, Windows x64 packaging, installer checks and release-side checksum verification.
 
-The current public installers are **`v0.9.0-beta.11`**. Portable checksum sidecars and `update-manifest.json` are attached to the public release.
+The current public installers are **`v0.9.0-beta.12`**. Portable checksum sidecars and `update-manifest.json` are attached to the public release.
 
 For future releases, retain full regression validation and native package checks before immutable publication. Run the manual presentation/contact-fidelity review whenever presentation or evidence-facing behaviour changes; artifact generation alone is not visual acceptance.
 
