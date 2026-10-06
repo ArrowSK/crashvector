@@ -314,7 +314,8 @@ Or open `project.godot` directly in Godot and run the project.
 | [Roadmap](docs/ROADMAP.md) | Implementation history, current validation state and future physics work |
 | [Architecture](docs/ARCHITECTURE.md) | Structural, simulation, replay, distribution and presentation layers |
 | [CI and release flow](docs/CI_AND_RELEASE.md) | Consolidated regression, visual review, package validation and Actions-quota behaviour |
-| [0.9.0-beta.12 release notes](docs/releases/0.9.0-beta.12.md) | Passenger/truck/motorcycle/rider/cyclist presentation hardening and strict visual QA |\n| [0.9.0-beta.11 release notes](docs/releases/0.9.0-beta.11.md) | M24 pedestrian-contact correction, motorcycle visual collapse and licensing-safe presentation upgrade |
+| [0.9.0-beta.12 release notes](docs/releases/0.9.0-beta.12.md) | Passenger/truck/motorcycle/rider/cyclist presentation hardening and strict visual QA |
+| [0.9.0-beta.11 release notes](docs/releases/0.9.0-beta.11.md) | M24 pedestrian-contact correction, motorcycle visual collapse and licensing-safe presentation upgrade |
 | [0.9.0-beta.10 release notes](docs/releases/0.9.0-beta.10.md) | M23 production-readiness hardening for role-neutral vehicle physics, replay, analysis and capability UI |
 | [0.9.0-beta.9 release notes](docs/releases/0.9.0-beta.9.md) | Corrective beta for stable pre-impact road users and lorry aftermath framing |
 | [0.9.0-beta.8 release notes](docs/releases/0.9.0-beta.8.md) | Corrective beta for contact-driven crash response, vehicle stance and supported targets |
