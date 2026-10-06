@@ -109,6 +109,9 @@ func _check_production_front_contact_contract(preset_id: StringName) -> void:
 			chassis.front_contact_face_x_m,
 			outer_face,
 		])
+		var preset := PassengerCarCatalog.data(preset_id)
+		var structural_front_face := CompactHatchbackBuilder.STATION_X[CompactHatchbackBuilder.FRONT_STATION] * float(preset.get("scale_x", 1.0))
+		_expect(absf(chassis.front_contact_face_x_m - structural_front_face) < 0.001, "M19 %s front contact face must be derived from the authoritative class envelope" % preset_id)
 		_expect(absf(chassis.front_contact_face_x_m - expected_bumper_face) < 0.001, "M19 %s rigid contact face must match the rendered M16.2 nose face" % preset_id)
 		_expect(bumper_collision != null, "M19 %s passenger car is missing the outer bumper collision volume" % preset_id)
 		if bumper_collision != null and bumper_collision.shape is BoxShape3D:
