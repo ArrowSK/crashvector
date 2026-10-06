@@ -148,6 +148,24 @@ func _check_motorcycle_presentation(motorcycle: M20Motorcycle) -> void:
 		var tank_size := tank_size_value as Vector3
 		_expect(tank_size.x > tank_size.z and tank_size.z > tank_size.y, "Motorcycle tank proportions are not longitudinally readable: %s" % tank_size)
 
+	# Guard the semantics of visual_collapse_m itself. Changing only a rendered
+	# primitive, with the structural model untouched, must change the metric.
+	# Otherwise the production impact assertion could become a false green again.
+	var neutral_visual_collapse := motorcycle.visual_collapse_m()
+	_expect(neutral_visual_collapse < 0.001, "Neutral motorcycle presentation already reports collapse: %.4f m" % neutral_visual_collapse)
+	if not motorcycle.front_fork_visuals.is_empty():
+		var probe_mesh := motorcycle.front_fork_visuals[0].mesh as CylinderMesh
+		_expect(probe_mesh != null, "Motorcycle visual-collapse probe could not access a fork cylinder")
+		if probe_mesh != null:
+			var original_height := probe_mesh.height
+			probe_mesh.height = maxf(original_height - 0.08, 0.02)
+			var visual_only_collapse := motorcycle.visual_collapse_m()
+			_expect(
+				visual_only_collapse > neutral_visual_collapse + 0.06,
+				"visual_collapse_m no longer measures rendered geometry independently of the structural model"
+			)
+			probe_mesh.height = original_height
+
 func _check_cylinder_span(visual: MeshInstance3D, label: String) -> void:
 	_expect(visual != null and visual.mesh is CylinderMesh, "%s is not a cylinder" % label)
 	if visual == null or not visual.mesh is CylinderMesh:
