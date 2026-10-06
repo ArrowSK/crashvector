@@ -54,7 +54,9 @@ Current generic caps are:
 - front: 0.34 m;
 - side: 0.20 m.
 
-The frame collision volume follows bounded local shortening/lateral retreat, and front/rear wheel collision centres can move with longitudinal frame collapse. No rider, steering controller, tyre-force model, rider coupling or injury inference is introduced.
+The frame collision volume follows bounded local shortening/lateral retreat, and front/rear wheel collision centres can move with longitudinal frame collapse.
+
+The production motorcycle presentation remains CrashVector-authored and presentation-only. Its current visual layer uses rounded/tubular frame, fork, swingarm, tank, fairing, handlebar, engine, exhaust and wheel details that follow the same structural stations and bounded deformation state. Cylindrical components are aligned along their own local cylinder axis rather than being passed through the older box/X-axis helper, which previously made the exhaust visibly mis-oriented. The M20 rider physics/release model, steering scope, tyre-force assumptions and injury evidence boundary are unchanged by this visual pass.
 
 ## Scenario scope
 
