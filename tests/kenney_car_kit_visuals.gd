@@ -132,6 +132,9 @@ func _verify_catalog_mapping() -> bool:
 	if not ResourceLoader.exists(KenneyVehicleAssetCatalog.WHEEL_DEFAULT):
 		_fail("Kenney passenger-car wheel asset is missing")
 		return false
+	if not KenneyVehicleAssetCatalog.articulated_tractor_body_path().ends_with("truck.glb"):
+		_fail("Articulated tractor must use the pinned Kenney truck presentation asset")
+		return false
 	for path in KenneyVehicleAssetCatalog.extended_vehicle_paths():
 		if not ResourceLoader.exists(path):
 			_fail("Extended Kenney vehicle presentation asset is missing: %s" % path)
