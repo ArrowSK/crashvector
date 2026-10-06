@@ -74,6 +74,7 @@ jobs:
             m16_2_packaged_cases.gd
             m16_2_light_target_crush.gd
             kenney_car_kit_visuals.gd
+            passenger_material_presentation.gd
             m17_production_integration.gd
             runtime_presentation_stability.gd
             m18_side_impacts.gd

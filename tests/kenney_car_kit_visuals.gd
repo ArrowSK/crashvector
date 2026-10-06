@@ -48,8 +48,11 @@ func _run() -> void:
 	if skin.body_asset_path != KenneyVehicleAssetCatalog.passenger_car_body_path(vehicle.vehicle_preset_id):
 		_fail("Production passenger car used the wrong Kenney body mapping")
 		return
-	if visual.body_instance.visible or visual.glass_instance.visible or visual.trim_instance.visible:
-		_fail("Procedural passenger-car body remained visible below the Kenney replacement")
+	if visual.body_instance.visible:
+		_fail("Procedural passenger-car painted body remained visible below the Kenney replacement")
+		return
+	if not visual.glass_instance.visible or not visual.trim_instance.visible:
+		_fail("Layered passenger-car glass/trim presentation is not visible above the Kenney body")
 		return
 	if not skin.USE_ANCHORED_PROCEDURAL_WHEELS or not skin.wheel_nodes.is_empty():
 		_fail("Production skin must use the anchor-driven wheel rig instead of the offset imported wheel scene")

@@ -9,7 +9,7 @@ extends KenneyVehicleSkin3D
 # the pristine Kenney body at zero deformation and applies only displacement
 # from CrashVector's authoritative structural state. This layer adds the final
 # production-presentation concerns that must not leak back into physics:
-# conservative body-material tuning and per-body wheel-opening alignment.
+# layered body/glass/trim/lamp/wheel materials and per-body wheel-opening alignment.
 
 const SOURCE_TO_HOST_WHEEL := {
 	"wheel-back-left": 0,
@@ -17,8 +17,16 @@ const SOURCE_TO_HOST_WHEEL := {
 	"wheel-front-left": 2,
 	"wheel-front-right": 3,
 }
-const BODY_PRESENTATION_METALLIC := 0.18
-const BODY_PRESENTATION_ROUGHNESS := 0.34
+const BODY_PRESENTATION_METALLIC := 0.34
+const BODY_PRESENTATION_ROUGHNESS := 0.22
+const GLASS_ALPHA := 0.74
+const GLASS_ROUGHNESS := 0.07
+const TRIM_ROUGHNESS := 0.42
+const LAMP_EMISSION_ENERGY := 0.42
+const TAIL_EMISSION_ENERGY := 0.34
+const TIRE_ROUGHNESS := 0.88
+const RIM_METALLIC := 0.92
+const RIM_ROUGHNESS := 0.16
 
 var neutral_wheel_offsets: Array[Vector3] = []
 var source_wheel_centres: Array[Vector3] = []
@@ -26,12 +34,18 @@ var fitted_wheel_world_positions: Array[Vector3] = []
 var physical_wheel_world_positions: Array[Vector3] = []
 var body_mount_offset := Vector3.ZERO
 var source_wheel_alignment_complete := false
+var presentation_tire_material: StandardMaterial3D
+var presentation_rim_material: StandardMaterial3D
+var presentation_hub_material: StandardMaterial3D
 
 func configure(owner_visual: M162VehicleVisual) -> void:
 	super.configure(owner_visual)
 	if not active:
 		return
 	_tune_body_finish()
+	_configure_detail_materials()
+	_configure_wheel_finish()
+	_show_presentation_details()
 	# Imported wheels are intentionally disabled because their nested mesh-space
 	# transform cannot be reconciled with the structural suspension anchors.
 	# The established M16 wheel roots remain authoritative for road support and
@@ -50,11 +64,18 @@ func configure(owner_visual: M162VehicleVisual) -> void:
 	set_meta("presentation_pristine_body", true)
 	set_meta("presentation_wheel_alignment", source_wheel_alignment_complete)
 	set_meta("presentation_wheel_mode", "source-body-grounded-fit")
-	set_meta("presentation_body_finish", "technical_satin")
+	set_meta("presentation_body_finish", "layered_automotive")
+	set_meta("presentation_detail_layers", "glass_trim_lamps_wheels")
+	set_meta("presentation_detail_overlay", true)
 
 func _process(delta: float) -> void:
 	super._process(delta)
 	_update_grounded_body_mount()
+	# The base Kenney skin hides the procedural shell every frame. Re-enable only
+	# the dedicated presentation layers after that hide pass: never the procedural
+	# painted body. These layers supply real material separation that the single
+	# Kenney colormap surface cannot express on its own.
+	_show_presentation_details()
 
 func _map_vertex(source: Vector3) -> Vector3:
 	# The body follows the same deformation mapping as before, plus one neutral
@@ -63,16 +84,126 @@ func _map_vertex(source: Vector3) -> Vector3:
 	return super._map_vertex(source) + body_mount_offset
 
 func _tune_body_finish() -> void:
-	# Car Kit uses its colour-map texture for body/trim differentiation. Keep that
-	# texture and the CrashVector paint multiplier intact; only bound the imported
-	# material response so the low-poly body reads as painted metal instead of a
-	# flat debug mesh. These values are presentation-only.
+	# Car Kit uses one colour-map material for the complete body. Keep its texture
+	# and CrashVector paint multiplier intact, but give the imported shell a real
+	# painted-metal response. Glass, trim and lamps are deliberately supplied by
+	# separate structural presentation layers below so they are not forced to
+	# share this metallic/roughness response.
 	for material in surface_materials:
 		if not material is BaseMaterial3D:
 			continue
 		var base := material as BaseMaterial3D
 		base.metallic = maxf(base.metallic, BODY_PRESENTATION_METALLIC)
 		base.roughness = minf(base.roughness, BODY_PRESENTATION_ROUGHNESS)
+
+func _configure_detail_materials() -> void:
+	if host == null:
+		return
+
+	host.glass_material.albedo_color = Color(0.025, 0.050, 0.075, GLASS_ALPHA)
+	host.glass_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	host.glass_material.metallic = 0.06
+	host.glass_material.roughness = GLASS_ROUGHNESS
+	host.glass_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	host.trim_material.albedo_color = Color(0.015, 0.020, 0.028)
+	host.trim_material.metallic = 0.16
+	host.trim_material.roughness = TRIM_ROUGHNESS
+
+	host.dark_material.albedo_color = Color(0.014, 0.017, 0.022)
+	host.dark_material.metallic = 0.04
+	host.dark_material.roughness = 0.72
+
+	host.chrome_material.albedo_color = Color(0.48, 0.53, 0.60)
+	host.chrome_material.metallic = 0.90
+	host.chrome_material.roughness = 0.17
+
+	host.lamp_material.albedo_color = Color(0.90, 0.96, 1.00)
+	host.lamp_material.metallic = 0.04
+	host.lamp_material.roughness = 0.10
+	host.lamp_material.emission_enabled = true
+	host.lamp_material.emission = Color(0.34, 0.46, 0.62)
+	host.lamp_material.emission_energy_multiplier = LAMP_EMISSION_ENERGY
+
+	host.tail_material.albedo_color = Color(0.72, 0.020, 0.014)
+	host.tail_material.metallic = 0.02
+	host.tail_material.roughness = 0.14
+	host.tail_material.emission_enabled = true
+	host.tail_material.emission = Color(0.42, 0.008, 0.004)
+	host.tail_material.emission_energy_multiplier = TAIL_EMISSION_ENERGY
+
+func _configure_wheel_finish() -> void:
+	if host == null:
+		return
+
+	presentation_tire_material = StandardMaterial3D.new()
+	presentation_tire_material.albedo_color = Color(0.010, 0.012, 0.016)
+	presentation_tire_material.metallic = 0.02
+	presentation_tire_material.roughness = TIRE_ROUGHNESS
+
+	presentation_rim_material = StandardMaterial3D.new()
+	presentation_rim_material.albedo_color = Color(0.52, 0.57, 0.64)
+	presentation_rim_material.metallic = RIM_METALLIC
+	presentation_rim_material.roughness = RIM_ROUGHNESS
+
+	presentation_hub_material = StandardMaterial3D.new()
+	presentation_hub_material.albedo_color = Color(0.36, 0.40, 0.46)
+	presentation_hub_material.metallic = 0.84
+	presentation_hub_material.roughness = 0.22
+
+	for tire in host.wheel_tires:
+		if tire != null and tire.mesh is PrimitiveMesh:
+			(tire.mesh as PrimitiveMesh).material = presentation_tire_material
+	for rim in host.wheel_rims:
+		if rim != null and rim.mesh is PrimitiveMesh:
+			(rim.mesh as PrimitiveMesh).material = presentation_rim_material
+	for hub in host.wheel_hubs:
+		if hub != null and hub.mesh is PrimitiveMesh:
+			(hub.mesh as PrimitiveMesh).material = presentation_hub_material
+	for spoke_root in host.spoke_roots:
+		if spoke_root == null:
+			continue
+		for child in spoke_root.get_children():
+			if child is MeshInstance3D:
+				var spoke := child as MeshInstance3D
+				if spoke.mesh is PrimitiveMesh:
+					(spoke.mesh as PrimitiveMesh).material = presentation_rim_material
+
+func _show_presentation_details() -> void:
+	if host == null:
+		return
+
+	# The imported Kenney shell remains the only painted body.
+	if host.body_instance != null:
+		host.body_instance.visible = false
+
+	# Existing M16 structural detail surfaces already follow the authoritative
+	# deformation cage, so reusing them gives the imported body separate physical
+	# material roles without introducing a second vehicle or changing collision.
+	if host.glass_instance != null:
+		host.glass_instance.visible = true
+	if host.trim_instance != null:
+		host.trim_instance.visible = true
+	if host.accent_instance != null:
+		host.accent_instance.visible = true
+	for item in host.headlamps:
+		if item != null:
+			item.visible = true
+	for item in host.tail_lamps:
+		if item != null:
+			item.visible = true
+	for item in host.mirrors:
+		if item != null:
+			item.visible = true
+	for item in host.rocker_cladding:
+		if item != null:
+			item.visible = true
+	for item in host.roof_rails:
+		if item != null:
+			item.visible = true
+	for item in [host.grille, host.lower_front_trim, host.rear_trim]:
+		if item != null:
+			item.visible = true
 
 func _capture_source_wheel_centres() -> bool:
 	if host == null or vehicle == null or source_wheel_centres.size() != host.wheel_groups.size():
