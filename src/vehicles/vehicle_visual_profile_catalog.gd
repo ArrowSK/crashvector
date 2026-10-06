@@ -109,16 +109,18 @@ static func visual_signature(preset_id: StringName) -> Dictionary:
 	}
 
 static func production_front_face_x_m(preset_id: StringName, structural_front_x_m: float) -> float:
-	# The neutral Kenney body is centred on the authoritative structural lower
-	# envelope and fitted to PassengerCarCatalog.representative_length_m. Derive
-	# the visible nose from those same inputs instead of asset-specific measured
-	# constants, so changing source proportions cannot silently move collision.
-	var catalog := PassengerCarCatalog.data(preset_id)
-	var intended_length_m := float(catalog.get("representative_length_m", 0.0))
-	var base_front_x := CompactHatchbackBuilder.STATION_X[CompactHatchbackBuilder.FRONT_STATION]
-	var scale_x := structural_front_x_m / maxf(base_front_x, 0.001)
-	var structural_rear_x := CompactHatchbackBuilder.STATION_X[CompactHatchbackBuilder.REAR_STATION] * scale_x
-	var structural_center_x := (structural_rear_x + structural_front_x_m) * 0.5
-	if intended_length_m <= 0.001:
-		return structural_front_x_m
-	return structural_center_x + intended_length_m * 0.5
+	# The M16.2 renderer preserves each Kenney body with a uniform source fit.
+	# Its real nose therefore is not, in general, the last structural-cage
+	# station. These neutral local X extents are measured from the exact shipped
+	# asset plus profile fit. M19 rebuilds every production skin and asserts this
+	# contract against the generated mesh, so a changed asset or fit cannot leave
+	# a collision volume ahead of the visible car.
+	const neutral_faces := {
+		PassengerCarCatalog.A_SEGMENT_CITY: 1.7649,
+		PassengerCarCatalog.B_SEGMENT_HATCHBACK: 1.5571,
+		PassengerCarCatalog.C_SEGMENT_COMPACT: 1.1397,
+		PassengerCarCatalog.D_SEGMENT_MIDSIZE: 0.9604,
+		PassengerCarCatalog.J_SEGMENT_SUV: 1.6757,
+		PassengerCarCatalog.M_SEGMENT_MPV: 1.8276,
+	}
+	return float(neutral_faces.get(preset_id, structural_front_x_m))
