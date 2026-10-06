@@ -41,8 +41,8 @@ A package produced with `validation=none` is an **unvalidated diagnostic artifac
 
 The current production architecture remains implemented through M23 with the M24 corrective baseline; the presentation-hardening work is versioned as the **`0.9.0-beta.12` desktop beta**. The release candidate must pass the full regression gate plus the passenger-material, strict cross-target presentation, motorcycle/rider/cyclist and articulated-truck checks before publication. Therefore:
 
-- source routing, tests and package gates remain wired through M23 with the M24 corrective/presentation regressions included;
-- public installers and the updater manifest resolve to `0.9.0-beta.11`;
+- source routing, tests and package gates remain wired through M23/M24 with the passenger-material and strict visual-presentation regressions included;
+- public installers and the updater manifest resolve to `0.9.0-beta.12`;
 - package checksums use portable LF-terminated sidecars;
 - future releases must still complete the same gates before publication.
 
