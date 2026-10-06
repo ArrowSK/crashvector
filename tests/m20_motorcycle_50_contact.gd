@@ -66,6 +66,7 @@ func _check_preimpact_energy_source() -> void:
 	motorcycle.auto_step = false
 	root.add_child(motorcycle)
 	await process_frame
+	_check_motorcycle_presentation(motorcycle)
 	_expect(motorcycle.rigid_chassis != null, "Motorcycle pre-impact energy regression could not create the rigid chassis")
 	if motorcycle.rigid_chassis == null:
 		motorcycle.queue_free()
@@ -96,6 +97,84 @@ func _check_preimpact_energy_source() -> void:
 	fixture.queue_free()
 	motorcycle.queue_free()
 	await process_frame
+
+func _check_motorcycle_presentation(motorcycle: M20Motorcycle) -> void:
+	_expect(motorcycle != null, "Motorcycle presentation regression could not create the target")
+	if motorcycle == null:
+		return
+
+	_expect(motorcycle.tank_visual != null and motorcycle.tank_visual.mesh is SphereMesh, "Motorcycle fuel tank is still a rectangular box")
+	_expect(motorcycle.fairing_visual != null and motorcycle.fairing_visual.mesh is SphereMesh, "Motorcycle front fairing is still a rectangular box")
+	_expect(motorcycle.handlebar_visual != null and motorcycle.handlebar_visual.mesh is CylinderMesh, "Motorcycle handlebar is not a round bar")
+	_expect(motorcycle.headlamp_visual != null and motorcycle.headlamp_visual.mesh is CylinderMesh, "Motorcycle headlamp is not a cylindrical lens/body")
+	_expect(motorcycle.engine_crankcase_visual != null and motorcycle.engine_crankcase_visual.mesh is CylinderMesh, "Motorcycle crankcase presentation is missing")
+	_expect(motorcycle.exhaust_visual != null and motorcycle.exhaust_visual.mesh is CylinderMesh, "Motorcycle exhaust is not a cylindrical muffler")
+	_expect(motorcycle.exhaust_tip_visual != null and motorcycle.exhaust_tip_visual.mesh is CylinderMesh, "Motorcycle exhaust tip presentation is missing")
+	_expect(motorcycle.footpeg_visual != null and motorcycle.footpeg_visual.mesh is CylinderMesh, "Motorcycle footpeg bar presentation is missing")
+	_expect(motorcycle.chain_guard_visual != null and motorcycle.chain_guard_visual.mesh is BoxMesh, "Motorcycle chain guard presentation is missing")
+	_expect(motorcycle.handlebar_grips.size() == 2, "Motorcycle must expose two handlebar grips")
+	_expect(motorcycle.side_panel_visuals.size() == 2, "Motorcycle must expose two side panels")
+	_expect(motorcycle.frame_visuals.size() == 3, "Motorcycle frame presentation lost its three longitudinal members")
+	for frame in motorcycle.frame_visuals:
+		_expect(frame.mesh is CylinderMesh, "Motorcycle frame still uses rectangular bars")
+	_expect(motorcycle.front_fork_visuals.size() == 2 and motorcycle.rear_swingarm_visuals.size() == 2, "Motorcycle presentation must expose two fork and two swingarm members")
+	for fork in motorcycle.front_fork_visuals:
+		_expect(fork.mesh is CylinderMesh, "Motorcycle fork member is still a rectangular bar")
+	for arm in motorcycle.rear_swingarm_visuals:
+		_expect(arm.mesh is CylinderMesh, "Motorcycle swingarm member is still a rectangular bar")
+
+	_expect(motorcycle.wheel_roots.size() == 2, "Motorcycle presentation must expose front and rear wheel roots")
+	if motorcycle.wheel_roots.size() == 2:
+		var wheelbase := motorcycle.wheel_roots[0].position.distance_to(motorcycle.wheel_roots[1].position)
+		_expect(wheelbase > 1.65 and wheelbase < 2.15, "Motorcycle visual wheelbase is implausible: %.3f m" % wheelbase)
+		for wheel in motorcycle.wheel_roots:
+			_expect(_count_named_children(wheel, "WheelSpoke") == 8, "Motorcycle wheel must expose eight visual spokes")
+			_expect(wheel.get_node_or_null("Tyre") != null, "Motorcycle wheel tyre presentation is missing")
+			_expect(wheel.get_node_or_null("Rim") != null, "Motorcycle wheel rim presentation is missing")
+			_expect(wheel.get_node_or_null("WheelHub") != null, "Motorcycle wheel hub presentation is missing")
+			_expect(wheel.get_node_or_null("BrakeDisc") != null, "Motorcycle wheel brake-disc presentation is missing")
+
+	_check_cylinder_span(motorcycle.exhaust_visual, "Motorcycle exhaust")
+	_check_cylinder_span(motorcycle.exhaust_tip_visual, "Motorcycle exhaust tip")
+	_check_cylinder_span(motorcycle.handlebar_visual, "Motorcycle handlebar")
+	for fork in motorcycle.front_fork_visuals:
+		_check_cylinder_span(fork, "Motorcycle fork")
+	for arm in motorcycle.rear_swingarm_visuals:
+		_check_cylinder_span(arm, "Motorcycle swingarm")
+
+	var tank_size_value: Variant = motorcycle.tank_visual.get_meta("presentation_size_m", Vector3.ZERO) if motorcycle.tank_visual != null else Vector3.ZERO
+	_expect(tank_size_value is Vector3, "Motorcycle tank does not expose presentation dimensions")
+	if tank_size_value is Vector3:
+		var tank_size := tank_size_value as Vector3
+		_expect(tank_size.x > tank_size.z and tank_size.z > tank_size.y, "Motorcycle tank proportions are not longitudinally readable: %s" % tank_size)
+
+func _check_cylinder_span(visual: MeshInstance3D, label: String) -> void:
+	_expect(visual != null and visual.mesh is CylinderMesh, "%s is not a cylinder" % label)
+	if visual == null or not visual.mesh is CylinderMesh:
+		return
+	var start_value: Variant = visual.get_meta("presentation_span_start", null)
+	var end_value: Variant = visual.get_meta("presentation_span_end", null)
+	_expect(start_value is Vector3 and end_value is Vector3, "%s does not expose its structural span" % label)
+	if not (start_value is Vector3 and end_value is Vector3):
+		return
+	var start := start_value as Vector3
+	var end := end_value as Vector3
+	var delta := end - start
+	var length := delta.length()
+	_expect(length > 0.03, "%s has a degenerate presentation span" % label)
+	if length <= 0.03:
+		return
+	var axis := visual.basis.y.normalized()
+	_expect(absf(axis.dot(delta.normalized())) > 0.995, "%s cylinder axis is not aligned with its structural span" % label)
+	var mesh := visual.mesh as CylinderMesh
+	_expect(absf(mesh.height - length) < 0.01, "%s cylinder height does not match its structural span" % label)
+
+func _count_named_children(node: Node, wanted: String) -> int:
+	var count := 0
+	for child in node.get_children():
+		if String(child.name) == wanted:
+			count += 1
+	return count
 
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
