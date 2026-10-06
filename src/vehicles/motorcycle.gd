@@ -124,13 +124,16 @@ func _build_visuals() -> void:
 		root.set_meta("station", station)
 		add_child(root)
 
+		# Open tyre/rim rings keep the wheel readable from the side instead of
+		# covering the hub and spokes with solid discs. The torus outer radii
+		# preserve the previous 0.34 m tyre and 0.235 m rim envelopes.
 		var tyre := MeshInstance3D.new()
 		tyre.name = "Tyre"
-		var tyre_mesh := CylinderMesh.new()
-		tyre_mesh.top_radius = 0.34
-		tyre_mesh.bottom_radius = 0.34
-		tyre_mesh.height = 0.105
-		tyre_mesh.radial_segments = 32
+		var tyre_mesh := TorusMesh.new()
+		tyre_mesh.inner_radius = 0.235
+		tyre_mesh.outer_radius = 0.340
+		tyre_mesh.rings = 32
+		tyre_mesh.ring_segments = 12
 		tyre_mesh.material = dark
 		tyre.mesh = tyre_mesh
 		tyre.rotation_degrees.x = 90.0
@@ -138,11 +141,11 @@ func _build_visuals() -> void:
 
 		var rim := MeshInstance3D.new()
 		rim.name = "Rim"
-		var rim_mesh := CylinderMesh.new()
-		rim_mesh.top_radius = 0.235
-		rim_mesh.bottom_radius = 0.235
-		rim_mesh.height = 0.055
-		rim_mesh.radial_segments = 28
+		var rim_mesh := TorusMesh.new()
+		rim_mesh.inner_radius = 0.180
+		rim_mesh.outer_radius = 0.235
+		rim_mesh.rings = 28
+		rim_mesh.ring_segments = 10
 		rim_mesh.material = metal
 		rim.mesh = rim_mesh
 		rim.rotation_degrees.x = 90.0
@@ -160,14 +163,27 @@ func _build_visuals() -> void:
 		hub.rotation_degrees.x = 90.0
 		root.add_child(hub)
 
+		# Eight true radial spokes run from the hub edge to the inner rim edge.
+		# The old centred bars produced sixteen apparent arms and ended inside a
+		# solid rim disc, so their count could be correct while the wheel looked wrong.
+		var spoke_inner_radius := 0.060
+		var spoke_outer_radius := 0.180
+		var spoke_length := spoke_outer_radius - spoke_inner_radius
+		var spoke_mid_radius := (spoke_inner_radius + spoke_outer_radius) * 0.5
 		for spoke_index in range(8):
 			var spoke := MeshInstance3D.new()
 			spoke.name = "WheelSpoke%d" % spoke_index
 			var spoke_mesh := BoxMesh.new()
-			spoke_mesh.size = Vector3(0.33, 0.016, 0.016)
+			spoke_mesh.size = Vector3(spoke_length, 0.016, 0.016)
 			spoke_mesh.material = metal
 			spoke.mesh = spoke_mesh
-			spoke.rotation_degrees.z = float(spoke_index) * 22.5
+			var spoke_angle := deg_to_rad(float(spoke_index) * 45.0)
+			spoke.position = Vector3(
+				cos(spoke_angle) * spoke_mid_radius,
+				sin(spoke_angle) * spoke_mid_radius,
+				0.0
+			)
+			spoke.rotation.z = spoke_angle
 			root.add_child(spoke)
 
 		var brake_disc := MeshInstance3D.new()
