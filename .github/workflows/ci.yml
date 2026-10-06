@@ -83,6 +83,7 @@ jobs:
             m20_motorcycle_50_contact.gd
             m21_articulated_truck.gd
             m22_cyclist_moving_pedestrian.gd
+            visual_presentation_contracts.gd
             m23_dynamic_tank.gd
             m23_production_matrix.gd
           )
