@@ -251,6 +251,14 @@ func _check_production_cyclist_routing() -> void:
 	_expect(preview_proxy != null and preview_proxy.target_type == ScenarioConfig.TARGET_CYCLIST, "M22 production preview did not instantiate M22RoadUserProxy3D cyclist")
 	var skin := editor.get("m162_road_user_skin") as M22RoadUserPresentationSkin3D
 	_expect(skin != null and skin.proxy == preview_proxy, "M22 production preview did not install combined rider+bicycle presentation")
+	if skin != null and preview_proxy != null:
+		var cyclist_pelvis := _find_articulated_body(preview_proxy, "CyclistPelvis")
+		_expect(cyclist_pelvis != null, "M22 cyclist preview is missing the physical CyclistPelvis body")
+		if cyclist_pelvis != null:
+			_expect(skin.cyclist_visual_pelvis_position().distance_to(cyclist_pelvis.global_position) < 0.05, "M22 cyclist visible pelvis is not following the physical CyclistPelvis body")
+		_expect(skin.cyclist_visual_hand_position(true).distance_to(preview_proxy.to_global(Vector3(0.52, 1.20, -0.22))) < 0.12, "M22 cyclist left hand is not seated on the bicycle control coupling")
+		_expect(skin.cyclist_visual_hand_position(false).distance_to(preview_proxy.to_global(Vector3(0.52, 1.20, 0.22))) < 0.12, "M22 cyclist right hand is not seated on the bicycle control coupling")
+		_expect(skin.get_node_or_null("CyclistHelmetSkin") != null, "M22 cyclist presentation is missing the dedicated helmet layer")
 	var speed_row := editor.get("m10_target_speed_row") as HBoxContainer
 	_expect(speed_row != null and speed_row.visible, "M22 current desktop target controls did not expose cyclist speed")
 	var preview_car := editor.get("car") as M17CompactHatchback
@@ -280,6 +288,11 @@ func _check_production_cyclist_routing() -> void:
 		_expect(cyclist.cyclist_released, "M22 cyclist production case did not release rider coupling")
 		_expect(cyclist.maximum_vertical_speed_ms < 18.0, "M22 cyclist production case produced an implausible vertical launch: %.2f m/s" % cyclist.maximum_vertical_speed_ms)
 		_expect(_finite_vector(cyclist.center_of_mass_position()), "M22 cyclist production position became non-finite")
+		var final_skin := editor.get("m162_road_user_skin") as M22RoadUserPresentationSkin3D
+		var final_pelvis := _find_articulated_body(cyclist, "CyclistPelvis")
+		_expect(final_skin != null and final_pelvis != null, "M22 cyclist post-impact presentation/pelvis is missing")
+		if final_skin != null and final_pelvis != null:
+			_expect(final_skin.cyclist_visual_pelvis_position().distance_to(final_pelvis.global_position) < 0.08, "M22 cyclist visible pelvis detached from the physical pelvis after rider release")
 	var recorder := editor.get("replay_recorder") as ReplayRecorder
 	_expect(recorder != null and recorder.recording != null and recorder.recording.has_frames(), "M22 cyclist production case produced no replay")
 	if recorder != null and recorder.recording != null:
@@ -288,6 +301,14 @@ func _check_production_cyclist_routing() -> void:
 
 	editor.queue_free()
 	await process_frame
+
+func _find_articulated_body(proxy: RoadUserRigidProxy3D, body_name: String) -> RigidBody3D:
+	if proxy == null:
+		return null
+	for body in proxy.articulated_bodies:
+		if body != null and is_instance_valid(body) and String(body.name) == body_name:
+			return body
+	return null
 
 func _finite_vector(value: Vector3) -> bool:
 	return is_finite(value.x) and is_finite(value.y) and is_finite(value.z)

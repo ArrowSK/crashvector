@@ -68,7 +68,9 @@ Broadside/oblique rider+bicycle scenarios should use the new `Cyclist` target in
 
 ## Presentation and replay
 
-`M22RoadUserPresentationSkin3D` composes the existing connected bicycle presentation with the existing articulated-person presentation. It is presentation-only and does not own physics bodies.
+`M22RoadUserPresentationSkin3D` composes the existing connected bicycle presentation with an articulated rider skin. It is presentation-only and does not own physics bodies.
+
+For cyclists, the visible pelvis now follows the real `CyclistPelvis` rigid body rather than the pedestrian-only proxy-relative pelvis fallback. The seated pre-impact visual pose also derives shoulder/elbow/knee relationships from the actual rider bodies while placing the hands and feet on the existing temporary bicycle coupling anchors. After coupling release, those limb visuals continue from the live rider-body positions instead of remaining visually attached to the bicycle. This changes presentation only; it does not change rider masses, collisions, joints, coupling/release behaviour or contact transfer.
 
 Replay continues to store the rigid transform and velocities of every articulated road-user part. Cyclist replay additionally stores whether the rider-to-bicycle coupling had already released, so pre-contact and post-contact states can be reproduced consistently.
 

@@ -319,7 +319,9 @@ func update_from_model() -> void:
 	seat_visual.position = station1 - rear_basis.x * 0.16 + rear_basis.y * 0.43
 	seat_visual.basis = rear_basis
 
-	var handlebar_center := front - front_basis.x * 0.18 + front_basis.y * 0.58
+	# Keep the controls behind the front axle so the seated rider can reach the
+	# actual grip geometry without stretching the presentation skeleton.
+	var handlebar_center := front - front_basis.x * 0.42 + front_basis.y * 0.48
 	var handlebar_length := clampf(HANDLEBAR_BASE_SIZE.z * front_width_ratio, 0.48, HANDLEBAR_BASE_SIZE.z)
 	_update_cylinder_between_y(
 		handlebar_visual,
