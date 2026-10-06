@@ -169,10 +169,10 @@ func _check_cylinder_span(visual: MeshInstance3D, label: String) -> void:
 	var mesh := visual.mesh as CylinderMesh
 	_expect(absf(mesh.height - length) < 0.01, "%s cylinder height does not match its structural span" % label)
 
-func _count_named_children(node: Node, wanted: String) -> int:
+func _count_named_children(node: Node, wanted_prefix: String) -> int:
 	var count := 0
 	for child in node.get_children():
-		if String(child.name) == wanted:
+		if String(child.name).begins_with(wanted_prefix):
 			count += 1
 	return count
 
