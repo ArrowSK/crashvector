@@ -118,7 +118,7 @@ func _update_grounded_body_mount() -> void:
 		return
 	if source_wheel_centres.size() != host.wheel_groups.size() or physical_wheel_world_positions.size() != host.wheel_groups.size():
 		return
-	var accumulated_offset := Vector3.ZERO
+	var accumulated_vertical_offset := 0.0
 	for index in range(host.wheel_groups.size()):
 		# M16 rebuilds these roots from the suspension state. Preserve them exactly:
 		# they are the only presentation positions guaranteed to share the tyre/road
@@ -127,8 +127,16 @@ func _update_grounded_body_mount() -> void:
 		physical_wheel_world_positions[index] = physical_world
 	for index in range(host.wheel_groups.size()):
 		var unmapped_source_world := super._map_vertex(source_wheel_centres[index])
-		accumulated_offset += physical_wheel_world_positions[index] - unmapped_source_world
-	body_mount_offset = accumulated_offset / float(host.wheel_groups.size())
+		accumulated_vertical_offset += physical_wheel_world_positions[index].y - unmapped_source_world.y
+	# Ground the selected body vertically only. Longitudinal/lateral mounting must
+	# stay centred on the authoritative class envelope; otherwise source wheelbase
+	# differences silently shift the visible nose away from the physical contact
+	# face and can reintroduce class-size inversions.
+	body_mount_offset = Vector3(
+		0.0,
+		accumulated_vertical_offset / float(host.wheel_groups.size()),
+		0.0
+	)
 	for index in range(host.wheel_groups.size()):
 		fitted_wheel_world_positions[index] = _map_vertex(source_wheel_centres[index])
 		_fit_visual_wheel_to_body(index)
