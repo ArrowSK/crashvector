@@ -162,7 +162,7 @@ func _build_visuals() -> void:
 
 		for spoke_index in range(8):
 			var spoke := MeshInstance3D.new()
-			spoke.name = "WheelSpoke"
+			spoke.name = "WheelSpoke%d" % spoke_index
 			var spoke_mesh := BoxMesh.new()
 			spoke_mesh.size = Vector3(0.33, 0.016, 0.016)
 			spoke_mesh.material = metal
