@@ -7,9 +7,11 @@ extends Node3D
 
 # Kenney supplies presentation geometry only. CrashVector's M12-M18 structural
 # graph, rigid-body motion, collision shapes and replay remain authoritative.
-# The undeformed body preserves the source Kenney proportions with one uniform
-# fit transform. Structural deformation is then added only as displacement from
-# the captured neutral M16.2 cross-section cage, avoiding pre-crash body warping.
+# The undeformed body is dimension-fitted to the authoritative neutral M16.2
+# presentation envelope on each host axis. This keeps A/B/C/D/J/M rendered size
+# consistent with the class catalogue instead of letting differing source-asset
+# aspect ratios decide which class looks largest. Structural deformation is then
+# added only as displacement from the captured neutral cross-section cage.
 
 const NEUTRAL_SECTION_SAMPLE_COUNT := 65
 const SECTION_KEYS := [
@@ -46,7 +48,11 @@ const USE_ANCHORED_PROCEDURAL_WHEELS := true
 # back into the rigid body, collision shapes or structural solver.
 var neutral_reference := Transform3D.IDENTITY
 var neutral_sections_local: Array[Dictionary] = []
+# Longitudinal compatibility scalar retained for older presentation probes.
+# New code must use pristine_scale_host because the class-dimension fit is
+# intentionally axis-specific: host X=length, Y=height, Z=width.
 var pristine_scale := 1.0
+var pristine_scale_host := Vector3.ONE
 var pristine_target_center_local := Vector3.ZERO
 var pristine_target_min_y := 0.0
 
@@ -186,18 +192,25 @@ func _capture_neutral_presentation_state() -> bool:
 	if source_oriented_size.x <= 0.001 or source_oriented_size.y <= 0.001 or source_oriented_size.z <= 0.001:
 		return false
 
-	# A single uniform scale preserves the Kenney source silhouette. The most
-	# restrictive dimension wins so the pristine body remains inside the neutral
-	# CrashVector presentation envelope without stretching any axis independently.
-	pristine_scale = minf(
+	# Fit the selected source body to the class envelope per host axis. The
+	# previous uniform "smallest ratio wins" fit made source proportions override
+	# CrashVector's class dimensions (for example an A car could render longer
+	# than C/D). The structural/presentation envelope already carries the intended
+	# class length, height and width, so it is the neutral visual contract.
+	pristine_scale_host = Vector3(
 		target_size.x / source_oriented_size.x,
-		minf(
-			target_size.y / source_oriented_size.y,
-			target_size.z / source_oriented_size.z
-		)
+		target_size.y / source_oriented_size.y,
+		target_size.z / source_oriented_size.z
 	)
-	if pristine_scale <= 0.001:
+	if (
+		pristine_scale_host.x <= 0.001
+		or pristine_scale_host.y <= 0.001
+		or pristine_scale_host.z <= 0.001
+	):
 		return false
+	# Preserve the old scalar as a read-only compatibility value representing
+	# longitudinal (host-X/source-Z) scale.
+	pristine_scale = pristine_scale_host.x
 	pristine_target_center_local = (minimum + maximum) * 0.5
 	pristine_target_min_y = minimum.y
 	return true
@@ -226,9 +239,19 @@ func _update_body() -> void:
 				mapped_normals.resize(source_normals.size())
 				for index in range(source_normals.size()):
 					var normal := source_normals[index]
-					# Kenney: +Z forward, +Y up, +X left. CrashVector's
-					# structural reference uses +X forward, +Y up, +Z right.
-					mapped_normals[index] = (forward * normal.z + up * normal.y - right * normal.x).normalized()
+					# Kenney: +Z forward, +Y up, +X left. The pristine class fit
+					# is non-uniform, so transform normals with inverse axis scale
+					# before converting into CrashVector +X/+Y/+Z host axes.
+					var local_normal := Vector3(
+						normal.z / maxf(pristine_scale_host.x, 0.001),
+						normal.y / maxf(pristine_scale_host.y, 0.001),
+						-normal.x / maxf(pristine_scale_host.z, 0.001)
+					).normalized()
+					mapped_normals[index] = (
+						forward * local_normal.x
+						+ up * local_normal.y
+						+ right * local_normal.z
+					).normalized()
 				arrays[Mesh.ARRAY_NORMAL] = mapped_normals
 
 		output.add_surface_from_arrays(surface_primitives[surface_index], arrays)
@@ -266,9 +289,9 @@ func _map_vertex(source: Vector3) -> Vector3:
 func _pristine_source_point_local(source: Vector3) -> Vector3:
 	var source_center := source_aabb.position + source_aabb.size * 0.5
 	return Vector3(
-		pristine_target_center_local.x + (source.z - source_center.z) * pristine_scale,
-		pristine_target_min_y + (source.y - source_aabb.position.y) * pristine_scale,
-		pristine_target_center_local.z - (source.x - source_center.x) * pristine_scale
+		pristine_target_center_local.x + (source.z - source_center.z) * pristine_scale_host.x,
+		pristine_target_min_y + (source.y - source_aabb.position.y) * pristine_scale_host.y,
+		pristine_target_center_local.z - (source.x - source_center.x) * pristine_scale_host.z
 	)
 
 func _neutral_section_at_u(u: float) -> Dictionary:
