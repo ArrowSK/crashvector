@@ -13,6 +13,8 @@ func _run() -> void:
 		return
 	if not _verify_catalog_mapping():
 		return
+	if not await _verify_class_dimensions():
+		return
 	if not await _verify_lorry_presentation():
 		return
 
@@ -138,6 +140,82 @@ func _verify_catalog_mapping() -> bool:
 			return false
 	return true
 
+func _verify_class_dimensions() -> bool:
+	var rendered_lengths: Dictionary = {}
+	var rendered_widths: Dictionary = {}
+	for preset_id in PassengerCarCatalog.preset_ids():
+		var vehicle := M17CompactHatchback.new()
+		vehicle.name = "PassengerDimensionRegression_%s" % preset_id
+		vehicle.vehicle_preset_id = preset_id
+		vehicle.origin_offset_m = Vector3.ZERO
+		vehicle.auto_step = false
+		root.add_child(vehicle)
+		for _frame in range(3):
+			await process_frame
+
+		var visual := M162VehicleVisual.new()
+		visual.name = "PassengerDimensionVisual_%s" % preset_id
+		vehicle.add_child(visual)
+		visual.configure(vehicle)
+		for _frame in range(3):
+			await process_frame
+
+		var skin := visual.kenney_skin
+		if skin == null or not skin.active or skin.body_instance == null or skin.body_instance.mesh == null:
+			vehicle.queue_free()
+			await process_frame
+			_fail("Passenger class %s did not produce a measurable Kenney body" % preset_id)
+			return false
+
+		var bounds := (skin.body_instance.mesh as Mesh).get_aabb()
+		var rendered_length := bounds.size.x
+		var rendered_width := bounds.size.z
+		var catalog := PassengerCarCatalog.data(preset_id)
+		var expected_length := float(catalog.get("representative_length_m", 0.0))
+		var expected_width := float(catalog.get("representative_width_m", 0.0))
+		rendered_lengths[preset_id] = rendered_length
+		rendered_widths[preset_id] = rendered_width
+		print("Passenger visual dimensions %s: rendered=%.3f x %.3f m catalog=%.3f x %.3f m" % [
+			preset_id,
+			rendered_length,
+			rendered_width,
+			expected_length,
+			expected_width,
+		])
+		if absf(rendered_length - expected_length) > 0.055:
+			vehicle.queue_free()
+			await process_frame
+			_fail("Passenger class %s rendered length %.3f m no longer matches catalog %.3f m" % [preset_id, rendered_length, expected_length])
+			return false
+		if absf(rendered_width - expected_width) > 0.080:
+			vehicle.queue_free()
+			await process_frame
+			_fail("Passenger class %s rendered width %.3f m no longer matches catalog %.3f m" % [preset_id, rendered_width, expected_width])
+			return false
+
+		vehicle.queue_free()
+		await process_frame
+
+	var ordered := [
+		PassengerCarCatalog.A_SEGMENT_CITY,
+		PassengerCarCatalog.B_SEGMENT_HATCHBACK,
+		PassengerCarCatalog.C_SEGMENT_COMPACT,
+		PassengerCarCatalog.D_SEGMENT_MIDSIZE,
+		PassengerCarCatalog.J_SEGMENT_SUV,
+		PassengerCarCatalog.M_SEGMENT_MPV,
+	]
+	for index in range(ordered.size() - 1):
+		var smaller: StringName = ordered[index]
+		var larger: StringName = ordered[index + 1]
+		var smaller_length := float(rendered_lengths.get(smaller, 0.0))
+		var larger_length := float(rendered_lengths.get(larger, 0.0))
+		if larger_length <= smaller_length:
+			_fail("Passenger visual length order is inverted: %s %.3f m >= %s %.3f m" % [
+				smaller, smaller_length, larger, larger_length
+			])
+			return false
+	return true
+
 func _verify_lorry_presentation() -> bool:
 	var lorry := M20RigidLorry.new()
 	lorry.name = "KenneyLorryRegression"
@@ -178,8 +256,12 @@ func _verify_lorry_presentation() -> bool:
 	return true
 
 func _verify_pristine_baseline(skin: KenneyVehicleSkin3D) -> bool:
-	if skin.pristine_scale <= 0.001:
-		_fail("Kenney pristine-body uniform scale was not established")
+	if (
+		skin.pristine_scale_host.x <= 0.001
+		or skin.pristine_scale_host.y <= 0.001
+		or skin.pristine_scale_host.z <= 0.001
+	):
+		_fail("Kenney pristine-body class-dimension fit was not established")
 		return false
 	var box := skin.source_aabb
 	var source_origin := box.position
@@ -192,15 +274,15 @@ func _verify_pristine_baseline(skin: KenneyVehicleSkin3D) -> bool:
 	var mapped_length := skin._map_vertex(source_length)
 	var tolerance_m := 0.010
 	var checks := [
-		[source_origin.distance_to(source_width), mapped_origin.distance_to(mapped_width), "width"],
-		[source_origin.distance_to(source_height), mapped_origin.distance_to(mapped_height), "height"],
-		[source_origin.distance_to(source_length), mapped_origin.distance_to(mapped_length), "length"],
+		[source_origin.distance_to(source_width), mapped_origin.distance_to(mapped_width), skin.pristine_scale_host.z, "width"],
+		[source_origin.distance_to(source_height), mapped_origin.distance_to(mapped_height), skin.pristine_scale_host.y, "height"],
+		[source_origin.distance_to(source_length), mapped_origin.distance_to(mapped_length), skin.pristine_scale_host.x, "length"],
 	]
 	for check in checks:
-		var expected_distance: float = float(check[0]) * skin.pristine_scale
+		var expected_distance: float = float(check[0]) * float(check[2])
 		var actual_distance: float = float(check[1])
 		if absf(actual_distance - expected_distance) > tolerance_m:
-			_fail("Undeformed Kenney body no longer preserves pristine uniform %s scale" % String(check[2]))
+			_fail("Undeformed Kenney body no longer preserves class-fitted %s scale" % String(check[3]))
 			return false
 	return true
 
