@@ -21,10 +21,16 @@ var seat_visual: MeshInstance3D
 var handlebar_visual: MeshInstance3D
 var headlamp_visual: MeshInstance3D
 var engine_visual: MeshInstance3D
+var engine_crankcase_visual: MeshInstance3D
 var fairing_visual: MeshInstance3D
 var windscreen_visual: MeshInstance3D
 var exhaust_visual: MeshInstance3D
+var exhaust_tip_visual: MeshInstance3D
 var rear_light_visual: MeshInstance3D
+var footpeg_visual: MeshInstance3D
+var chain_guard_visual: MeshInstance3D
+var handlebar_grips: Array[MeshInstance3D] = []
+var side_panel_visuals: Array[MeshInstance3D] = []
 var front_fork_visuals: Array[MeshInstance3D] = []
 var rear_swingarm_visuals: Array[MeshInstance3D] = []
 var wheel_roots: Array[Node3D] = []
@@ -65,61 +71,112 @@ func _build_visuals() -> void:
 	var body_material := _material(Color(0.62, 0.085, 0.055), 0.48, 0.24)
 	var dark := _material(Color(0.018, 0.020, 0.024), 0.0, 0.92)
 	var metal := _material(Color(0.46, 0.49, 0.53), 0.88, 0.20)
+
+	# Use round structural members rather than rectangular bars. These remain
+	# presentation-only and continue to follow the same authoritative stations.
 	for pair in [[0, 1], [1, 2], [2, 3]]:
-		var segment := _create_box("FrameTube", Vector3(0.10, 0.10, 0.5), frame_material)
+		var segment := _create_cylinder("FrameTube", 0.045, 0.50, frame_material)
 		segment.set_meta("a", pair[0])
 		segment.set_meta("b", pair[1])
+		segment.set_meta("presentation_role", "frame_tube")
 		frame_visuals.append(segment)
-	# The major body pieces are presentation-only, but unlike the original rigid
-	# boxes they now follow local structural spans so M20 crush is visibly legible.
-	tank_visual = _create_box("FuelTank", TANK_BASE_SIZE, body_material)
+
+	# Rounded massing makes the motorcycle read as a motorcycle rather than a
+	# collection of boxes, while all positioning still comes from the structural
+	# stations below.
+	tank_visual = _create_ellipsoid("FuelTank", body_material)
 	seat_visual = _create_box("Seat", SEAT_BASE_SIZE, dark)
-	handlebar_visual = _create_box("Handlebar", HANDLEBAR_BASE_SIZE, metal)
-	headlamp_visual = _create_box("Headlamp", Vector3(0.13, 0.22, 0.27), _emissive_material())
-	engine_visual = _create_box("EngineBlock", Vector3(0.58, 0.48, 0.44), metal)
-	fairing_visual = _create_box("FrontFairing", Vector3(0.42, 0.48, 0.52), body_material)
-	windscreen_visual = _create_box("Windscreen", Vector3(0.08, 0.34, 0.44), _glass_material())
-	exhaust_visual = _create_cylinder("Exhaust", 0.055, 0.78, metal)
+	handlebar_visual = _create_cylinder("Handlebar", 0.022, HANDLEBAR_BASE_SIZE.z, metal)
+	handlebar_visual.set_meta("presentation_role", "handlebar")
+	headlamp_visual = _create_cylinder("Headlamp", 0.135, 0.085, _emissive_material())
+	headlamp_visual.set_meta("presentation_role", "headlamp")
+	engine_visual = _create_box("EngineBlock", Vector3(0.48, 0.42, 0.38), metal)
+	engine_crankcase_visual = _create_cylinder("EngineCrankcase", 0.18, 0.40, _material(Color(0.30, 0.32, 0.35), 0.82, 0.24))
+	fairing_visual = _create_ellipsoid("FrontFairing", body_material)
+	windscreen_visual = _create_box("Windscreen", Vector3(0.055, 0.34, 0.40), _glass_material())
+	exhaust_visual = _create_cylinder("ExhaustMuffler", 0.055, 0.78, metal)
+	exhaust_visual.set_meta("presentation_role", "exhaust_muffler")
+	exhaust_tip_visual = _create_cylinder("ExhaustTip", 0.065, 0.11, _material(Color(0.12, 0.13, 0.15), 0.88, 0.18))
 	rear_light_visual = _create_box("RearLamp", Vector3(0.10, 0.14, 0.24), _rear_emissive_material())
+	footpeg_visual = _create_cylinder("FootPegBar", 0.025, 0.58, metal)
+	chain_guard_visual = _create_box("ChainGuard", Vector3(0.62, 0.055, 0.045), dark)
+
 	for side in range(2):
-		var fork := _create_box("FrontFork", Vector3(0.58, 0.045, 0.045), metal)
+		var grip := _create_cylinder("HandlebarGrip", 0.032, 0.13, dark)
+		grip.set_meta("side", side)
+		handlebar_grips.append(grip)
+		var side_panel := _create_box("SidePanel", Vector3(0.46, 0.24, 0.045), body_material)
+		side_panel.set_meta("side", side)
+		side_panel_visuals.append(side_panel)
+
+		var fork := _create_cylinder("FrontFork", 0.024, 0.58, metal)
 		fork.set_meta("side", side)
+		fork.set_meta("presentation_role", "front_fork")
 		front_fork_visuals.append(fork)
-		var swingarm := _create_box("RearSwingarm", Vector3(0.56, 0.055, 0.055), frame_material)
+		var swingarm := _create_cylinder("RearSwingarm", 0.030, 0.56, frame_material)
 		swingarm.set_meta("side", side)
+		swingarm.set_meta("presentation_role", "rear_swingarm")
 		rear_swingarm_visuals.append(swingarm)
+
 	for station in [MotorcycleBuilder.REAR_STATION, MotorcycleBuilder.FRONT_STATION]:
 		var root := Node3D.new()
 		root.name = "MotorcycleWheel"
 		root.set_meta("station", station)
 		add_child(root)
+
 		var tyre := MeshInstance3D.new()
+		tyre.name = "Tyre"
 		var tyre_mesh := CylinderMesh.new()
 		tyre_mesh.top_radius = 0.34
 		tyre_mesh.bottom_radius = 0.34
 		tyre_mesh.height = 0.105
-		tyre_mesh.radial_segments = 28
+		tyre_mesh.radial_segments = 32
 		tyre_mesh.material = dark
 		tyre.mesh = tyre_mesh
 		tyre.rotation_degrees.x = 90.0
 		root.add_child(tyre)
+
 		var rim := MeshInstance3D.new()
+		rim.name = "Rim"
 		var rim_mesh := CylinderMesh.new()
 		rim_mesh.top_radius = 0.235
 		rim_mesh.bottom_radius = 0.235
-		rim_mesh.height = 0.11
-		rim_mesh.radial_segments = 22
+		rim_mesh.height = 0.055
+		rim_mesh.radial_segments = 28
 		rim_mesh.material = metal
 		rim.mesh = rim_mesh
 		rim.rotation_degrees.x = 90.0
 		root.add_child(rim)
+
+		var hub := MeshInstance3D.new()
+		hub.name = "WheelHub"
+		var hub_mesh := CylinderMesh.new()
+		hub_mesh.top_radius = 0.060
+		hub_mesh.bottom_radius = 0.060
+		hub_mesh.height = 0.13
+		hub_mesh.radial_segments = 20
+		hub_mesh.material = metal
+		hub.mesh = hub_mesh
+		hub.rotation_degrees.x = 90.0
+		root.add_child(hub)
+
+		for spoke_index in range(8):
+			var spoke := MeshInstance3D.new()
+			spoke.name = "WheelSpoke"
+			var spoke_mesh := BoxMesh.new()
+			spoke_mesh.size = Vector3(0.33, 0.016, 0.016)
+			spoke_mesh.material = metal
+			spoke.mesh = spoke_mesh
+			spoke.rotation_degrees.z = float(spoke_index) * 22.5
+			root.add_child(spoke)
+
 		var brake_disc := MeshInstance3D.new()
 		brake_disc.name = "BrakeDisc"
 		var disc_mesh := CylinderMesh.new()
 		disc_mesh.top_radius = 0.16
 		disc_mesh.bottom_radius = 0.16
 		disc_mesh.height = 0.018
-		disc_mesh.radial_segments = 24
+		disc_mesh.radial_segments = 28
 		disc_mesh.material = metal
 		brake_disc.mesh = disc_mesh
 		brake_disc.rotation_degrees.x = 90.0
@@ -175,7 +232,20 @@ func _create_cylinder(node_name: String, radius: float, height: float, material:
 	mesh.top_radius = radius
 	mesh.bottom_radius = radius
 	mesh.height = height
-	mesh.radial_segments = 20
+	mesh.radial_segments = 24
+	mesh.material = material
+	var visual := MeshInstance3D.new()
+	visual.name = node_name
+	visual.mesh = mesh
+	add_child(visual)
+	return visual
+
+func _create_ellipsoid(node_name: String, material: Material) -> MeshInstance3D:
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.5
+	mesh.height = 1.0
+	mesh.radial_segments = 28
+	mesh.rings = 16
 	mesh.material = material
 	var visual := MeshInstance3D.new()
 	visual.name = node_name
