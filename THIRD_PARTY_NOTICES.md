@@ -24,12 +24,13 @@ CrashVector uses generic presentation meshes from **Kenney Car Kit 3.1**, create
 - Repository source: `third_party/kenney_car_kit`, pinned as a Git submodule to commit `153591d606970058a4d0e44aeadf435c2d3f89ed` of the public Car Kit mirror used by this repository.
 - Passenger-car mapping: Kenney `hatchback-sports`, `sedan`, `sedan-sports`, `taxi`, `suv` and `van`, plus `wheel-default`.
 - Rigid-lorry presentation: Kenney `delivery.glb` is fitted to CrashVector's generic lorry structural envelope. The imported body is presentation-only; CrashVector's M17/M20 rigid chassis, collision boxes, mass, suspension and deformation remain authoritative.
+- Articulated-tractor presentation: Kenney `truck.glb` is fitted to the CrashVector M21 tractor structural envelope, with its source wheels hidden. CrashVector's own articulated rigid bodies, fifth-wheel joint, collision geometry, suspension, mass and deformation remain authoritative. The pinned Car Kit does not contain a dedicated semi-trailer model, so the box trailer and coupling details remain CrashVector-authored presentation geometry.
 - Additional pinned heavy-vehicle presentation resource: `wheel-truck.glb` is retained in the approved CC0 catalog for compatible presentation use.
 
 The upstream Car Kit license file also identifies the pack as CC0 and permits personal, educational and commercial use. A normal source checkout should initialize submodules before running the full Kenney visual path.
 
 ## Other assets
 
-CrashVector continues to use procedural/runtime-generated geometry where no semantically suitable Kenney Car Kit asset matches the simulated object class or where a generated presentation element must remain physically coupled to CrashVector's structural model. The articulated tractor-trailer, motorcycle, road users, bicycle/cyclist and generic tracked vehicle therefore keep CrashVector-authored presentation geometry, now with additional presentation-only detail. No branded production-vehicle model is distributed.
+CrashVector continues to use procedural/runtime-generated geometry where no semantically suitable Kenney Car Kit asset matches the simulated object class or where a generated presentation element must remain physically coupled to CrashVector's structural model. The articulated tractor-trailer uses the pinned Kenney truck only for the tractor body while retaining CrashVector-authored trailer/coupling presentation; motorcycle, road users, bicycle/cyclist and the generic tracked vehicle continue to use CrashVector-authored presentation geometry. No branded production-vehicle model is distributed.
 
 Before any additional third-party asset is added, its source, author, licence, redistribution terms, and attribution requirements must be recorded here or in `assets/attribution/`.

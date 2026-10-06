@@ -51,6 +51,8 @@ func _run() -> void:
 		var represented_mass := preview_truck.rigid_chassis.mass + preview_truck.tractor_chassis.mass
 		_expect(absf(represented_mass - config.target_mass_kg) < 1.0, "M21 articulated body masses do not preserve target mass: %.1f vs %.1f kg" % [represented_mass, config.target_mass_kg])
 		_expect(preview_truck.fifth_wheel_separation_m() < 0.01, "M21 fifth-wheel anchors are separated before simulation")
+		var preview_skin := editor.get("m162_truck_skin") as M21HeavyTruckVisual
+		_check_articulated_presentation(preview_skin, preview_truck)
 
 	editor.call("_on_simulate_pressed")
 	# M17's inherited begin path historically restores a one-piece frame. M21
@@ -86,7 +88,7 @@ func _run() -> void:
 		var diagnostics := truck.combined_contact_manifold_diagnostics()
 		_expect(String(diagnostics.get("scope", "")) == "diagnostic_only_no_solver_feedback_articulated_pair", "M21 combined contact diagnostics lost their explicit scope")
 		var skin := editor.get("m162_truck_skin") as M21HeavyTruckVisual
-		_expect(skin != null and skin.tractor_presentation_root != null, "M21 production presentation does not expose a separate articulated tractor root")
+		_check_articulated_presentation(skin, truck)
 
 	var recorder := editor.get("replay_recorder") as ReplayRecorder
 	_expect(recorder != null and recorder.recording != null and recorder.recording.has_frames(), "M21 articulated-truck case produced no replay")
@@ -102,6 +104,67 @@ func _run() -> void:
 	editor.queue_free()
 	await process_frame
 	_finish()
+
+func _check_articulated_presentation(skin: M21HeavyTruckVisual, truck: M21HeavyTruck) -> void:
+	_expect(skin != null, "M21 production presentation is missing")
+	if skin == null:
+		return
+	_expect(skin.trailer_presentation_root != null, "M21 production presentation does not expose a separate articulated trailer root")
+	_expect(skin.tractor_presentation_root != null, "M21 production presentation does not expose a separate articulated tractor root")
+	if skin.trailer_presentation_root != null and skin.tractor_presentation_root != null:
+		_expect(skin.trailer_presentation_root != skin.tractor_presentation_root, "M21 trailer and tractor presentation roots collapsed into one transform")
+
+	_expect(skin.tractor_kenney_skin != null and skin.tractor_kenney_skin.active, "M21 tractor did not activate the pinned CC0 Kenney truck presentation")
+	if skin.tractor_kenney_skin != null and skin.tractor_kenney_skin.active:
+		_expect(
+			skin.tractor_kenney_skin.source_asset_path == KenneyVehicleAssetCatalog.articulated_tractor_body_path(),
+			"M21 articulated tractor used the wrong Kenney presentation asset"
+		)
+		_expect(
+			String(skin.tractor_kenney_skin.get_meta("presentation_asset_source", "")) == "Kenney Car Kit 3.1",
+			"M21 articulated tractor lost Kenney provenance metadata"
+		)
+		_expect(
+			String(skin.tractor_kenney_skin.get_meta("presentation_role", "")) == "generic_articulated_tractor",
+			"M21 articulated tractor presentation role metadata is missing"
+		)
+		var target_size_value: Variant = skin.tractor_kenney_skin.get_meta("presentation_target_size_m", Vector3.ZERO)
+		_expect(target_size_value is Vector3, "M21 articulated tractor fit did not expose target dimensions")
+		if target_size_value is Vector3:
+			var target_size := target_size_value as Vector3
+			_expect(target_size.x > 2.0 and target_size.x < 4.2, "M21 articulated tractor presentation length is implausible: %.2f m" % target_size.x)
+			_expect(target_size.y > 2.0 and target_size.y < 3.8, "M21 articulated tractor presentation height is implausible: %.2f m" % target_size.y)
+			_expect(target_size.z > 1.7 and target_size.z < 2.8, "M21 articulated tractor presentation width is implausible: %.2f m" % target_size.z)
+
+	_expect(skin.cab_instance == null or not skin.cab_instance.visible, "M21 left the old extruded tractor cab visible below the Kenney presentation")
+	_expect(skin.fifth_wheel_instance != null and skin.fifth_wheel_instance.visible, "M21 fifth-wheel plate is not visually exposed")
+	_expect(skin.trailer_kingpin_plate != null and skin.trailer_kingpin_plate.visible, "M21 trailer kingpin plate is missing")
+	_expect(skin.trailer_kingpin != null and skin.trailer_kingpin.visible, "M21 trailer kingpin is missing")
+	_expect(skin.trailer_rear_door_left != null and skin.trailer_rear_door_right != null, "M21 trailer rear-door split is missing")
+	_expect(skin.trailer_landing_legs.size() == 2, "M21 trailer landing gear does not expose two support legs")
+
+	var gap := float(skin.get_meta("presentation_fifth_wheel_gap_m", 0.0))
+	_expect(gap >= 0.12 and gap <= 1.10, "M21 visible fifth-wheel gap is implausible: %.2f m" % gap)
+	var trailer_length := float(skin.get_meta("presentation_trailer_length_m", 0.0))
+	var tractor_length := float(skin.get_meta("presentation_tractor_length_m", 0.0))
+	_expect(trailer_length > tractor_length + 1.6, "M21 trailer/tractor visual proportions no longer read as a semi-trailer combination")
+
+	if skin.trailer_instance != null and skin.trailer_instance.mesh is BoxMesh:
+		var trailer_box := skin.trailer_instance.mesh as BoxMesh
+		_expect(trailer_box.size.x > 4.8, "M21 trailer visual is too short to read as a semi-trailer")
+		_expect(trailer_box.size.z > 2.0, "M21 trailer visual is too narrow to read as a road trailer")
+
+	_expect(truck != null and truck.wheel_visuals.size() == HeavyTruckBuilder.wheel_anchor_indices().size(), "M21 articulated truck wheel presentation lost structural axle anchors")
+	if truck != null:
+		var station_counts := {1: 0, 4: 0, 6: 0}
+		for wheel in truck.wheel_visuals:
+			var anchor_index := int(wheel.get_meta("anchor_index", -1))
+			var station := int(anchor_index / 4) if anchor_index >= 0 else -1
+			if station_counts.has(station):
+				station_counts[station] = int(station_counts[station]) + 1
+		_expect(int(station_counts[1]) == 2, "M21 rear trailer axle presentation lost its left/right pair")
+		_expect(int(station_counts[4]) == 2, "M21 forward trailer axle presentation lost its left/right pair")
+		_expect(int(station_counts[6]) == 2, "M21 tractor axle presentation lost its left/right pair")
 
 func _finite_vector(value: Vector3) -> bool:
 	return is_finite(value.x) and is_finite(value.y) and is_finite(value.z)

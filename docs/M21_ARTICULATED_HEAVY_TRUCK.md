@@ -25,11 +25,11 @@ This matters during oblique and broadside events: the trailer can rotate relativ
 
 ## Presentation and replay
 
-`M21HeavyTruckVisual` keeps the established M16.2/M17/M20 truck materials and silhouette but gives the tractor its own presentation transform.
+`M21HeavyTruckVisual` keeps the existing M17/M20 structural/deformation authority but now exposes explicit trailer and tractor presentation roots. The tractor body is fitted from the pinned CC0 Kenney Car Kit `truck.glb`; its source wheels are hidden and CrashVector's existing structural wheel anchors remain authoritative. The pinned Car Kit has no dedicated semi-trailer, so the box trailer, rear doors, landing gear, kingpin plate and fifth-wheel/coupling cues remain CrashVector-authored presentation geometry.
 
 Trailer and tractor presentation transforms are reconstructed from the recorded structural nodes rather than copied from the live final rigid bodies. As a result, replay can show historical articulation instead of leaving the tractor at the completed-run pose while the structural replay is rewound.
 
-The inherited one-piece chassis presentation is split visually into trailer and tractor frame sections so no rigid visual bar bridges the fifth wheel.
+The inherited one-piece chassis presentation is split visually into trailer and tractor frame sections so no rigid visual bar bridges the fifth wheel. The visual regression also checks the tractor/trailer proportion, visible coupling gap, axle-anchor routing and the CC0 tractor provenance without changing collision geometry, mass or joint limits.
 
 ## Metrics and diagnostics
 
