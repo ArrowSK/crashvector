@@ -128,9 +128,7 @@ func _check_motorcycle_presentation(motorcycle: M20Motorcycle) -> void:
 		var wheelbase := motorcycle.wheel_roots[0].position.distance_to(motorcycle.wheel_roots[1].position)
 		_expect(wheelbase > 1.65 and wheelbase < 2.15, "Motorcycle visual wheelbase is implausible: %.3f m" % wheelbase)
 		for wheel in motorcycle.wheel_roots:
-			_expect(_count_named_children(wheel, "WheelSpoke") == 8, "Motorcycle wheel must expose eight visual spokes")
-			_expect(wheel.get_node_or_null("Tyre") != null, "Motorcycle wheel tyre presentation is missing")
-			_expect(wheel.get_node_or_null("Rim") != null, "Motorcycle wheel rim presentation is missing")
+			_check_motorcycle_wheel_geometry(wheel)
 			_expect(wheel.get_node_or_null("WheelHub") != null, "Motorcycle wheel hub presentation is missing")
 			_expect(wheel.get_node_or_null("BrakeDisc") != null, "Motorcycle wheel brake-disc presentation is missing")
 
@@ -165,6 +163,42 @@ func _check_motorcycle_presentation(motorcycle: M20Motorcycle) -> void:
 				"visual_collapse_m no longer measures rendered geometry independently of the structural model"
 			)
 			probe_mesh.height = original_height
+
+func _check_motorcycle_wheel_geometry(wheel: Node3D) -> void:
+	_expect(_count_named_children(wheel, "WheelSpoke") == 8, "Motorcycle wheel must expose eight visual spokes")
+	var tyre := wheel.get_node_or_null("Tyre") as MeshInstance3D
+	var rim := wheel.get_node_or_null("Rim") as MeshInstance3D
+	_expect(tyre != null and tyre.mesh is TorusMesh, "Motorcycle tyre must be an open torus, not a solid wheel disc")
+	_expect(rim != null and rim.mesh is TorusMesh, "Motorcycle rim must be an open torus so the spokes remain visible")
+	if tyre != null and tyre.mesh is TorusMesh:
+		var tyre_mesh := tyre.mesh as TorusMesh
+		_expect(absf(tyre_mesh.outer_radius - 0.340) < 0.002, "Motorcycle tyre outer radius changed unexpectedly")
+		_expect(absf(tyre_mesh.inner_radius - 0.235) < 0.002, "Motorcycle tyre inner edge no longer meets the rim envelope")
+	if rim != null and rim.mesh is TorusMesh:
+		var rim_mesh := rim.mesh as TorusMesh
+		_expect(absf(rim_mesh.outer_radius - 0.235) < 0.002, "Motorcycle rim outer radius changed unexpectedly")
+		_expect(absf(rim_mesh.inner_radius - 0.180) < 0.002, "Motorcycle rim inner edge no longer meets the spokes")
+
+	for spoke_index in range(8):
+		var spoke := wheel.get_node_or_null("WheelSpoke%d" % spoke_index) as MeshInstance3D
+		_expect(spoke != null and spoke.mesh is BoxMesh, "Motorcycle wheel spoke %d is missing or has the wrong mesh" % spoke_index)
+		if spoke == null or not spoke.mesh is BoxMesh:
+			continue
+		var spoke_mesh := spoke.mesh as BoxMesh
+		var radial := Vector2(spoke.position.x, spoke.position.y)
+		_expect(radial.length() > 0.001, "Motorcycle wheel spoke %d is still centred through the hub" % spoke_index)
+		if radial.length() <= 0.001:
+			continue
+		var inner_radius := radial.length() - spoke_mesh.size.x * 0.5
+		var outer_radius := radial.length() + spoke_mesh.size.x * 0.5
+		_expect(absf(inner_radius - 0.060) < 0.004, "Motorcycle wheel spoke %d does not start at the hub" % spoke_index)
+		_expect(absf(outer_radius - 0.180) < 0.004, "Motorcycle wheel spoke %d does not reach the inner rim" % spoke_index)
+		var expected_angle := deg_to_rad(float(spoke_index) * 45.0)
+		var expected_radial := Vector2(cos(expected_angle), sin(expected_angle))
+		_expect(radial.normalized().dot(expected_radial) > 0.995, "Motorcycle wheel spoke %d is not evenly distributed around the wheel" % spoke_index)
+		var visual_axis := Vector2(spoke.basis.x.x, spoke.basis.x.y).normalized()
+		_expect(absf(visual_axis.dot(radial.normalized())) > 0.995, "Motorcycle wheel spoke %d is not aligned radially" % spoke_index)
+		_expect(absf(spoke.position.z) < 0.001, "Motorcycle wheel spoke %d drifted out of the wheel plane" % spoke_index)
 
 func _check_cylinder_span(visual: MeshInstance3D, label: String) -> void:
 	_expect(visual != null and visual.mesh is CylinderMesh, "%s is not a cylinder" % label)
