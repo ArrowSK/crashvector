@@ -21,6 +21,10 @@ static func locate_ffmpeg() -> String:
 
 static func ensure_mp4_path(path: String) -> String:
 	var trimmed := path.strip_edges()
+	# Keep a missing destination empty, so the exporter can reject it instead
+	# of silently converting it into a file named ".mp4".
+	if trimmed.is_empty():
+		return ""
 	if trimmed.to_lower().ends_with(".mp4"):
 		return trimmed
 	return "%s.mp4" % trimmed
