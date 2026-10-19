@@ -10,6 +10,7 @@ func _initialize() -> void:
 	_test_timeline(failures)
 	_test_camera_planner(failures)
 	_test_ffmpeg_arguments(failures)
+	_test_encoder_process_control(failures)
 	_test_render_stage_instantiation(failures)
 	if failures.is_empty():
 		print("CrashVector M7 cinematic-export tests passed.")
@@ -82,6 +83,24 @@ func _test_ffmpeg_arguments(failures: Array[String]) -> void:
 		failures.append("M7 FFmpeg output path is incorrect")
 	if FFmpegVideoEncoder.ensure_mp4_path("movie") != "movie.mp4":
 		failures.append("M7 MP4 extension normalization failed")
+
+func _test_encoder_process_control(failures: Array[String]) -> void:
+	# Exercises the same platform-native PID polling/cancellation used for
+	# FFmpeg, without requiring an FFmpeg binary in the CI container.
+	if OS.get_name() != "Linux" and OS.get_name() != "macOS":
+		return
+	var pid := OS.create_process("/bin/sleep", PackedStringArray(["10"]))
+	if pid <= 0:
+		failures.append("Could not start isolated encoder process-control fixture")
+		return
+	var running := FFmpegVideoEncoder.poll_encode(pid)
+	if bool(running.get("finished", true)):
+		failures.append("Asynchronous encoder polling reported a live child as finished")
+	var stop_error := FFmpegVideoEncoder.cancel_encode(pid)
+	if stop_error != OK:
+		failures.append("Asynchronous encoder cancellation failed: %d" % stop_error)
+	if OS.is_process_running(pid):
+		failures.append("Cancelled encoder child process is still running")
 
 func _test_render_stage_instantiation(failures: Array[String]) -> void:
 	var stage := CinematicRenderStage.new()
