@@ -312,7 +312,7 @@ jobs:
           # Fixed published v2.0.0 x64 digest, independently cross-checked with Chocolatey.
           # Do not execute downloaded build tools until this check succeeds.
           $expectedRceditSha256 = "3e7801db1a5edbec91b49a24a094aad776cb4515488ea5a4ca2289c400eade2a"
-          $actualRceditSha256 = (Get-FileHash -Path "build\\tools\\rcedit-x64.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $actualRceditSha256 = (Get-FileHash -Path "build\tools\rcedit-x64.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actualRceditSha256 -ne $expectedRceditSha256) { throw "rcedit-x64.exe integrity verification failed" }
           $meta = Get-Content "build/version-metadata.json" | ConvertFrom-Json
           & "build\tools\rcedit-x64.exe" "build\windows\CrashVector.exe" `
