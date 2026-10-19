@@ -127,6 +127,36 @@ func _test_overlapping_check_and_download() -> void:
 	_expect(failures_from_service.size() == 1 and not bool(failures_from_service[0].get("ok", true)),
 		"Updater did not reject downloading during manifest check")
 	updater.free()
+	_test_immutable_download_checksum()
+
+func _test_immutable_download_checksum() -> void:
+	# Simulate a completed HTTPRequest. Verification must use the package SHA
+	# captured when the download began, never mutable global selection state.
+	var path := "user://m9_p2_verified_download_fixture.bin"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		failures.append("Cannot create P2 updater checksum snapshot fixture")
+		return
+	file.store_string("abc")
+	file.close()
+	var expected := "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+	var updater := CrashVectorUpdateService.new()
+	updater.package_request = HTTPRequest.new()
+	updater.add_child(updater.package_request)
+	updater._download_target_path = path
+	updater._download_filename = path.get_file()
+	updater._download_expected_sha256 = expected
+	updater._download_in_progress = true
+	updater.selected_package = {"sha256": "0000000000000000000000000000000000000000000000000000000000000000"}
+	var download_result: Array[Dictionary] = []
+	updater.download_finished.connect(func(result: Dictionary) -> void: download_result.append(result))
+	updater._on_package_request_completed(HTTPRequest.RESULT_SUCCESS, 200, PackedStringArray(), PackedByteArray())
+	_expect(download_result.size() == 1 and bool(download_result[0].get("verified", false)),
+		"Updater incorrectly verified against mutable selected_package checksum")
+	_expect(updater.verified_download_path == path, "Updater did not preserve correctly verified download")
+	_expect(updater._download_expected_sha256.is_empty(), "Updater retained in-flight SHA after download completion")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	updater.free()
 
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
