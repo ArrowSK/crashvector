@@ -333,6 +333,7 @@ func _sync_m10_from_scenario() -> void:
 		_select_metadata(m10_primary_class, scenario.car_preset_id)
 	_m23_sync_primary_specific_controls()
 	_m23_set_primary_spin_ranges()
+	_m23_sync_comparison_lab()
 	_m23_sync_physics_controls()
 	_m23_sync_capability_controls()
 	m10_vehicle_mass.set_value_no_signal(scenario.car_mass_kg)
@@ -368,6 +369,73 @@ func _m23_sync_primary_specific_controls() -> void:
 		if not passenger_primary and class_index >= 0 and m10_compare_mode.selected == class_index and speed_index >= 0:
 			m10_compare_mode.select(speed_index)
 			_on_m10_compare_mode_selected(speed_index)
+
+# Comparison Lab must honour the same primary-vehicle constraints as the
+# ordinary comparison picker. Never reinterpret a truck/tank as a passenger car.
+func _m23_sync_comparison_lab() -> void:
+	if scenario == null:
+		return
+	var passenger_primary := scenario.primary_type == ScenarioConfig.TARGET_PASSENGER_CAR
+	if matrix_mode_option != null:
+		var target_mode_index := -1
+		for index in range(matrix_mode_option.item_count):
+			var mode := StringName(String(matrix_mode_option.get_item_metadata(index)))
+			if mode == ComparisonRunner.MATRIX_TARGET_TYPES:
+				target_mode_index = index
+			matrix_mode_option.set_item_disabled(index, not passenger_primary and mode != ComparisonRunner.MATRIX_TARGET_TYPES)
+		if not passenger_primary and target_mode_index >= 0 and matrix_mode_option.is_item_disabled(matrix_mode_option.selected):
+			matrix_mode_option.select(target_mode_index)
+			_refresh_matrix_variant_choices()
+		_m23_restrict_matrix_target_options()
+	var speed_limit := m10_vehicle_speed.max_value if m10_vehicle_speed != null else 300.0
+	for spin in [m10_compare_speed_a, m10_compare_speed_b, m10_compare_speed_c]:
+		if spin != null:
+			spin.max_value = speed_limit
+			spin.set_value_no_signal(minf(spin.value, speed_limit))
+	for spin in matrix_speed_spins:
+		spin.max_value = speed_limit
+		spin.set_value_no_signal(minf(spin.value, speed_limit))
+
+func _m23_restrict_matrix_target_options() -> void:
+	if matrix_mode_option == null or scenario == null:
+		return
+	var mode := StringName(String(matrix_mode_option.get_item_metadata(matrix_mode_option.selected)))
+	if mode != ComparisonRunner.MATRIX_TARGET_TYPES:
+		return
+	for i in range(matrix_variant_options.size()):
+		var option := matrix_variant_options[i]
+		if option == null:
+			continue
+		for index in range(option.item_count):
+			var target_id := StringName(String(option.get_item_metadata(index)))
+			option.set_item_disabled(index, not _m23_target_supported_for_primary(target_id))
+		if option.selected < 0 or option.is_item_disabled(option.selected):
+			# Prefer an available fixed fixture to an unsupported road user. This
+			# also keeps the initial non-passenger comparison safe by default.
+			var defaults: Array[StringName] = [
+				ScenarioConfig.TARGET_WALL, ScenarioConfig.TARGET_BARRIER, ScenarioConfig.TARGET_POLE
+			]
+			var wanted := defaults[mini(i, defaults.size() - 1)]
+			for index in range(option.item_count):
+				if StringName(String(option.get_item_metadata(index))) == wanted:
+					option.select(index)
+					break
+
+func _on_matrix_mode_selected(index: int) -> void:
+	super._on_matrix_mode_selected(index)
+	_m23_restrict_matrix_target_options()
+
+func _m17_matrix_comparison_variants() -> Array[Dictionary]:
+	if scenario != null and scenario.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR and matrix_mode_option != null:
+		var mode := StringName(String(matrix_mode_option.get_item_metadata(matrix_mode_option.selected)))
+		if mode != ComparisonRunner.MATRIX_TARGET_TYPES:
+			return []
+	return super._m17_matrix_comparison_variants()
+
+func _m17_main_comparison_variants(mode: StringName) -> Array[Dictionary]:
+	if scenario != null and scenario.primary_type != ScenarioConfig.TARGET_PASSENGER_CAR and mode == MODE_CLASS:
+		return []
+	return super._m17_main_comparison_variants(mode)
 
 func _m23_sync_capability_controls() -> void:
 	if scenario == null:
