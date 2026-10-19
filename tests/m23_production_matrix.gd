@@ -46,9 +46,61 @@ func _initialize() -> void:
 
 func _run() -> void:
 	await _check_world_capability_matrix()
+	await _check_comparison_lab_primary_limits()
 	await _check_editor_vehicle_family_matrix()
 	await _check_editor_fixture_path()
 	_finish()
+
+func _check_comparison_lab_primary_limits() -> void:
+	var packed := load("res://app/main.tscn") as PackedScene
+	if packed == null:
+		failures.append("M23 Comparison Lab fixture cannot load editor")
+		return
+	var config := _matrix_config(ScenarioConfig.TARGET_TANK, ScenarioConfig.TARGET_WALL)
+	var editor := packed.instantiate()
+	editor.set("m10_first_run_applied", true)
+	editor.set("scenario", config)
+	root.add_child(editor)
+	for _frame in range(6):
+		await process_frame
+	var mode := editor.get("matrix_mode_option") as OptionButton
+	_expect(mode != null, "M23 Comparison Lab mode control missing")
+	if mode != null:
+		_expect(mode.is_item_disabled(0), "M23 tank primary did not disable passenger-car class matrix")
+		_expect(mode.is_item_disabled(2), "M23 tank primary did not disable vulnerable-road-user matrix")
+		_expect(not mode.is_item_disabled(1) and mode.selected == 1, "M23 tank primary did not select the supported target matrix")
+	var speed_spins: Array = editor.get("matrix_speed_spins")
+	for spin in speed_spins:
+		_expect(spin.max_value == 80.0 and spin.value <= 80.0,
+			"M23 tank Comparison Lab allowed a primary speed above 80 km/h")
+	var main_speed := editor.get("m10_compare_speed_c") as SpinBox
+	if main_speed != null:
+		_expect(main_speed.max_value == 80.0 and main_speed.value <= 80.0,
+			"M23 tank ordinary speed comparison exceeded its primary limit")
+	var variants: Array = editor.call("_m17_matrix_comparison_variants")
+	_expect(not variants.is_empty(), "M23 tank Comparison Lab lost all supported target variants")
+	for variant in variants:
+		var test_config := variant.get("scenario") as ScenarioConfig
+		_expect(test_config != null and test_config.validation_errors().is_empty(),
+			"M23 tank Comparison Lab generated an invalid role-neutral scenario")
+	var selected_variants: Array = editor.call("_m17_main_comparison_variants", &"vehicle_class")
+	_expect(selected_variants.is_empty(), "M23 non-passenger primary still generated ordinary car-class comparisons")
+	if mode != null:
+		mode.select(0)  # Explicitly exercise the defensive guard behind the disabled option.
+		var class_variants: Array = editor.call("_m17_matrix_comparison_variants")
+		_expect(class_variants.is_empty(), "M23 tank primary still generated passenger-car class matrix")
+	# Returning to a passenger primary must restore established lab capabilities.
+	var passenger := ScenarioConfig.new()
+	passenger.target_position_m = Vector3(20.0, 0.0, 0.0)
+	editor.set("scenario", passenger)
+	editor.call("_sync_m10_from_scenario")
+	if mode != null:
+		_expect(not mode.is_item_disabled(0) and not mode.is_item_disabled(2),
+			"M23 switching back to passenger primary did not restore comparison modes")
+	for spin in speed_spins:
+		_expect(spin.max_value == 300.0, "M23 switching back to passenger primary did not restore speed range")
+	editor.queue_free()
+	await process_frame
 
 func _check_world_capability_matrix() -> void:
 	for target_type in ScenarioConfig.target_ids():
