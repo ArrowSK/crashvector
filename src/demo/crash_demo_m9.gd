@@ -151,6 +151,8 @@ func _on_updates_button_pressed() -> void:
 	update_panel.visible = true
 
 func _on_check_for_updates_pressed() -> void:
+	if update_service._download_in_progress or update_service._check_in_progress:
+		return
 	update_check_button.disabled = true
 	update_download_button.disabled = true
 	update_install_button.disabled = true
@@ -182,6 +184,9 @@ func _on_update_check_finished(result: Dictionary) -> void:
 	updates_button.text = "Updates • %s" % available_version
 
 func _on_download_update_pressed() -> void:
+	if update_service._check_in_progress or update_service._download_in_progress:
+		return
+	update_check_button.disabled = true
 	update_download_button.disabled = true
 	update_install_button.disabled = true
 	update_progress.visible = true
@@ -195,6 +200,7 @@ func _on_update_download_progress(received_bytes: int, total_bytes: int) -> void
 	update_progress.value = clampf(float(received_bytes) / float(total_bytes) * 100.0, 0.0, 100.0)
 
 func _on_update_download_finished(result: Dictionary) -> void:
+	update_check_button.disabled = false
 	update_progress.visible = false
 	if not bool(result.get("ok", false)) or not bool(result.get("verified", false)):
 		update_download_button.disabled = false
