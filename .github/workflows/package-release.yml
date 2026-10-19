@@ -38,6 +38,8 @@ jobs:
       image: barichello/godot-ci:4.4.1
     steps:
       - uses: actions/checkout@v4
+      - name: Verify build-tool checksum regression tests
+        run: python3 -m unittest discover -s tests -p test_build_asset_verifier.py
       - name: Architecture audit
         run: sh tools/check_no_monkey_patching.sh
       - name: Import and parse project
