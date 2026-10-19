@@ -11,6 +11,7 @@ func _initialize() -> void:
 	_test_camera_planner(failures)
 	_test_ffmpeg_arguments(failures)
 	_test_encoder_process_control(failures)
+	_test_staged_video_replacement(failures)
 	_test_render_stage_instantiation(failures)
 	if failures.is_empty():
 		print("CrashVector M7 cinematic-export tests passed.")
@@ -101,6 +102,28 @@ func _test_encoder_process_control(failures: Array[String]) -> void:
 		failures.append("Asynchronous encoder cancellation failed: %d" % stop_error)
 	if OS.is_process_running(pid):
 		failures.append("Cancelled encoder child process is still running")
+
+func _test_staged_video_replacement(failures: Array[String]) -> void:
+	var original := ProjectSettings.globalize_path("user://m7_export_replace_test.mp4")
+	var staged := ProjectSettings.globalize_path("user://m7_export_staged_test.mp4")
+	var original_file := FileAccess.open(original, FileAccess.WRITE)
+	var staged_file := FileAccess.open(staged, FileAccess.WRITE)
+	if original_file == null or staged_file == null:
+		failures.append("Could not create export replacement regression fixtures")
+		return
+	original_file.store_string("previous-verified-video")
+	original_file.close()
+	staged_file.store_string("new-verified-video")
+	staged_file.close()
+	var exporter := CinematicExporter.new()
+	var commit_error := exporter._commit_staged_video(staged, original)
+	if commit_error != OK or FileAccess.get_file_as_string(original) != "new-verified-video":
+		failures.append("Staged video did not replace the original cleanly")
+	var failed_move := exporter._commit_staged_video(staged, original)
+	if failed_move == OK or FileAccess.get_file_as_string(original) != "new-verified-video":
+		failures.append("Failed staged video commit did not restore existing output")
+	DirAccess.remove_absolute(original)
+	exporter.free()
 
 func _test_render_stage_instantiation(failures: Array[String]) -> void:
 	var stage := CinematicRenderStage.new()
