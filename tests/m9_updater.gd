@@ -12,6 +12,7 @@ func _initialize() -> void:
 	_test_release_selection()
 	_test_manifest_and_package_selection()
 	_test_sha256_gate()
+	_test_overlapping_check_and_download()
 	if failures.is_empty():
 		print("CrashVector M9 updater/version tests passed.")
 		quit(0)
@@ -101,6 +102,31 @@ func _test_sha256_gate() -> void:
 	_expect(CrashVectorUpdateService.verify_file_sha256(path, expected), "Correct SHA-256 should pass")
 	_expect(not CrashVectorUpdateService.verify_file_sha256(path, "0000000000000000000000000000000000000000000000000000000000000000"), "Hash mismatch must block installation")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+func _test_overlapping_check_and_download() -> void:
+	# A new check must not discard the package or installer state of an
+	# already-running download (including an automatic background check).
+	var updater := CrashVectorUpdateService.new()
+	var package: Dictionary = {
+		"filename": "CrashVector-test-macOS.dmg",
+		"sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	}
+	updater.selected_package = package.duplicate(true)
+	updater.verified_download_path = "user://previously_verified.dmg"
+	updater._download_in_progress = true
+	updater.check_for_updates(true)
+	_expect(not updater._check_in_progress, "Updater started a new check during download")
+	_expect(updater.selected_package == package, "Concurrent check replaced in-flight package metadata")
+	_expect(updater.verified_download_path == "user://previously_verified.dmg", "Concurrent check discarded previously verified installer")
+	updater._download_in_progress = false
+	updater._check_in_progress = true
+	var failures_from_service: Array[Dictionary] = []
+	updater.download_finished.connect(func(result: Dictionary) -> void: failures_from_service.append(result))
+	updater.download_selected_update()
+	_expect(not updater._download_in_progress, "Updater started a download during manifest check")
+	_expect(failures_from_service.size() == 1 and not bool(failures_from_service[0].get("ok", true)),
+		"Updater did not reject downloading during manifest check")
+	updater.free()
 
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
