@@ -30,6 +30,12 @@ jobs:
       image: barichello/godot-ci:4.4.1
     steps:
       - uses: actions/checkout@v4
+      # Temporary checksum-discovery step. Remove after pinning the verified manifest.
+      - name: Capture upstream 4.4.1 tool checksum manifest digest
+        run: |
+          curl --fail --location --retry 3 --retry-all-errors "https://github.com/godotengine/godot/releases/download/4.4.1-stable/SHA512-SUMS.txt" -o "$RUNNER_TEMP/godot-sha512-sums.txt"
+          sha256sum "$RUNNER_TEMP/godot-sha512-sums.txt"
+          grep -E 'Godot_v4\\.4\\.1-stable_(macos\\.universal\\.zip|linux\\.x86_64\\.zip|export_templates\\.tpz)' "$RUNNER_TEMP/godot-sha512-sums.txt"
       - name: Architecture audit
         run: sh tools/check_no_monkey_patching.sh
       - name: Import and parse project once
