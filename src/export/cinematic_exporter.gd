@@ -11,6 +11,7 @@ signal export_finished(result: Dictionary)
 var cancel_requested: bool = false
 var active: bool = false
 var encoding_pid: int = -1
+var encoding_output_path: String = ""
 
 func cancel() -> void:
 	cancel_requested = true
@@ -20,6 +21,9 @@ func _exit_tree() -> void:
 	if encoding_pid > 0 and OS.is_process_running(encoding_pid):
 		FFmpegVideoEncoder.cancel_encode(encoding_pid)
 	encoding_pid = -1
+	if not encoding_output_path.is_empty():
+		_remove_staged_video(encoding_output_path)
+	encoding_output_path = ""
 
 func export_video(
 	recording: ReplayRecording,
@@ -90,8 +94,10 @@ func export_video(
 	# Encode to a sibling temporary MP4. Cancellation or encoder failure must
 	# never truncate an existing user-selected destination.
 	var staged_path := "%s.crashvector-partial-%d.mp4" % [output_path.get_basename(), Time.get_ticks_msec()]
+	encoding_output_path = staged_path
 	var encode_result := FFmpegVideoEncoder.start_encode(frame_pattern, profile.fps, staged_path, ffmpeg)
 	if not bool(encode_result.get("ok", false)):
+		encoding_output_path = ""
 		active = false
 		return _finish({
 			"ok": false,
@@ -108,6 +114,7 @@ func export_video(
 				FFmpegVideoEncoder.cancel_encode(encoding_pid)
 			encoding_pid = -1
 			_remove_staged_video(staged_path)
+			encoding_output_path = ""
 			active = false
 			return _finish({"ok": false, "message": "Video export cancelled. Rendered frames were kept.", "frame_directory": frame_dir})
 		completed = FFmpegVideoEncoder.poll_encode(encoding_pid)
@@ -125,6 +132,7 @@ func export_video(
 	var exit_code := int(completed.get("exit_code", -1))
 	if exit_code != 0 or not FileAccess.file_exists(staged_path):
 		_remove_staged_video(staged_path)
+		encoding_output_path = ""
 		active = false
 		return _finish({
 			"ok": false,
@@ -133,6 +141,8 @@ func export_video(
 		})
 	var commit_error := _commit_staged_video(staged_path, output_path)
 	if commit_error != OK:
+		# Keep the completed temporary MP4 for manual recovery.
+		encoding_output_path = ""
 		active = false
 		return _finish({
 			"ok": false,
@@ -141,6 +151,7 @@ func export_video(
 			"temporary_video_path": staged_path,
 		})
 
+	encoding_output_path = ""
 	_write_metadata_sidecar(output_path, scenario, analysis, profile, timeline, frame_count)
 	if not profile.keep_frame_sequence:
 		_cleanup_frame_directory(frame_dir)
