@@ -99,6 +99,8 @@ func export_video(
 			"frame_directory": frame_dir,
 		})
 	encoding_pid = int(encode_result["pid"])
+	var encode_started_msec := Time.get_ticks_msec()
+	var last_elapsed_second := -1
 	var completed: Dictionary = {}
 	while true:
 		if cancel_requested:
@@ -111,6 +113,13 @@ func export_video(
 		completed = FFmpegVideoEncoder.poll_encode(encoding_pid)
 		if bool(completed.get("finished", false)):
 			break
+		# FFmpeg does not provide a cheap portable percentage here, but the
+		# elapsed-time heartbeat makes ongoing encoding visible and the UI stays
+		# fully interactive (including Cancel).
+		var elapsed_second := int((Time.get_ticks_msec() - encode_started_msec) / 1000)
+		if elapsed_second != last_elapsed_second:
+			last_elapsed_second = elapsed_second
+			progress_changed.emit(0.94, "Encoding MP4 with FFmpeg… %d s elapsed" % elapsed_second)
 		await get_tree().create_timer(0.1).timeout
 	encoding_pid = -1
 	var exit_code := int(completed.get("exit_code", -1))
