@@ -18,6 +18,7 @@ func _initialize() -> void:
 	var failures: Array[String] = []
 	_test_scenario_round_trip(failures)
 	_test_scenario_store(failures)
+	_test_malformed_scenario_documents(failures)
 	_test_preflight_rules(failures)
 	_test_vehicle_start_envelopes(failures)
 	_test_primary_vehicle_defaults(failures)
@@ -92,6 +93,70 @@ func _test_scenario_store(failures: Array[String]) -> void:
 	var loaded := result.get("scenario") as ScenarioConfig
 	if loaded == null or loaded.car_preset_id != scenario.car_preset_id:
 		failures.append("M4 scenario store round trip changed scenario data")
+
+func _test_malformed_scenario_documents(failures: Array[String]) -> void:
+	var valid := ScenarioConfig.new().to_dictionary()
+	var bad_examples: Array[Dictionary] = []
+	bad_examples.append({})
+	var missing_version := valid.duplicate(true)
+	missing_version.erase("format_version")
+	bad_examples.append(missing_version)
+	var future_version := valid.duplicate(true)
+	future_version["format_version"] = 999
+	bad_examples.append(future_version)
+	var wrong_section := valid.duplicate(true)
+	wrong_section["car"] = "not an object"
+	bad_examples.append(wrong_section)
+	var missing_section := valid.duplicate(true)
+	missing_section.erase("target")
+	bad_examples.append(missing_section)
+	var wrong_number := valid.duplicate(true)
+	wrong_number["car"]["mass_kg"] = "not a number"
+	bad_examples.append(wrong_number)
+	var missing_number := valid.duplicate(true)
+	missing_number["target"].erase("speed_kmh")
+	bad_examples.append(missing_number)
+	var wrong_vector := valid.duplicate(true)
+	wrong_vector["car"]["position_m"] = [1.0, "not a number", 3.0]
+	bad_examples.append(wrong_vector)
+	var short_vector := valid.duplicate(true)
+	short_vector["target"]["position_m"] = [0.0, 1.0]
+	bad_examples.append(short_vector)
+	var wrong_boolean := valid.duplicate(true)
+	wrong_boolean["simulation"]["show_structure"] = "false"
+	bad_examples.append(wrong_boolean)
+	var wrong_integer := valid.duplicate(true)
+	wrong_integer["simulation"]["solver_substeps"] = 2.5
+	bad_examples.append(wrong_integer)
+	var missing_actor := valid.duplicate(true)
+	missing_actor["car"].erase("actor_type")
+	bad_examples.append(missing_actor)
+	var future_scenario := valid.duplicate(true)
+	future_scenario["scenario_type"] = "unsupported"
+	bad_examples.append(future_scenario)
+	for index in range(bad_examples.size()):
+		var data := bad_examples[index]
+		if ScenarioConfig.persisted_structure_error(data).is_empty():
+			failures.append("M4 accepted structurally invalid scenario example %d" % index)
+		if ScenarioConfig.from_dictionary(data) != null or ScenarioConfig.from_json(JSON.stringify(data)) != null:
+			failures.append("M4 silently constructed malformed scenario example %d" % index)
+	# Existing v1 files may omit actor_type, but still must have real structure.
+	var legacy := valid.duplicate(true)
+	legacy["format_version"] = 1
+	legacy["car"].erase("actor_type")
+	if ScenarioConfig.from_dictionary(legacy) == null:
+		failures.append("M4 P2 schema validation broke valid version-1 migration")
+	var invalid_path := "user://m4_invalid_scenario.crashvector.json"
+	var file := FileAccess.open(invalid_path, FileAccess.WRITE)
+	if file == null:
+		failures.append("Could not create malformed scenario import fixture")
+		return
+	file.store_string(JSON.stringify(wrong_section))
+	file.close()
+	var stored_result := ScenarioStore.load_from_path(invalid_path)
+	if String(stored_result.get("error", "")).is_empty() or stored_result.get("scenario") != null:
+		failures.append("M4 scenario store silently accepted a malformed object section")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(invalid_path))
 
 func _test_preflight_rules(failures: Array[String]) -> void:
 	var scenario := ScenarioConfig.new()

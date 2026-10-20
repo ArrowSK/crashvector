@@ -439,7 +439,68 @@ func to_dictionary() -> Dictionary:
 func to_json(pretty: bool = true) -> String:
 	return JSON.stringify(to_dictionary(), "\t" if pretty else "")
 
+# Reject malformed persistence data before typed conversion or default fallback.
+# Version 1 lacks car.actor_type; preserve that supported migration.
+static func persisted_structure_error(data: Dictionary) -> String:
+	if not data.has("format_version") or not _persisted_integer(data["format_version"]):
+		return "Scenario format_version must be an integer"
+	var version := int(data["format_version"])
+	if version != 1 and version != FORMAT_VERSION:
+		return "Unsupported scenario format_version %d" % version
+	if not (data.get("title") is String) or not (data.get("target_type") is String):
+		return "Scenario title and target_type must be strings"
+	if not (data.get("scenario_type") is String) or data["scenario_type"] != "two_actor_impact":
+		return "Unsupported or missing scenario_type"
+	for group in ["car", "target", "contact", "simulation"]:
+		if not (data.get(group) is Dictionary):
+			return "Scenario section '%s' must be an object" % group
+	var car_data: Dictionary = data["car"]
+	var target_data: Dictionary = data["target"]
+	var contact_data: Dictionary = data["contact"]
+	var simulation_data: Dictionary = data["simulation"]
+	for field in ["class_id"]:
+		if not (car_data.get(field) is String):
+			return "car.%s must be a string" % field
+	if car_data.has("actor_type") and not (car_data["actor_type"] is String):
+		return "car.actor_type must be a string"
+	if version == FORMAT_VERSION and not car_data.has("actor_type"):
+		return "car.actor_type is required in format version 2"
+	for field in ["car_class_id", "preset_id"]:
+		if target_data.has(field) and not (target_data[field] is String):
+			return "target.%s must be a string" % field
+	for field in ["mass_kg", "speed_kmh", "heading_deg"]:
+		if not _persisted_number(car_data.get(field)):
+			return "car.%s must be a finite number" % field
+		if not _persisted_number(target_data.get(field)):
+			return "target.%s must be a finite number" % field
+	for group_name in ["car", "target"]:
+		var section: Dictionary = data[group_name]
+		var coordinates: Variant = section.get("position_m")
+		if not (coordinates is Array) or coordinates.size() != 3:
+			return "%s.position_m must have exactly three coordinates" % group_name
+		for component in coordinates:
+			if not _persisted_number(component):
+				return "%s.position_m must contain finite numbers" % group_name
+	for field in ["friction", "restitution"]:
+		if not _persisted_number(contact_data.get(field)):
+			return "contact.%s must be a finite number" % field
+	if not _persisted_number(simulation_data.get("duration_s")):
+		return "simulation.duration_s must be a finite number"
+	if not _persisted_integer(simulation_data.get("solver_substeps")):
+		return "simulation.solver_substeps must be an integer"
+	if not (simulation_data.get("show_structure") is bool):
+		return "simulation.show_structure must be a boolean"
+	return ""
+
+static func _persisted_number(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value))
+
+static func _persisted_integer(value: Variant) -> bool:
+	return _persisted_number(value) and float(value) == floorf(float(value))
+
 static func from_dictionary(data: Dictionary) -> ScenarioConfig:
+	if not persisted_structure_error(data).is_empty():
+		return null
 	var config := ScenarioConfig.new()
 	config.title = String(data.get("title", config.title))
 	config.target_type = StringName(String(data.get("target_type", String(config.target_type))))

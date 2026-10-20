@@ -30,10 +30,18 @@ static func load_from_path(path: String) -> Dictionary:
 	if file == null:
 		result["error"] = "Could not open scenario file"
 		return result
-	var config := ScenarioConfig.from_json(file.get_as_text())
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
+	if not (parsed is Dictionary):
+		result["error"] = "Scenario file must contain a CrashVector JSON object"
+		return result
+	var structure_error := ScenarioConfig.persisted_structure_error(parsed as Dictionary)
+	if not structure_error.is_empty():
+		result["error"] = "Invalid scenario file: %s" % structure_error
+		return result
+	var config := ScenarioConfig.from_dictionary(parsed as Dictionary)
 	if config == null:
-		result["error"] = "Scenario file is not valid CrashVector JSON"
+		result["error"] = "Scenario file could not be decoded"
 		return result
 	var validation := config.validation_errors()
 	if not validation.is_empty():

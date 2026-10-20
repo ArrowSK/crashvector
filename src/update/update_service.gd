@@ -31,6 +31,8 @@ var _check_in_progress := false
 var _download_in_progress := false
 var _manifest_release: Dictionary = {}
 var _download_target_path := ""
+var _download_expected_sha256 := ""
+var _download_filename := ""
 
 func _ready() -> void:
 	installed_version = String(ProjectSettings.get_setting("application/config/version", "0.0.0"))
@@ -61,7 +63,9 @@ func set_automatic_checks_enabled(value: bool) -> void:
 	_save_settings()
 
 func check_for_updates(manual: bool = true) -> void:
-	if _check_in_progress:
+	# A second check would clear the manifest/checksum of an in-flight
+	# download. Keep the selected package stable until it has been verified.
+	if _check_in_progress or _download_in_progress:
 		return
 	if _is_headless_runtime() and not manual:
 		return
@@ -78,12 +82,16 @@ func check_for_updates(manual: bool = true) -> void:
 func download_selected_update() -> void:
 	if _download_in_progress:
 		return
+	if _check_in_progress:
+		download_finished.emit(_error_result("Wait for the update check to finish before downloading."))
+		return
 	if selected_package.is_empty():
 		download_finished.emit(_error_result("No compatible update package is selected."))
 		return
 	var filename := String(selected_package.get("filename", ""))
 	var url := String(selected_package.get("download_url", ""))
-	if not _safe_filename(filename) or url.is_empty():
+	var expected_sha := String(selected_package.get("sha256", "")).to_lower()
+	if not _safe_filename(filename) or url.is_empty() or expected_sha.length() != 64 or not _is_hex(expected_sha):
 		download_finished.emit(_error_result("Update package metadata is invalid."))
 		return
 	var absolute_dir := ProjectSettings.globalize_path(UPDATE_DIR)
@@ -91,6 +99,8 @@ func download_selected_update() -> void:
 	if mkdir_error != OK and mkdir_error != ERR_ALREADY_EXISTS:
 		download_finished.emit(_error_result("Could not create the update download folder."))
 		return
+	_download_expected_sha256 = expected_sha
+	_download_filename = filename
 	_download_target_path = UPDATE_DIR.path_join(filename)
 	if FileAccess.file_exists(_download_target_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(_download_target_path))
@@ -103,6 +113,8 @@ func download_selected_update() -> void:
 		_download_in_progress = false
 		set_process(false)
 		package_request.download_file = ""
+		_download_expected_sha256 = ""
+		_download_filename = ""
 		download_finished.emit(_error_result("Could not start update download (%s)." % error_string(error)))
 
 func install_verified_update() -> Dictionary:
@@ -195,22 +207,29 @@ func _on_package_request_completed(result: int, response_code: int, _headers: Pa
 	package_request.download_file = ""
 	if result != HTTPRequest.RESULT_SUCCESS or response_code < 200 or response_code >= 300:
 		_remove_download_target()
+		_download_expected_sha256 = ""
+		_download_filename = ""
 		download_finished.emit(_error_result("Update download failed (HTTP %d)." % response_code))
 		return
-	var expected_sha := String(selected_package.get("sha256", "")).to_lower()
+	var expected_sha := _download_expected_sha256
 	if expected_sha.length() != 64 or not verify_file_sha256(_download_target_path, expected_sha):
 		_remove_download_target()
 		verified_download_path = ""
+		_download_expected_sha256 = ""
+		_download_filename = ""
 		status_changed.emit("Downloaded file failed SHA-256 verification.")
 		download_finished.emit(_error_result("SHA-256 verification failed. Installation is blocked."))
 		return
 	verified_download_path = _download_target_path
+	var filename := _download_filename
+	_download_expected_sha256 = ""
+	_download_filename = ""
 	status_changed.emit("Update verified and ready to install.")
 	download_finished.emit({
 		"ok": true,
 		"verified": true,
 		"path": verified_download_path,
-		"filename": String(selected_package.get("filename", "")),
+		"filename": filename,
 	})
 
 func _finish_check(result: Dictionary) -> void:
