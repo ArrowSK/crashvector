@@ -82,6 +82,11 @@ func _test_ffmpeg_arguments(failures: Array[String]) -> void:
 		failures.append("M7 FFmpeg output path is incorrect")
 	if FFmpegVideoEncoder.ensure_mp4_path("movie") != "movie.mp4":
 		failures.append("M7 MP4 extension normalization failed")
+	for blank_path in ["", "  ", "\t  \n"]:
+		if not FFmpegVideoEncoder.ensure_mp4_path(blank_path).is_empty():
+			failures.append("M7 blank MP4 destination escaped export path validation")
+	if FFmpegVideoEncoder.ensure_mp4_path(" movie.MP4 ") != "movie.MP4":
+		failures.append("M7 MP4 path whitespace or case preservation regressed")
 
 func _test_render_stage_instantiation(failures: Array[String]) -> void:
 	var stage := CinematicRenderStage.new()
