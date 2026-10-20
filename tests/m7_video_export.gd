@@ -10,6 +10,8 @@ func _initialize() -> void:
 	_test_timeline(failures)
 	_test_camera_planner(failures)
 	_test_ffmpeg_arguments(failures)
+	_test_encoder_process_control(failures)
+	_test_staged_video_replacement(failures)
 	_test_render_stage_instantiation(failures)
 	if failures.is_empty():
 		print("CrashVector M7 cinematic-export tests passed.")
@@ -87,6 +89,46 @@ func _test_ffmpeg_arguments(failures: Array[String]) -> void:
 			failures.append("M7 blank MP4 destination escaped export path validation")
 	if FFmpegVideoEncoder.ensure_mp4_path(" movie.MP4 ") != "movie.MP4":
 		failures.append("M7 MP4 path whitespace or case preservation regressed")
+
+func _test_encoder_process_control(failures: Array[String]) -> void:
+	# Exercises the same platform-native PID polling/cancellation used for
+	# FFmpeg, without requiring an FFmpeg binary in the CI container.
+	if OS.get_name() != "Linux" and OS.get_name() != "macOS":
+		return
+	var pid := OS.create_process("/bin/sleep", PackedStringArray(["10"]))
+	if pid <= 0:
+		failures.append("Could not start isolated encoder process-control fixture")
+		return
+	var running := FFmpegVideoEncoder.poll_encode(pid)
+	if bool(running.get("finished", true)):
+		failures.append("Asynchronous encoder polling reported a live child as finished")
+	var stop_error := FFmpegVideoEncoder.cancel_encode(pid)
+	if stop_error != OK:
+		failures.append("Asynchronous encoder cancellation failed: %d" % stop_error)
+	if OS.is_process_running(pid):
+		failures.append("Cancelled encoder child process is still running")
+
+func _test_staged_video_replacement(failures: Array[String]) -> void:
+	var original := ProjectSettings.globalize_path("user://m7_export_replace_test.mp4")
+	var staged := ProjectSettings.globalize_path("user://m7_export_staged_test.mp4")
+	var original_file := FileAccess.open(original, FileAccess.WRITE)
+	var staged_file := FileAccess.open(staged, FileAccess.WRITE)
+	if original_file == null or staged_file == null:
+		failures.append("Could not create export replacement regression fixtures")
+		return
+	original_file.store_string("previous-verified-video")
+	original_file.close()
+	staged_file.store_string("new-verified-video")
+	staged_file.close()
+	var exporter := CinematicExporter.new()
+	var commit_error := exporter._commit_staged_video(staged, original)
+	if commit_error != OK or FileAccess.get_file_as_string(original) != "new-verified-video":
+		failures.append("Staged video did not replace the original cleanly")
+	var failed_move := exporter._commit_staged_video(staged, original)
+	if failed_move == OK or FileAccess.get_file_as_string(original) != "new-verified-video":
+		failures.append("Failed staged video commit did not restore existing output")
+	DirAccess.remove_absolute(original)
+	exporter.free()
 
 func _test_render_stage_instantiation(failures: Array[String]) -> void:
 	var stage := CinematicRenderStage.new()

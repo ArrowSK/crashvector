@@ -32,6 +32,7 @@ static func ensure_mp4_path(path: String) -> String:
 static func build_args(frame_pattern: String, fps: int, output_path: String) -> PackedStringArray:
 	return PackedStringArray([
 		"-y",
+		"-nostdin",
 		"-hide_banner",
 		"-loglevel", "error",
 		"-framerate", str(maxi(fps, 1)),
@@ -44,17 +45,32 @@ static func build_args(frame_pattern: String, fps: int, output_path: String) -> 
 		ensure_mp4_path(output_path),
 	])
 
-static func encode(frame_pattern: String, fps: int, output_path: String, executable: String = "") -> Dictionary:
+# Launches FFmpeg without blocking the Godot main thread. The caller owns the
+# process ID and must poll it and terminate it on cancellation or scene exit.
+static func start_encode(frame_pattern: String, fps: int, output_path: String, executable: String = "") -> Dictionary:
 	var ffmpeg := executable if not executable.is_empty() else locate_ffmpeg()
 	if ffmpeg.is_empty():
-		return {"ok": false, "exit_code": -1, "message": "FFmpeg was not found on this computer."}
-	var output: Array = []
+		return {"ok": false, "pid": -1, "message": "FFmpeg was not found on this computer."}
 	var args := build_args(frame_pattern, fps, output_path)
-	var exit_code := OS.execute(ffmpeg, args, output, true)
+	var pid := OS.create_process(ffmpeg, args)
+	if pid <= 0:
+		return {"ok": false, "pid": -1, "message": "Could not launch FFmpeg."}
 	return {
-		"ok": exit_code == 0,
-		"exit_code": exit_code,
-		"message": "\n".join(output),
+		"ok": true,
+		"pid": pid,
 		"output_path": ensure_mp4_path(output_path),
 		"executable": ffmpeg,
 	}
+
+# A finished process must be checked for exit status before accepting its file.
+static func poll_encode(pid: int) -> Dictionary:
+	if pid <= 0:
+		return {"finished": true, "exit_code": -1}
+	if OS.is_process_running(pid):
+		return {"finished": false}
+	return {"finished": true, "exit_code": OS.get_process_exit_code(pid)}
+
+static func cancel_encode(pid: int) -> Error:
+	if pid <= 0:
+		return ERR_INVALID_PARAMETER
+	return OS.kill(pid)

@@ -38,6 +38,8 @@ jobs:
       image: barichello/godot-ci:4.4.1
     steps:
       - uses: actions/checkout@v4
+      - name: Verify build-tool checksum regression tests
+        run: python3 -m unittest discover -s tests -p test_build_asset_verifier.py
       - name: Architecture audit
         run: sh tools/check_no_monkey_patching.sh
       - name: Import and parse project
@@ -135,11 +137,13 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/godot" "$RUNNER_TEMP/templates"
           curl --fail --location --retry 3 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_macos.universal.zip" -o "$RUNNER_TEMP/godot.zip"
+          python3 tools/verify_build_asset.py --asset "$RUNNER_TEMP/godot.zip" --asset-name "Godot_v${GODOT_TAG}_macos.universal.zip"
           ditto -x -k "$RUNNER_TEMP/godot.zip" "$RUNNER_TEMP/godot"
           GODOT_BIN="$(find "$RUNNER_TEMP/godot" -path '*/Contents/MacOS/Godot' -type f | head -n 1)"
           test -x "$GODOT_BIN"
           echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
           curl --fail --location --retry 3 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          python3 tools/verify_build_asset.py --asset "$RUNNER_TEMP/templates.tpz" --asset-name "Godot_v${GODOT_TAG}_export_templates.tpz"
           ditto -x -k "$RUNNER_TEMP/templates.tpz" "$RUNNER_TEMP/templates"
           TEMPLATE_HOME="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p "$TEMPLATE_HOME"
@@ -240,12 +244,14 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/godot" "$RUNNER_TEMP/templates"
           curl --fail --location --retry 3 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
+          python3 tools/verify_build_asset.py --asset "$RUNNER_TEMP/godot.zip" --asset-name "Godot_v${GODOT_TAG}_linux.x86_64.zip"
           unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
           GODOT_BIN="$(find "$RUNNER_TEMP/godot" -type f -name 'Godot_v*_linux.x86_64' | head -n 1)"
           chmod +x "$GODOT_BIN"
           test -x "$GODOT_BIN"
           echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
           curl --fail --location --retry 3 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          python3 tools/verify_build_asset.py --asset "$RUNNER_TEMP/templates.tpz" --asset-name "Godot_v${GODOT_TAG}_export_templates.tpz"
           unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/templates"
           TEMPLATE_HOME="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p "$TEMPLATE_HOME"
@@ -303,6 +309,11 @@ jobs:
           New-Item -ItemType Directory -Force -Path build\tools | Out-Null
           & curl.exe --fail --location --retry 3 --retry-all-errors --output "build\tools\rcedit-x64.exe" "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe"
           if ($LASTEXITCODE -ne 0) { throw "rcedit download failed" }
+          # Fixed published v2.0.0 x64 digest, independently cross-checked with Chocolatey.
+          # Do not execute downloaded build tools until this check succeeds.
+          $expectedRceditSha256 = "3e7801db1a5edbec91b49a24a094aad776cb4515488ea5a4ca2289c400eade2a"
+          $actualRceditSha256 = (Get-FileHash -Path "build\tools\rcedit-x64.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualRceditSha256 -ne $expectedRceditSha256) { throw "rcedit-x64.exe integrity verification failed" }
           $meta = Get-Content "build/version-metadata.json" | ConvertFrom-Json
           & "build\tools\rcedit-x64.exe" "build\windows\CrashVector.exe" `
             --set-icon "build\icons\CrashVector.ico" `

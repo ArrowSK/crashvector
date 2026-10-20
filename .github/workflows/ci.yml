@@ -23,6 +23,14 @@ env:
   GODOT_VERSION: 4.4.1
 
 jobs:
+  build_asset_verification:
+    name: Pinned build-tool checksum unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify build-tool checksum regression tests
+        run: python3 -m unittest discover -s tests -p test_build_asset_verifier.py
+
   regression:
     name: Consolidated M0-M23 regression
     runs-on: ubuntu-latest

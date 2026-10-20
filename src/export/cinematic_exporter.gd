@@ -10,9 +10,20 @@ signal export_finished(result: Dictionary)
 
 var cancel_requested: bool = false
 var active: bool = false
+var encoding_pid: int = -1
+var encoding_output_path: String = ""
 
 func cancel() -> void:
 	cancel_requested = true
+
+func _exit_tree() -> void:
+	# Child encoders survive the Godot process unless explicitly terminated.
+	if encoding_pid > 0 and OS.is_process_running(encoding_pid):
+		FFmpegVideoEncoder.cancel_encode(encoding_pid)
+	encoding_pid = -1
+	if not encoding_output_path.is_empty():
+		_remove_staged_video(encoding_output_path)
+	encoding_output_path = ""
 
 func export_video(
 	recording: ReplayRecording,
@@ -80,16 +91,67 @@ func export_video(
 
 	progress_changed.emit(0.94, "Encoding MP4 with FFmpeg…")
 	var frame_pattern := frame_dir.path_join("frame_%06d.jpg")
-	var encode_result := FFmpegVideoEncoder.encode(frame_pattern, profile.fps, output_path, ffmpeg)
+	# Encode to a sibling temporary MP4. Cancellation or encoder failure must
+	# never truncate an existing user-selected destination.
+	var staged_path := "%s.crashvector-partial-%d.mp4" % [output_path.get_basename(), Time.get_ticks_msec()]
+	encoding_output_path = staged_path
+	var encode_result := FFmpegVideoEncoder.start_encode(frame_pattern, profile.fps, staged_path, ffmpeg)
 	if not bool(encode_result.get("ok", false)):
+		encoding_output_path = ""
 		active = false
-		var encoder_message := String(encode_result.get("message", "FFmpeg encoding failed."))
 		return _finish({
 			"ok": false,
-			"message": "FFmpeg encoding failed. The rendered frames were kept so they are not lost. %s" % encoder_message,
+			"message": "FFmpeg could not start. Rendered frames were kept. %s" % String(encode_result.get("message", "")),
 			"frame_directory": frame_dir,
 		})
+	encoding_pid = int(encode_result["pid"])
+	var encode_started_msec := Time.get_ticks_msec()
+	var last_elapsed_second := -1
+	var completed: Dictionary = {}
+	while true:
+		if cancel_requested:
+			if OS.is_process_running(encoding_pid):
+				FFmpegVideoEncoder.cancel_encode(encoding_pid)
+			encoding_pid = -1
+			_remove_staged_video(staged_path)
+			encoding_output_path = ""
+			active = false
+			return _finish({"ok": false, "message": "Video export cancelled. Rendered frames were kept.", "frame_directory": frame_dir})
+		completed = FFmpegVideoEncoder.poll_encode(encoding_pid)
+		if bool(completed.get("finished", false)):
+			break
+		# FFmpeg does not provide a cheap portable percentage here, but the
+		# elapsed-time heartbeat makes ongoing encoding visible and the UI stays
+		# fully interactive (including Cancel).
+		var elapsed_second := int((Time.get_ticks_msec() - encode_started_msec) / 1000)
+		if elapsed_second != last_elapsed_second:
+			last_elapsed_second = elapsed_second
+			progress_changed.emit(0.94, "Encoding MP4 with FFmpeg… %d s elapsed" % elapsed_second)
+		await get_tree().create_timer(0.1).timeout
+	encoding_pid = -1
+	var exit_code := int(completed.get("exit_code", -1))
+	if exit_code != 0 or not FileAccess.file_exists(staged_path):
+		_remove_staged_video(staged_path)
+		encoding_output_path = ""
+		active = false
+		return _finish({
+			"ok": false,
+			"message": "FFmpeg encoding failed (exit code %d). Rendered frames were kept." % exit_code,
+			"frame_directory": frame_dir,
+		})
+	var commit_error := _commit_staged_video(staged_path, output_path)
+	if commit_error != OK:
+		# Keep the completed temporary MP4 for manual recovery.
+		encoding_output_path = ""
+		active = false
+		return _finish({
+			"ok": false,
+			"message": "Encoding completed, but the MP4 could not be moved to its destination (error %d). Temporary video and frames were kept." % commit_error,
+			"frame_directory": frame_dir,
+			"temporary_video_path": staged_path,
+		})
 
+	encoding_output_path = ""
 	_write_metadata_sidecar(output_path, scenario, analysis, profile, timeline, frame_count)
 	if not profile.keep_frame_sequence:
 		_cleanup_frame_directory(frame_dir)
@@ -165,6 +227,29 @@ func _write_metadata_sidecar(
 	if file != null:
 		file.store_string(JSON.stringify(metadata, "\t"))
 		file.close()
+
+# Preserve an existing output until the new MP4 has been fully encoded.
+# On Windows renaming over an existing destination can fail, so temporarily
+# move the original aside and restore it if the new file cannot be committed.
+func _commit_staged_video(staged_path: String, output_path: String) -> Error:
+	var backup_path := "%s.crashvector-backup-%d" % [output_path, Time.get_ticks_msec()]
+	var had_original := FileAccess.file_exists(output_path)
+	if had_original:
+		var backup_error := DirAccess.rename_absolute(output_path, backup_path)
+		if backup_error != OK:
+			return backup_error
+	var move_error := DirAccess.rename_absolute(staged_path, output_path)
+	if move_error != OK:
+		if had_original:
+			DirAccess.rename_absolute(backup_path, output_path)
+		return move_error
+	if had_original:
+		DirAccess.remove_absolute(backup_path)
+	return OK
+
+func _remove_staged_video(path: String) -> void:
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
 
 func _cleanup_frame_directory(frame_dir: String) -> void:
 	var directory := DirAccess.open(frame_dir)
